@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -15,12 +16,20 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   onSave,
   loading
 }) => {
+  const { settings } = useAppSettings();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     password: ''
   });
 
+  // Obter duração do teste das configurações do admin
+  const getTrialDuration = () => {
+    if (settings?.trial_duration_days) {
+      return settings.trial_duration_days;
+    }
+    return 30; // Fallback padrão
+  };
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -235,7 +244,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             {/* Aviso */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 text-sm">
-                <strong>Importante:</strong> O treinador receberá automaticamente um período de teste de 30 dias. 
+                <strong>Importante:</strong> O treinador receberá automaticamente um período de teste de {getTrialDuration()} dias. 
                 Certifique-se de compartilhar as credenciais de acesso com segurança.
               </p>
             </div>

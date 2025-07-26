@@ -2,8 +2,19 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, FileText, Shield, Users, CreditCard, Scale, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 const TermsOfServicePage: React.FC = () => {
+  const { settings } = useAppSettings();
+
+  // Obter duração do teste das configurações do admin
+  const getTrialDuration = () => {
+    if (settings?.trial_duration_days) {
+      return settings.trial_duration_days;
+    }
+    return 30; // Fallback padrão
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}
@@ -144,7 +155,7 @@ const TermsOfServicePage: React.FC = () => {
                     A Correria.Pro opera sob modelo de assinatura mensal ou anual. Os detalhes dos planos incluem:
                   </p>
                   <ul className="list-disc list-inside text-slate-700 space-y-2 ml-4">
-                    <li><strong>Período de Teste:</strong> Oferecemos um período de teste gratuito conforme especificado na página de preços</li>
+                    <li><strong>Período de Teste:</strong> Oferecemos um período de teste gratuito de {getTrialDuration()} dias conforme especificado na página de preços</li>
                     <li><strong>Faturamento:</strong> As cobranças são processadas automaticamente no início de cada ciclo</li>
                     <li><strong>Impostos:</strong> Preços podem não incluir impostos aplicáveis conforme sua localização</li>
                     <li><strong>Alterações de Preço:</strong> Notificaremos com 30 dias de antecedência sobre mudanças nos preços</li>

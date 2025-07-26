@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, Loader2, Check, Star } from 'lucide-react';
 import { Plan } from '../../types/database';
 import { useCheckout } from '../../hooks/useCheckout';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -17,7 +18,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { createCheckoutSession, loading } = useCheckout();
   const [selectedGateway, setSelectedGateway] = useState<'stripe' | 'mercadopago' | null>(null);
+  const { settings } = useAppSettings();
 
+  // Obter duração do teste das configurações do admin
+  const getTrialDuration = () => {
+    if (settings?.trial_duration_days) {
+      return settings.trial_duration_days;
+    }
+    return 30; // Fallback padrão
+  };
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -106,7 +115,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
                 <Star className="w-5 h-5 text-green-600" />
                 <p className="text-green-800 text-sm font-medium">
-                  30 dias grátis para testar • Cancele quando quiser
+                  {getTrialDuration()} dias grátis para testar • Cancele quando quiser
                 </p>
               </div>
             </div>

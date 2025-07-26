@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { Plan } from '../types/database';
 import PlanCard from './PlanCard';
 import CheckoutModal from './checkout/CheckoutModal';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const PricingPage: React.FC = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -14,10 +15,19 @@ const PricingPage: React.FC = () => {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const { settings } = useAppSettings();
 
   useEffect(() => {
     fetchActivePlans();
   }, []);
+
+  // Obter duração do teste das configurações do admin
+  const getTrialDuration = () => {
+    if (settings?.trial_duration_days) {
+      return settings.trial_duration_days;
+    }
+    return 30; // Fallback padrão
+  };
 
   const fetchActivePlans = async () => {
     try {
@@ -58,7 +68,7 @@ const PricingPage: React.FC = () => {
     },
     {
       question: "Como funciona o período de teste gratuito?",
-      answer: "Você tem 30 dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada."
+      answer: `Você tem ${getTrialDuration()} dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada.`
     },
     {
       question: "Há suporte técnico incluído?",
@@ -140,7 +150,7 @@ const PricingPage: React.FC = () => {
                   <Zap className="w-5 h-5" />
                 </div>
                 <h3 className="text-xl font-bold text-green-800">
-                  30 Dias Grátis para Testar
+                  {getTrialDuration()} Dias Grátis para Testar
                 </h3>
               </div>
               <p className="text-green-700">
