@@ -99,11 +99,30 @@ export const useSubscriptionStatus = () => {
         .from('profiles')
         .select('full_name, email, role')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('❌ TRIAL DEBUG: Erro ao buscar perfil:', profileError);
         throw profileError;
+      }
+
+      // Se não há perfil, retornar estado padrão sem acesso
+      if (!profileData) {
+        console.log('⚠️ TRIAL DEBUG: Nenhum perfil encontrado para o usuário - definindo acesso como false');
+        setSubscriptionStatus({
+          user_id: user.id,
+          email: user.email || null,
+          full_name: null,
+          role: null,
+          subscription_status: null,
+          current_plan_name: null,
+          plan_id: null,
+          trial_ends_at: null,
+          current_period_end: null,
+          has_access: false
+        });
+        setLoading(false);
+        return;
       }
 
       console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileData);
