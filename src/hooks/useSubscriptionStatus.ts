@@ -29,9 +29,20 @@ export const useSubscriptionStatus = () => {
       setLoading(false);
       return;
     }
-    if (appSettingsLoading) return; // Wait for app settings to load
+    
+    // CRÍTICO: Aguardar configurações carregarem antes de prosseguir
+    if (appSettingsLoading) {
+      console.log('🔄 SUBSCRIPTION STATUS: Aguardando configurações do app carregarem...');
+      return;
+    }
+    
+    if (!appSettings) {
+      console.log('⚠️ SUBSCRIPTION STATUS: Configurações não disponíveis ainda');
+      return;
+    }
+    
     fetchSubscriptionStatus();
-  }, [user]);
+  }, [user, appSettings, appSettingsLoading]);
 
   const fetchSubscriptionStatus = async () => {
     try {
@@ -60,14 +71,23 @@ export const useSubscriptionStatus = () => {
         return;
       }
 
-      if (!appSettings) { // Should be loaded by useAppSettings hook
-        throw new Error('Configurações da aplicação não carregadas.');
+      // VALIDAÇÃO CRÍTICA: Verificar se as configurações estão disponíveis
+      if (!appSettings) {
+        console.error('❌ SUBSCRIPTION STATUS: Configurações da aplicação não carregadas');
+        throw new Error('Configurações da aplicação não carregadas. Tente recarregar a página.');
       }
 
       // USAR SEMPRE os valores do Painel Admin (NUNCA valores padrão hardcoded)
       const trialDurationDays = appSettings.trial_duration_days;
       const trialAthleteLimit = appSettings.trial_athlete_limit;
       const trialTrainingLimit = appSettings.trial_training_limit;
+
+      console.log('✅ SUBSCRIPTION STATUS: Usando configurações do Painel Admin:', {
+        trial_duration_days: trialDurationDays,
+        trial_athlete_limit: trialAthleteLimit,
+        trial_training_limit: trialTrainingLimit,
+        fonte: 'useAppSettings hook (fonte única da verdade)'
+      });
 
       // 1. BUSCAR PERFIL DO USUÁRIO
       console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
@@ -143,20 +163,22 @@ export const useSubscriptionStatus = () => {
         
         // Se não há assinatura, criar uma de trial automaticamente
         if (!subscriptionData) {
-          console.log('🔧 TRIAL DEBUG: Criando assinatura de trial automaticamente...');
+          console.log('🔧 TRIAL DEBUG: Criando assinatura de trial automaticamente com duração de', trialDurationDays, 'dias...');
           
           const trialEndsAt = new Date();
           trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
           
           const { data: newSubscription, error: createSubError } = await supabase
             .from('subscriptions')
-            .insert({
+            .upsert({
               user_id: user.id,
               plan_id: null,
               status: 'trialing',
               trial_ends_at: trialEndsAt.toISOString(),
               current_period_start: new Date().toISOString(),
               current_period_end: trialEndsAt.toISOString()
+            }, {
+              onConflict: 'user_id'
             })
             .select()
             .single();
@@ -164,7 +186,7 @@ export const useSubscriptionStatus = () => {
           if (createSubError) {
             console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
           } else {
-            console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente');
+            console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente com', trialDurationDays, 'dias');
             
             // Usar a nova assinatura
             const finalStatus: SubscriptionStatus = {
@@ -222,7 +244,7 @@ export const useSubscriptionStatus = () => {
       
       // Se não há assinatura, criar uma de trial automaticamente
       if (!subscriptionData) {
-        console.log('🔧 TRIAL DEBUG: Nenhuma assinatura encontrada, criando trial automaticamente...');
+        console.log('🔧 TRIAL DEBUG: Nenhuma assinatura encontrada, criando trial automaticamente com duração de', trialDurationDays, 'dias...');
         
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
@@ -238,8 +260,6 @@ export const useSubscriptionStatus = () => {
             current_period_end: trialEndsAt.toISOString()
           }, {
             onConflict: 'user_id'
-          }, {
-            onConflict: 'user_id'
           })
           .select()
           .single();
@@ -248,7 +268,7 @@ export const useSubscriptionStatus = () => {
           console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
           // Continuar sem trial se falhar
         } else {
-          console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente');
+          console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente com', trialDurationDays, 'dias');
           
           // Usar a nova assinatura
           const finalStatus: SubscriptionStatus = {
