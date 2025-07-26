@@ -11,7 +11,6 @@ const SignupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { settings } = useAppSettings();
   
   const [formData, setFormData] = useState({
     email: '',
