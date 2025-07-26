@@ -39,7 +39,7 @@ const navigationItems = [
 const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
   const { user, signOut, loading } = useAuthContext();
   const { profile, fetchProfile, loading: profileLoading } = useUserStore();
-  const { status, days_left, hours_left } = useSubscriptionStatus();
+  const { isTrialing, daysUntilTrialEnd } = useSubscriptionStatus();
   const { 
     notifications, 
     unreadCount, 
@@ -266,18 +266,15 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           {/* Trial Counter */}
           <div className="flex-1"></div>
 
-          {/* Trial Counter - RENDERIZAÇÃO CONDICIONAL ESTRITA */}
-          {status === 'trial' && days_left !== null && days_left > 0 && (
+          {/* Trial Counter - POSICIONAMENTO CORRETO */}
+          {isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 animate-pulse mr-4"
             >
               <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span>
-                Trial: {days_left} {days_left === 1 ? 'dia' : 'dias'}
-                {hours_left !== null && days_left <= 1 && ` (${hours_left}h)`}
-              </span>
+              <span>Trial: {daysUntilTrialEnd} {daysUntilTrialEnd === 1 ? 'dia' : 'dias'}</span>
             </motion.div>
           )}
 

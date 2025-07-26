@@ -7,6 +7,7 @@ import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import { useTrainings } from '../../hooks/useTrainings';
 import { useRunners } from '../../hooks/useRunners';
 import { useFeedbackCompletionRate } from '../../hooks/useFeedbackCompletionRate';
+import SubscriptionGuard from '../ui/SubscriptionGuard';
 import EmptyState from '../ui/EmptyState';
 import WorkoutViewModal from '../training/WorkoutViewModal';
 import Skeleton from '../ui/Skeleton';
@@ -14,7 +15,7 @@ import Skeleton from '../ui/Skeleton';
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const { status, days_left, subscription_data } = useSubscriptionStatus();
+  const { isTrialing, daysUntilTrialEnd } = useSubscriptionStatus();
   const { trainings, draftTrainings, finalizedTrainings, loading } = useTrainings();
   const { runners } = useRunners();
   const { 
@@ -35,40 +36,6 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="h-full bg-slate-50">
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 h-full">
-      
-      {/* Acesso Restrito Card - RENDERIZAÇÃO CONDICIONAL ESTRITA */}
-      {status === 'restricted' && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8"
-        >
-          <div className="flex items-center gap-4">
-            <div className="bg-red-100 p-3 rounded-full">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-red-900 mb-2">
-                Acesso Restrito
-              </h3>
-              <p className="text-red-700 mb-4">
-                {subscription_data?.subscription_status === 'trialing' 
-                  ? 'Seu período de teste expirou. Assine um plano para continuar usando a plataforma.'
-                  : 'Você precisa de uma assinatura ativa para acessar os recursos da plataforma.'
-                }
-              </p>
-              <button
-                onClick={() => navigate('/pricing')}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300"
-              >
-                Ver Planos e Fazer Upgrade
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-      
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -89,15 +56,10 @@ const DashboardPage: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate('/dashboard/generate-training')}
-          disabled={status === 'restricted'}
-          className={`mt-4 lg:mt-0 px-8 py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 flex items-center gap-2 text-lg whitespace-nowrap ${
-            status === 'restricted'
-              ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-              : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-xl'
-          }`}
+          className="mt-4 lg:mt-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 text-lg whitespace-nowrap"
         >
           <Plus className="w-5 h-5" />
-          {status === 'restricted' ? 'Acesso Restrito' : '+ Novo Treino'}
+          + Novo Treino
         </motion.button>
       </motion.div>
 
@@ -241,15 +203,10 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => navigate(`/dashboard/training/${training.id}/edit`)}
-                    disabled={status === 'restricted'}
-                    className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
-                      status === 'restricted'
-                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
+                    className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center gap-2 whitespace-nowrap"
                   >
                     <FileText className="w-4 h-4" />
-                    {status === 'restricted' ? 'Acesso Restrito' : 'Continuar Editando'}
+                    Continuar Editando
                   </button>
                 </motion.div>
               ))}
@@ -310,15 +267,10 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handleViewTraining(training)}
-                    disabled={status === 'restricted'}
-                    className={`px-6 py-3 rounded-lg font-medium transition-transform duration-300 flex items-center gap-2 whitespace-nowrap ${
-                      status === 'restricted'
-                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105'
-                    }`}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:scale-105 transition-transform duration-300 flex items-center gap-2 whitespace-nowrap"
                   >
                     <Eye className="w-4 h-4" />
-                    {status === 'restricted' ? 'Acesso Restrito' : 'Ver e Compartilhar'}
+                    Ver e Compartilhar
                   </button>
                 </motion.div>
               ))}
