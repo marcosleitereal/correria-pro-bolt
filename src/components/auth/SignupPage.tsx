@@ -21,7 +21,14 @@ const SignupPage: React.FC = () => {
 
   const { signUp } = useAuthContext();
   const navigate = useNavigate();
-  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
+  const { settings, loading: appSettingsLoading, getTrialDuration } = useAppSettings();
+
+  // DEBUG: Logs para rastrear o problema da duração do teste
+  console.log('🔵 SIGNUP DEBUG: Render da SignupPage');
+  console.log('🔵 SIGNUP DEBUG: appSettingsLoading:', appSettingsLoading);
+  console.log('🔵 SIGNUP DEBUG: settings:', settings);
+  console.log('🔵 SIGNUP DEBUG: getTrialDuration():', getTrialDuration());
+  console.log('🔵 SIGNUP DEBUG: settings?.trial_duration_days:', settings?.trial_duration_days);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

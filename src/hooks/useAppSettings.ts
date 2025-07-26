@@ -20,12 +20,11 @@ export const useAppSettings = () => {
 
   const fetchSettings = useCallback(async (forceFresh = false) => {
     try {
-      setLoading(true);
-      setError(null);
-
       console.log('🔍 AUDITORIA: Iniciando busca das configurações da aplicação no Supabase...');
       console.log('🔍 AUDITORIA: Timestamp da busca:', new Date().toISOString());
       console.log('🔍 AUDITORIA: Force refresh solicitado:', forceFresh);
+      setLoading(true);
+      setError(null);
 
       // Verificar se o Supabase está configurado
       if (!supabase || typeof supabase.from !== 'function') {
@@ -108,6 +107,21 @@ export const useAppSettings = () => {
       console.log('🏁 AUDITORIA: Busca de configurações finalizada');
     }
   }, []);
+
+  const getTrialDuration = (): number => {
+    console.log('🎯 DEBUG TRIAL: getTrialDuration() chamado');
+    console.log('🎯 DEBUG TRIAL: Estado atual do settings:', settings);
+    console.log('🎯 DEBUG TRIAL: loading:', loading);
+    
+    if (settings?.trial_duration_days) {
+      console.log('✅ DEBUG TRIAL: Retornando valor do banco:', settings.trial_duration_days);
+      return settings.trial_duration_days;
+    }
+    
+    console.warn('⚠️ DEBUG TRIAL: settings.trial_duration_days não disponível, retornando fallback 30');
+    console.log('🔍 DEBUG TRIAL: Motivo do fallback - settings:', !!settings, 'trial_duration_days:', settings?.trial_duration_days);
+    return 30;
+  };
 
   const updateSettings = async (settingsData: Partial<AppSettings>): Promise<boolean> => {
     if (!user) {
