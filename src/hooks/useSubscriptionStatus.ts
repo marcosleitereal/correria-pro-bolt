@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useUserStore } from '../stores/userStore';
 
 interface SubscriptionStatus {
   user_id: string;
@@ -35,6 +36,7 @@ export const useSubscriptionStatus = (): GuardStatus => {
   });
 
   const { user } = useAuthContext();
+  const { profile, loading: profileLoading } = useUserStore();
 
   useEffect(() => {
     if (!user) {
@@ -50,8 +52,14 @@ export const useSubscriptionStatus = (): GuardStatus => {
       return;
     }
 
+    // Aguardar o perfil ser carregado do store
+    if (profileLoading) {
+      console.log('🛡️ GUARD: Aguardando carregamento do perfil...');
+      return;
+    }
+
     fetchAndCalculateStatus();
-  }, [user]);
+  }, [user, profile, profileLoading]);
 
   const fetchAndCalculateStatus = async () => {
     try {
@@ -83,28 +91,9 @@ export const useSubscriptionStatus = (): GuardStatus => {
         return;
       }
 
-      // ETAPA 1: BUSCAR PERFIL DO USUÁRIO
-      console.log('📊 GUARD: Buscando perfil do usuário...');
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name, email, role')
-        .eq('id', user?.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('❌ GUARD: Erro ao buscar perfil:', profileError);
-        setGuardStatus({
-          status: 'restricted',
-          days_left: 0,
-          hours_left: 0,
-          subscription_data: null,
-          loading: false,
-          error: `Erro ao buscar perfil: ${profileError.message}`,
-        });
-        return;
-      }
-
-      if (!profileData) {
+      // ETAPA 1: VERIFICAR PERFIL DO STORE
+      console.log('📊 GUARD: Verificando perfil do store...');
+      if (!profile) {
         console.error('❌ GUARD: Perfil não encontrado para usuário:', user?.id);
         setGuardStatus({
           status: 'restricted',
@@ -117,10 +106,10 @@ export const useSubscriptionStatus = (): GuardStatus => {
         return;
       }
 
-      console.log('✅ GUARD: Perfil encontrado:', profileData);
+      console.log('✅ GUARD: Perfil encontrado:', profile);
 
       // VERIFICAÇÃO DE ADMIN (PRIMEIRA PRIORIDADE)
-      if (profileData.role === 'admin') {
+      if (profile.role === 'admin') {
         console.log('👑 GUARD: Usuário é admin - acesso total liberado');
         setGuardStatus({
           status: 'admin',
@@ -128,8 +117,8 @@ export const useSubscriptionStatus = (): GuardStatus => {
           hours_left: null,
           subscription_data: {
             user_id: user.id,
-            email: profileData.email,
-            full_name: profileData.full_name,
+            email: profile.email,
+            full_name: profile.full_name,
             role: 'admin',
             subscription_status: 'active',
             current_plan_name: 'Administrador',
@@ -178,9 +167,9 @@ export const useSubscriptionStatus = (): GuardStatus => {
       // MONTAR OBJETO DE DADOS DA ASSINATURA
       const subscriptionStatusData: SubscriptionStatus = {
         user_id: user.id,
-        email: profileData.email,
-        full_name: profileData.full_name,
-        role: profileData.role,
+        email: profile.email,
+        full_name: profile.full_name,
+        role: profile.role,
         subscription_status: subscriptionData?.status || null,
         current_plan_name: planName,
         plan_id: subscriptionData?.plan_id || null,
