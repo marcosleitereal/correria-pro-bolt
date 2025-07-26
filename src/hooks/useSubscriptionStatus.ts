@@ -89,7 +89,7 @@ export const useSubscriptionStatus = (): GuardStatus => {
         .from('profiles')
         .select('full_name, email, role')
         .eq('id', user?.id)
-        .maybeSingle();
+        .single();
 
       if (profileError) {
         console.error('❌ GUARD: Erro ao buscar perfil:', profileError);
@@ -97,27 +97,8 @@ export const useSubscriptionStatus = (): GuardStatus => {
       }
 
       if (!profileData) {
-        console.log('⚠️ GUARD: Perfil não encontrado - criando dados básicos do usuário:', user?.id);
-        setGuardStatus({
-          status: 'restricted',
-          days_left: 0,
-          hours_left: 0,
-          subscription_data: {
-            user_id: user.id,
-            email: user.email || null,
-            full_name: null,
-            role: null,
-            subscription_status: null,
-            current_plan_name: null,
-            plan_id: null,
-            trial_ends_at: null,
-            current_period_end: null,
-            has_access: false
-          },
-          loading: false,
-          error: null,
-        });
-        return;
+        console.error('❌ GUARD: Perfil não encontrado para usuário:', user?.id);
+        throw new Error('Perfil do usuário não encontrado');
       }
 
       console.log('✅ GUARD: Perfil encontrado:', profileData);

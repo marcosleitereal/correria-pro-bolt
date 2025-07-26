@@ -420,7 +420,6 @@ const RunnersPage: React.FC = () => {
                     className={`w-full px-4 py-2 rounded-lg font-medium transition-transform duration-300 flex items-center justify-center gap-2 ${
                       status === 'restricted'
                         ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                       :
                       hasUnreadFeedback(runner.id)
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white animate-pulse'
                         : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105'

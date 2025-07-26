@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Calendar, TrendingUp, Clock, Target, Share2, FileText, Eye, AlertTriangle } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Clock, Target, Share2, FileText, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../hooks/useProfile';
 import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
