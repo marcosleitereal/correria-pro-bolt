@@ -88,6 +88,35 @@ export const useUserStore = create<UserStore>((set, get) => ({
       // Se não encontrou perfil, retorna null sem erro
       if (!data) {
         console.log('⚠️ Nenhum perfil encontrado para o usuário:', userId);
+        console.log('🔧 userStore: Tentando criar perfil automaticamente...');
+        
+        // Buscar dados do usuário autenticado para criar perfil
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        
+        if (!authError && authUser && authUser.id === userId) {
+          // Criar perfil automaticamente
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              full_name: authUser.user_metadata?.full_name || null,
+              email: authUser.email,
+              role: 'coach'
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('❌ userStore: Erro ao criar perfil automaticamente:', createError);
+            set({ profile: null, loading: false });
+            return;
+          }
+          
+          console.log('✅ userStore: Perfil criado automaticamente:', newProfile);
+          set({ profile: newProfile, loading: false });
+          return;
+        }
+        
         set({ profile: null, loading: false });
         return;
       }

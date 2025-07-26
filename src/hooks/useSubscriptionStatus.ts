@@ -109,11 +109,111 @@ export const useSubscriptionStatus = () => {
       // Se não há perfil, retornar estado padrão sem acesso
       if (!profileData) {
         console.log('⚠️ TRIAL DEBUG: Nenhum perfil encontrado para o usuário - definindo acesso como false');
+        console.log('🔧 TRIAL DEBUG: Tentando criar perfil automaticamente...');
+        
+        // Tentar criar perfil automaticamente
+        const { data: newProfile, error: createProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || null,
+            email: user.email,
+            role: 'coach'
+          })
+          .select('full_name, email, role')
+          .single();
+        
+        if (createProfileError) {
+          console.error('❌ TRIAL DEBUG: Erro ao criar perfil automaticamente:', createProfileError);
+          setSubscriptionStatus({
+            user_id: user.id,
+            email: user.email || null,
+            full_name: null,
+            role: null,
+            subscription_status: null,
+            current_plan_name: null,
+            plan_id: null,
+            trial_ends_at: null,
+            current_period_end: null,
+            has_access: false
+          });
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ TRIAL DEBUG: Perfil criado automaticamente, usando dados do novo perfil');
+        // Usar dados do perfil recém-criado
+        const profileToUse = newProfile;
+        
+        // Continuar com a lógica usando o novo perfil
+        console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileToUse);
+        
+        // 2. BUSCAR ASSINATURA DO USUÁRIO
+        console.log('📊 TRIAL DEBUG: Buscando assinatura do usuário...');
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        if (subscriptionError) {
+          console.error('❌ TRIAL DEBUG: Erro ao buscar assinatura:', subscriptionError);
+          throw subscriptionError;
+        }
+        
+        console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
+        
+        // Se não há assinatura, criar uma de trial automaticamente
+        if (!subscriptionData) {
+          console.log('🔧 TRIAL DEBUG: Criando assinatura de trial automaticamente...');
+          
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
+          
+          const { data: newSubscription, error: createSubError } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: user.id,
+              plan_id: null,
+              status: 'trialing',
+              trial_ends_at: trialEndsAt.toISOString(),
+              current_period_start: new Date().toISOString(),
+              current_period_end: trialEndsAt.toISOString()
+            })
+            .select()
+            .single();
+          
+          if (createSubError) {
+            console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
+          } else {
+            console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente');
+            
+            // Usar a nova assinatura
+            const finalStatus: SubscriptionStatus = {
+              user_id: user.id,
+              email: profileToUse.email,
+              full_name: profileToUse.full_name,
+              role: profileToUse.role,
+              subscription_status: 'trialing',
+              current_plan_name: null,
+              plan_id: null,
+              trial_ends_at: trialEndsAt.toISOString(),
+              current_period_end: trialEndsAt.toISOString(),
+              has_access: true
+            };
+            
+            console.log('✅ TRIAL DEBUG: Status final com trial automático:', finalStatus);
+            setSubscriptionStatus(finalStatus);
+            setLoading(false);
+            return;
+          }
+        }
+        
         setSubscriptionStatus({
           user_id: user.id,
           email: user.email || null,
-          full_name: null,
-          role: null,
+          full_name: profileToUse.full_name,
+          role: profileToUse.role,
           subscription_status: null,
           current_plan_name: null,
           plan_id: null,
@@ -141,6 +241,53 @@ export const useSubscriptionStatus = () => {
       }
 
       console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
+      
+      // Se não há assinatura, criar uma de trial automaticamente
+      if (!subscriptionData) {
+        console.log('🔧 TRIAL DEBUG: Nenhuma assinatura encontrada, criando trial automaticamente...');
+        
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
+        
+        const { data: newSubscription, error: createSubError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            plan_id: null,
+            status: 'trialing',
+            trial_ends_at: trialEndsAt.toISOString(),
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEndsAt.toISOString()
+          })
+          .select()
+          .single();
+        
+        if (createSubError) {
+          console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
+          // Continuar sem trial se falhar
+        } else {
+          console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente');
+          
+          // Usar a nova assinatura
+          const finalStatus: SubscriptionStatus = {
+            user_id: user.id,
+            email: profileData.email,
+            full_name: profileData.full_name,
+            role: profileData.role,
+            subscription_status: 'trialing',
+            current_plan_name: null,
+            plan_id: null,
+            trial_ends_at: trialEndsAt.toISOString(),
+            current_period_end: trialEndsAt.toISOString(),
+            has_access: true
+          };
+          
+          console.log('✅ TRIAL DEBUG: Status final com trial automático:', finalStatus);
+          setSubscriptionStatus(finalStatus);
+          setLoading(false);
+          return;
+        }
+      }
 
       // 3. BUSCAR NOME DO PLANO SE HOUVER
       let planName = null;

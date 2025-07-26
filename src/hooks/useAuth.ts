@@ -52,6 +52,8 @@ export const useAuth = () => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    console.log('🚀 AUTH: Iniciando processo de cadastro para:', email);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -62,6 +64,8 @@ export const useAuth = () => {
       },
     });
 
+    console.log('📊 AUTH: Resposta do Supabase signUp:', { data, error });
+    
     // Tratar erro específico de usuário já existente
     if (error && error.message === 'User already registered') {
       return { 
@@ -71,6 +75,42 @@ export const useAuth = () => {
           message: 'Este email já está cadastrado. Faça login ou use outro email.' 
         } 
       };
+    }
+
+    // Se o cadastro foi bem-sucedido, aguardar um momento para o trigger processar
+    if (data.user && !error) {
+      console.log('✅ AUTH: Usuário criado com sucesso, aguardando processamento do trigger...');
+      // Aguardar 2 segundos para o trigger handle_new_user processar
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Verificar se o perfil foi criado
+      const { data: profileCheck, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      
+      console.log('🔍 AUTH: Verificação de perfil criado:', { profileCheck, profileError });
+      
+      if (!profileCheck && !profileError) {
+        console.log('⚠️ AUTH: Perfil não foi criado pelo trigger, criando manualmente...');
+        
+        // Criar perfil manualmente se o trigger falhou
+        const { error: manualProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            full_name: fullName,
+            email: email,
+            role: 'coach'
+          });
+        
+        if (manualProfileError) {
+          console.error('❌ AUTH: Erro ao criar perfil manualmente:', manualProfileError);
+        } else {
+          console.log('✅ AUTH: Perfil criado manualmente com sucesso');
+        }
+      }
     }
 
     return { data, error };

@@ -81,6 +81,16 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
       fetchProfile(user.id);
     }
     
+    // Se o usuário está autenticado mas não tem perfil após 5 segundos, tentar recarregar
+    if (user && !profile && !profileLoading) {
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ PrivateLayout: Timeout atingido, tentando recarregar perfil...');
+        fetchProfile(user.id);
+      }, 5000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+    
     // Verificar se o usuário ainda existe no sistema
     if (user && profile) {
       const checkUserExists = async () => {

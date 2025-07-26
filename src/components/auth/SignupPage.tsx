@@ -30,7 +30,12 @@ const SignupPage: React.FC = () => {
       const { error } = await signUp(formData.email, formData.password, formData.fullName);
       if (error) throw error;
       setSuccess('Conta criada com sucesso! Seu período de teste gratuito foi ativado automaticamente.');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      
+      // Aguardar mais tempo para garantir que o perfil seja criado
+      setTimeout(() => {
+        console.log('🔄 SignupPage: Redirecionando para dashboard após cadastro...');
+        navigate('/dashboard');
+      }, 3000);
     } catch (err: any) {
       let errorMessage = 'Ocorreu um erro. Tente novamente.';
       

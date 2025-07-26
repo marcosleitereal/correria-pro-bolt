@@ -25,7 +25,12 @@ const LoginPage: React.FC = () => {
     try {
       const { error } = await signIn(formData.email, formData.password);
       if (error) throw error;
-      navigate('/dashboard');
+      
+      // Aguardar um momento para garantir que o perfil seja carregado
+      setTimeout(() => {
+        console.log('🔄 LoginPage: Redirecionando para dashboard após login...');
+        navigate('/dashboard');
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro. Tente novamente.');
     } finally {

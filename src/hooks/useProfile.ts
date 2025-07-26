@@ -87,6 +87,29 @@ export const useProfile = () => {
       // Se não encontrou perfil, define como null sem erro
       if (!data) {
         console.log('⚠️ useProfile: Nenhum perfil encontrado para o usuário:', user.id);
+        console.log('🔧 useProfile: Tentando criar perfil automaticamente...');
+        
+        // Tentar criar perfil automaticamente para usuários sem perfil
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || null,
+            email: user.email,
+            role: 'coach'
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('❌ useProfile: Erro ao criar perfil automaticamente:', createError);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ useProfile: Perfil criado automaticamente:', newProfile);
+        setProfile(newProfile);
         setProfile(null);
         setLoading(false);
         return;
