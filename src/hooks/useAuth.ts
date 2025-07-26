@@ -66,10 +66,10 @@ export const useAuth = () => {
     if (error && error.message === 'User already registered') {
       return { 
         data, 
-        error: {
-          message: 'Este email já está cadastrado. Faça login ou use outro email.',
-          code: 'user_already_exists'
-        }
+        error: { 
+          ...error, 
+          message: 'Este email já está cadastrado. Faça login ou use outro email.' 
+        } 
       };
     }
 
