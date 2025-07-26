@@ -65,7 +65,7 @@ export const useSubscriptionStatus = () => {
         .gte('updated_at', '1970-01-01T00:00:00.000Z') // Cache-busting forçado
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (settingsError) {
         console.error('❌ ERRO CRÍTICO ao buscar configurações do Painel Admin:', settingsError);
@@ -99,7 +99,7 @@ export const useSubscriptionStatus = () => {
         .from('profiles')
         .select('full_name, email, role')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('❌ TRIAL DEBUG: Erro ao buscar perfil:', profileError);
@@ -169,9 +169,9 @@ export const useSubscriptionStatus = () => {
       // 5. MONTAR OBJETO FINAL
       const finalStatus: SubscriptionStatus = {
         user_id: user.id,
-        email: profileData.email,
-        full_name: profileData.full_name,
-        role: profileData.role,
+        email: profileData?.email || null,
+        full_name: profileData?.full_name || null,
+        role: profileData?.role || null,
         subscription_status: subscriptionData?.status || null,
         current_plan_name: planName,
         plan_id: subscriptionData?.plan_id || null,
