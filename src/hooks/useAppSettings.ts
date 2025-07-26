@@ -209,5 +209,11 @@ export const useAppSettings = () => {
     updateSettings,
     refetch: refreshSettings,
     refreshSettings, // Função adicional para refresh explícito
+    getTrialDuration: () => {
+      if (settings?.trial_duration_days) {
+        return settings.trial_duration_days;
+      }
+      return 30; // Fallback apenas se configurações não carregaram
+    },
   };
 };

@@ -15,19 +15,11 @@ const PricingPage: React.FC = () => {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
-  const { settings } = useAppSettings();
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
   useEffect(() => {
     fetchActivePlans();
   }, []);
-
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
 
   const fetchActivePlans = async () => {
     try {
@@ -68,7 +60,9 @@ const PricingPage: React.FC = () => {
     },
     {
       question: "Como funciona o período de teste gratuito?",
-      answer: `Você tem ${getTrialDuration()} dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada.`
+      answer: appSettingsLoading
+        ? 'Carregando informações sobre o período de teste...'
+        : `Você tem ${getTrialDuration()} dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada.`
     },
     {
       question: "Há suporte técnico incluído?",
@@ -150,11 +144,13 @@ const PricingPage: React.FC = () => {
                   <Zap className="w-5 h-5" />
                 </div>
                 <h3 className="text-xl font-bold text-green-800">
-                  {getTrialDuration()} Dias Grátis para Testar
+                  {appSettingsLoading ? 'Carregando...' : `${getTrialDuration()} Dias Grátis para Testar`}
                 </h3>
               </div>
               <p className="text-green-700">
-                Experimente todas as funcionalidades sem compromisso. Não é necessário cartão de crédito.
+                {appSettingsLoading 
+                  ? 'Carregando detalhes...' 
+                  : 'Experimente todas as funcionalidades sem compromisso. Não é necessário cartão de crédito.'}
               </p>
             </motion.div>
           </motion.div>

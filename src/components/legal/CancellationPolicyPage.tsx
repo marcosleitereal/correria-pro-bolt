@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAppSettings } from '../../hooks/useAppSettings';
 
 // ETAPA A: Definir conteúdo em constante separada para evitar erros de escape
-const getCancellationPolicyContent = (trialDays: number) => [
+const getCancellationPolicyContent = (trialDays: number, appSettingsLoading: boolean) => [
   {
     id: 'intro',
     title: 'Introdução',
@@ -53,7 +53,9 @@ const getCancellationPolicyContent = (trialDays: number) => [
       'Reembolso integral: Disponível nos primeiros 7 dias após a primeira cobrança',
       'Problemas técnicos: Reembolso proporcional se nossos serviços estiverem indisponíveis por mais de 48h consecutivas',
       'Cobrança indevida: Reembolso integral em caso de erro de cobrança',
-      `Cancelamento no período de teste: Não há cobrança durante os ${trialDays} dias de teste, portanto não há necessidade de reembolso`,
+      appSettingsLoading 
+        ? 'Cancelamento no período de teste: Carregando informações...' 
+        : `Cancelamento no período de teste: Não há cobrança durante os ${trialDays} dias de teste, portanto não há necessidade de reembolso`,
       'Processamento: Reembolsos são processados em até 5-10 dias úteis'
     ]
   },
@@ -99,17 +101,9 @@ const getCancellationPolicyContent = (trialDays: number) => [
 ];
 
 const CancellationPolicyPage: React.FC = () => {
-  const { settings } = useAppSettings();
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
-
-  const cancellationPolicyContent = getCancellationPolicyContent(getTrialDuration());
+  const cancellationPolicyContent = getCancellationPolicyContent(getTrialDuration(), appSettingsLoading);
 
   return (
     <div className="min-h-screen bg-slate-50">

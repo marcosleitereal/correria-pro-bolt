@@ -21,14 +21,8 @@ const SignupPage: React.FC = () => {
 
   const { signUp } = useAuthContext();
   const navigate = useNavigate();
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -120,7 +114,9 @@ const SignupPage: React.FC = () => {
               Criar Conta Gratuita
             </h2>
             <p className="text-slate-600">
-              Comece seu teste gratuito de {getTrialDuration()} dias
+              {appSettingsLoading 
+                ? 'Carregando...' 
+                : `Comece seu teste gratuito de ${getTrialDuration()} dias`}
             </p>
           </div>
 

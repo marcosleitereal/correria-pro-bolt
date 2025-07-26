@@ -13,7 +13,7 @@ interface PlanCardProps {
 }
 
 const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, onSelect }) => {
-  const { settings } = useAppSettings();
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -22,13 +22,6 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, 
     }).format(price);
   };
 
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
   const getAthleteLimit = (limit: number) => {
     if (limit === -1) return 'Atletas ilimitados';
     return `Até ${limit} atletas ativos`;
@@ -193,9 +186,11 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, 
       </button>
 
       {/* Trial Notice */}
-      <p className="text-center text-xs text-slate-500 mt-4">
-        ✓ {getTrialDuration()} dias grátis • ✓ Sem compromisso • ✓ Cancele quando quiser
-      </p>
+      {!appSettingsLoading && (
+        <p className="text-center text-xs text-slate-500 mt-4">
+          ✓ {getTrialDuration()} dias grátis • ✓ Sem compromisso • ✓ Cancele quando quiser
+        </p>
+      )}
     </motion.div>
   );
 };

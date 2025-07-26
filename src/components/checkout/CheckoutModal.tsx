@@ -18,15 +18,8 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { createCheckoutSession, loading } = useCheckout();
   const [selectedGateway, setSelectedGateway] = useState<'stripe' | 'mercadopago' | null>(null);
-  const { settings } = useAppSettings();
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -112,12 +105,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </p>
               
               {/* Trial Notice */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-                <Star className="w-5 h-5 text-green-600" />
-                <p className="text-green-800 text-sm font-medium">
-                  {getTrialDuration()} dias grátis para testar • Cancele quando quiser
-                </p>
-              </div>
+              {!appSettingsLoading && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-green-600" />
+                  <p className="text-green-800 text-sm font-medium">
+                    {getTrialDuration()} dias grátis para testar • Cancele quando quiser
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

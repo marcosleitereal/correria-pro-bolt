@@ -7,15 +7,7 @@ import { useAppSettings } from '../hooks/useAppSettings';
 
 const CTASection: React.FC = () => {
   const { user } = useAuthContext();
-  const { settings } = useAppSettings();
-
-  // Obter duração do teste das configurações do admin
-  const getTrialDuration = () => {
-    if (settings?.trial_duration_days) {
-      return settings.trial_duration_days;
-    }
-    return 30; // Fallback padrão
-  };
+  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
 
   return (
     <section className="py-20 px-4 bg-gradient-to-r from-blue-500 to-purple-600">
@@ -59,7 +51,9 @@ const CTASection: React.FC = () => {
             </Link>
             
             <p className="text-blue-100 text-sm">
-              ✓ Teste grátis por {getTrialDuration()} dias • ✓ Sem compromisso • ✓ Suporte completo
+              {appSettingsLoading 
+                ? 'Carregando...' 
+                : `✓ Teste grátis por ${getTrialDuration()} dias • ✓ Sem compromisso • ✓ Suporte completo`}
             </p>
           </motion.div>
         </motion.div>
