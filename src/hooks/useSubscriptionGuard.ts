@@ -15,7 +15,7 @@ interface SubscriptionGuard {
 }
 
 export const useSubscriptionGuard = () => {
-  const { subscriptionStatus, isTrialing, isActive, hasAccess, daysUntilTrialEnd } = useSubscriptionStatus();
+  const { status, subscription_data, loading: statusLoading } = useSubscriptionStatus();
   const { runners } = useRunners();
   const { settings: appSettings, loading: settingsLoading } = useAppSettings();
   
@@ -31,42 +31,29 @@ export const useSubscriptionGuard = () => {
   });
 
   useEffect(() => {
-    // AGUARDAR configurações carregarem antes de calcular
-    if (settingsLoading) {
-      console.log('🛡️ GUARD DEBUG: Aguardando configurações do Painel Admin carregarem...');
+    // AGUARDAR tanto status quanto configurações carregarem antes de calcular
+    if (statusLoading || settingsLoading) {
+      console.log('🛡️ GUARD DEBUG: Aguardando dados carregarem...', { statusLoading, settingsLoading });
       return;
     }
 
-    if (!appSettings) {
-      console.error('❌ GUARD DEBUG: Configurações do Painel Admin não encontradas!');
-      console.error('❌ Isso significa que a tabela app_settings está vazia ou não foi configurada');
-      return;
-    }
 
-    console.log('🛡️ GUARD DEBUG: Configurações do Painel Admin carregadas:', {
-      trial_duration_days: appSettings.trial_duration_days,
-      trial_athlete_limit: appSettings.trial_athlete_limit,
-      trial_training_limit: appSettings.trial_training_limit,
-      fonte: 'app_settings via useAppSettings hook'
-    });
 
     calculateGuardStatus();
-  }, [subscriptionStatus, runners, appSettings, settingsLoading]);
+  }, [status, subscription_data, runners, appSettings, statusLoading, settingsLoading]);
 
   const calculateGuardStatus = () => {
     const currentAthleteCount = runners.filter(r => !r.is_archived).length;
     
     console.log('🛡️ GUARD DEBUG: Calculando status de acesso:', {
-      userEmail: subscriptionStatus?.email,
-      isTrialing,
-      daysUntilTrialEnd,
-      hasAccess,
-      isActive,
-      subscription_status: subscriptionStatus?.subscription_status
+      userEmail: subscription_data?.email,
+      status,
+      subscription_status: subscription_data?.subscription_status,
+      has_access: subscription_data?.has_access
     });
 
     // ACESSO TOTAL PARA DEV
-    if (subscriptionStatus?.email === 'dev@sonnik.com.br') {
+    if (subscription_data?.email === 'dev@sonnik.com.br' || status === 'admin') {
       console.log('👑 GUARD DEBUG: Usuário dev - acesso total liberado');
       setGuard({
         canCreateRunner: true,
@@ -81,43 +68,17 @@ export const useSubscriptionGuard = () => {
       return;
     }
 
-    // VERIFICAR SE ESTÁ EM TRIAL VÁLIDO
-    const isValidTrial = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0;
+    // VERIFICAR ACESSO BASEADO NO NOVO STATUS
+    const hasAccess = status === 'admin' || status === 'full_access' || status === 'trial';
     
-    console.log('🎯 GUARD DEBUG: Verificação de trial válido:', {
-      isTrialing,
-      daysUntilTrialEnd,
-      isValidTrial,
-      hasAccess
-    });
-    
-    // LIBERAR ACESSO PARA TRIAL VÁLIDO OU ASSINATURA ATIVA
-    if (isValidTrial || isActive || hasAccess) {
-      console.log('✅ GUARD DEBUG: Acesso liberado:', {
-        isValidTrial,
-        isActive,
-        hasAccess,
-        reason: isValidTrial ? 'Trial válido' : isActive ? 'Assinatura ativa' : 'Has access true',
-        trialSettings: {
-          trial_duration_days: appSettings?.trial_duration_days,
-          trial_athlete_limit: appSettings?.trial_athlete_limit,
-          trial_training_limit: appSettings?.trial_training_limit
-        }
-      });
+    if (hasAccess) {
+      console.log('✅ GUARD DEBUG: Acesso liberado:', { status, hasAccess });
       
-      // CRÍTICO: USAR SEMPRE as configurações do Painel Admin para trial
-      const athleteLimit = isValidTrial && appSettings ? appSettings.trial_athlete_limit : Infinity;
-      
-      console.log('🎯 GUARD: Limite de atletas aplicado (VALORES DO PAINEL ADMIN):', {
-        athleteLimit,
-        isValidTrial,
-        configSource: 'Painel Admin app_settings',
-        configValues: appSettings ? {
-          duration: appSettings.trial_duration_days,
-          athletes: appSettings.trial_athlete_limit,
-          trainings: appSettings.trial_training_limit
-        } : 'Configurações não carregadas'
-      });
+      // Determinar limite de atletas
+      let athleteLimit = Infinity;
+      if (status === 'trial' && appSettings) {
+        athleteLimit = appSettings.trial_athlete_limit;
+      }
       
       setGuard({
         canCreateRunner: true,
@@ -132,35 +93,20 @@ export const useSubscriptionGuard = () => {
       return;
     }
     
-    console.log('❌ GUARD DEBUG: Acesso negado - verificando motivos...');
-    
-    // VERIFICAR SE TRIAL EXPIROU
-    const trialExpired = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0;
-    
-    console.log('🕐 GUARD DEBUG: Trial expirado?', {
-      trialExpired,
-      isTrialing,
-      daysUntilTrialEnd
-    });
+    console.log('❌ GUARD DEBUG: Acesso negado:', { status });
     
     // DETERMINAR MOTIVO DO BLOQUEIO
     let blockingReason: string | null = null;
+    const trialExpired = status === 'restricted' && subscription_data?.subscription_status === 'trialing';
     
     if (trialExpired) {
       blockingReason = 'Seu período de teste expirou. Assine um plano para continuar usando a plataforma.';
-    } else if (!hasAccess && !isTrialing && !isActive) {
+    } else if (status === 'restricted') {
       blockingReason = 'Você não possui acesso ativo à plataforma. Verifique sua assinatura.';
     } else {
       blockingReason = 'Status de acesso não reconhecido. Entre em contato com o suporte.';
     }
 
-    console.log('🎯 GUARD DEBUG: Status final do guard:', {
-      canAccessFeature: false,
-      canCreateRunner: false,
-      canGenerateTraining: false,
-      trialExpired,
-      blockingReason
-    });
 
     setGuard({
       canCreateRunner: false,
