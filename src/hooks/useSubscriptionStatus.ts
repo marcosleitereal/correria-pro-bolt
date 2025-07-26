@@ -15,86 +15,76 @@ interface SubscriptionStatus {
   has_access: boolean | null;
 }
 
-export const useSubscriptionStatus = () => {
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface GuardStatus {
+  status: 'admin' | 'full_access' | 'trial' | 'restricted';
+  days_left: number | null;
+  hours_left: number | null;
+  subscription_data: SubscriptionStatus | null;
+  loading: boolean;
+  error: string | null;
+}
+
+export const useSubscriptionStatus = (): GuardStatus => {
+  const [guardStatus, setGuardStatus] = useState<GuardStatus>({
+    status: 'restricted',
+    days_left: null,
+    hours_left: null,
+    subscription_data: null,
+    loading: true,
+    error: null,
+  });
+
   const { user } = useAuthContext();
 
   useEffect(() => {
     if (!user) {
-      setSubscriptionStatus(null);
-      setLoading(false);
+      console.log('🛡️ GUARD: Usuário não autenticado - status restrito');
+      setGuardStatus({
+        status: 'restricted',
+        days_left: null,
+        hours_left: null,
+        subscription_data: null,
+        loading: false,
+        error: null,
+      });
       return;
     }
 
-    fetchSubscriptionStatus();
+    fetchAndCalculateStatus();
   }, [user]);
 
-  const fetchSubscriptionStatus = async () => {
+  const fetchAndCalculateStatus = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      console.log('🛡️ GUARD: Iniciando verificação de status para usuário:', user?.id);
+      setGuardStatus(prev => ({ ...prev, loading: true, error: null }));
 
-      console.log('🔍 TRIAL DEBUG: Buscando status da assinatura para usuário:', user?.id);
-      console.log('🔍 TRIAL DEBUG: Email do usuário:', user?.email);
-
-      // ACESSO TOTAL PARA DEV
+      // ACESSO TOTAL PARA DEV (BYPASS COMPLETO)
       if (user?.email === 'dev@sonnik.com.br') {
-        console.log('👑 TRIAL DEBUG: Usuário dev detectado - acesso total');
-        setSubscriptionStatus({
-          user_id: user.id,
-          email: user.email || null,
-          full_name: 'Desenvolvedor Admin',
-          role: 'admin',
-          subscription_status: 'active',
-          current_plan_name: 'Elite',
-          plan_id: null,
-          trial_ends_at: null,
-          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          has_access: true
+        console.log('👑 GUARD: Usuário dev detectado - acesso admin total');
+        setGuardStatus({
+          status: 'admin',
+          days_left: null,
+          hours_left: null,
+          subscription_data: {
+            user_id: user.id,
+            email: user.email,
+            full_name: 'Desenvolvedor Admin',
+            role: 'admin',
+            subscription_status: 'active',
+            current_plan_name: 'Elite',
+            plan_id: null,
+            trial_ends_at: null,
+            current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            has_access: true
+          },
+          loading: false,
+          error: null,
         });
-        setLoading(false);
         return;
       }
 
-      // CORREÇÃO CRÍTICA: Buscar configurações SEMPRE da tabela app_settings do Painel Admin
-      const { data: appSettings, error: settingsError } = await supabase
-        .from('app_settings')
-        .select('trial_duration_days, trial_athlete_limit, trial_training_limit, updated_at')
-        .gte('updated_at', '1970-01-01T00:00:00.000Z') // Cache-busting forçado
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (settingsError) {
-        console.error('❌ ERRO CRÍTICO ao buscar configurações do Painel Admin:', settingsError);
-        console.error('❌ Query executada: SELECT trial_duration_days, trial_athlete_limit, trial_training_limit FROM app_settings');
-        throw new Error('ERRO CRÍTICO: Configurações de trial não encontradas no Painel Admin. Verifique se a tabela app_settings possui dados.');
-      }
-
-      if (!appSettings) {
-        console.error('❌ ERRO CRÍTICO: Nenhuma configuração encontrada na tabela app_settings');
-        console.error('❌ Isso significa que a tabela está vazia ou a query não retornou dados');
-        throw new Error('ERRO CRÍTICO: Configurações de trial não configuradas no Painel Admin. Configure primeiro no Admin Dashboard.');
-      }
-
-      // USAR SEMPRE os valores do Painel Admin (NUNCA valores padrão hardcoded)
-      const trialDurationDays = appSettings.trial_duration_days;
-      const trialAthleteLimit = appSettings.trial_athlete_limit;
-      const trialTrainingLimit = appSettings.trial_training_limit;
-
-      console.log('✅ CONFIGURAÇÕES DO PAINEL ADMIN CARREGADAS (VALORES REAIS):', {
-        trial_duration_days: trialDurationDays,
-        trial_athlete_limit: trialAthleteLimit,
-        trial_training_limit: trialTrainingLimit,
-        fonte: 'app_settings (Painel Admin)',
-        updated_at: appSettings.updated_at,
-        timestamp_busca: new Date().toISOString()
-      });
-
-      // 1. BUSCAR PERFIL DO USUÁRIO
-      console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
+      // ETAPA 1: BUSCAR PERFIL DO USUÁRIO
+      console.log('📊 GUARD: Buscando perfil do usuário...');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, email, role')
@@ -102,14 +92,44 @@ export const useSubscriptionStatus = () => {
         .single();
 
       if (profileError) {
-        console.error('❌ TRIAL DEBUG: Erro ao buscar perfil:', profileError);
-        throw profileError;
+        console.error('❌ GUARD: Erro ao buscar perfil:', profileError);
+        throw new Error(`Erro ao buscar perfil: ${profileError.message}`);
       }
 
-      console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileData);
+      if (!profileData) {
+        console.error('❌ GUARD: Perfil não encontrado para usuário:', user?.id);
+        throw new Error('Perfil do usuário não encontrado');
+      }
 
-      // 2. BUSCAR ASSINATURA DO USUÁRIO
-      console.log('📊 TRIAL DEBUG: Buscando assinatura do usuário...');
+      console.log('✅ GUARD: Perfil encontrado:', profileData);
+
+      // VERIFICAÇÃO DE ADMIN (PRIMEIRA PRIORIDADE)
+      if (profileData.role === 'admin') {
+        console.log('👑 GUARD: Usuário é admin - acesso total liberado');
+        setGuardStatus({
+          status: 'admin',
+          days_left: null,
+          hours_left: null,
+          subscription_data: {
+            user_id: user.id,
+            email: profileData.email,
+            full_name: profileData.full_name,
+            role: 'admin',
+            subscription_status: 'active',
+            current_plan_name: 'Administrador',
+            plan_id: null,
+            trial_ends_at: null,
+            current_period_end: null,
+            has_access: true
+          },
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
+      // ETAPA 2: BUSCAR ASSINATURA DO USUÁRIO (APENAS PARA COACHES)
+      console.log('📊 GUARD: Usuário é coach - buscando assinatura...');
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select('*')
@@ -117,16 +137,16 @@ export const useSubscriptionStatus = () => {
         .maybeSingle();
 
       if (subscriptionError) {
-        console.error('❌ TRIAL DEBUG: Erro ao buscar assinatura:', subscriptionError);
-        throw subscriptionError;
+        console.error('❌ GUARD: Erro ao buscar assinatura:', subscriptionError);
+        throw new Error(`Erro ao buscar assinatura: ${subscriptionError.message}`);
       }
 
-      console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
+      console.log('📊 GUARD: Dados da assinatura encontrados:', subscriptionData);
 
-      // 3. BUSCAR NOME DO PLANO SE HOUVER
+      // ETAPA 3: BUSCAR NOME DO PLANO SE HOUVER
       let planName = null;
       if (subscriptionData?.plan_id) {
-        console.log('📊 TRIAL DEBUG: Buscando nome do plano:', subscriptionData.plan_id);
+        console.log('📊 GUARD: Buscando nome do plano:', subscriptionData.plan_id);
         const { data: planData, error: planError } = await supabase
           .from('plans')
           .select('name')
@@ -135,39 +155,12 @@ export const useSubscriptionStatus = () => {
 
         if (!planError && planData) {
           planName = planData.name;
-          console.log('✅ TRIAL DEBUG: Nome do plano encontrado:', planName);
+          console.log('✅ GUARD: Nome do plano encontrado:', planName);
         }
       }
 
-      // 4. CALCULAR HAS_ACCESS
-      let hasAccess = false;
-      let calculationDetails = '';
-
-      if (subscriptionData) {
-        if (subscriptionData.status === 'active') {
-          hasAccess = true;
-          calculationDetails = 'Status ativo';
-        } else if (subscriptionData.status === 'trialing' && subscriptionData.trial_ends_at) {
-          const trialEndDate = new Date(subscriptionData.trial_ends_at);
-          const now = new Date();
-          hasAccess = now < trialEndDate;
-          calculationDetails = `Trial: ${hasAccess ? 'VÁLIDO' : 'EXPIRADO'} - Termina em: ${trialEndDate.toLocaleString('pt-BR')} - Agora: ${now.toLocaleString('pt-BR')}`;
-        } else {
-          calculationDetails = 'Sem status válido ou trial_ends_at ausente';
-        }
-      } else {
-        calculationDetails = 'Nenhuma assinatura encontrada';
-      }
-
-      console.log('🎯 TRIAL DEBUG: Cálculo de acesso:', {
-        status: subscriptionData?.status,
-        trial_ends_at: subscriptionData?.trial_ends_at,
-        has_access: hasAccess,
-        details: calculationDetails
-      });
-
-      // 5. MONTAR OBJETO FINAL
-      const finalStatus: SubscriptionStatus = {
+      // MONTAR OBJETO DE DADOS DA ASSINATURA
+      const subscriptionStatusData: SubscriptionStatus = {
         user_id: user.id,
         email: profileData.email,
         full_name: profileData.full_name,
@@ -177,46 +170,134 @@ export const useSubscriptionStatus = () => {
         plan_id: subscriptionData?.plan_id || null,
         trial_ends_at: subscriptionData?.trial_ends_at || null,
         current_period_end: subscriptionData?.current_period_end || null,
-        has_access: hasAccess
+        has_access: false // Será calculado abaixo
       };
 
-      console.log('✅ TRIAL DEBUG: Status final calculado:', finalStatus);
-      setSubscriptionStatus(finalStatus);
+      // ETAPA 4: APLICAR LÓGICA ESTRITA DO GUARDA
+      console.log('🎯 GUARD: Aplicando lógica estrita de acesso...');
+
+      if (!subscriptionData) {
+        console.log('❌ GUARD: Nenhuma assinatura encontrada - acesso restrito');
+        setGuardStatus({
+          status: 'restricted',
+          days_left: 0,
+          hours_left: 0,
+          subscription_data: { ...subscriptionStatusData, has_access: false },
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
+      // VERIFICAR ASSINATURA ATIVA
+      if (subscriptionData.status === 'active') {
+        console.log('✅ GUARD: Assinatura ativa - acesso total liberado');
+        setGuardStatus({
+          status: 'full_access',
+          days_left: null,
+          hours_left: null,
+          subscription_data: { ...subscriptionStatusData, has_access: true },
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
+      // VERIFICAR TRIAL VÁLIDO
+      if (subscriptionData.status === 'trialing' && subscriptionData.trial_ends_at) {
+        const trialEndDate = new Date(subscriptionData.trial_ends_at);
+        const now = new Date();
+        const timeLeft = trialEndDate.getTime() - now.getTime();
+
+        console.log('🕐 GUARD: Verificando trial:', {
+          trial_ends_at: subscriptionData.trial_ends_at,
+          trial_end_date: trialEndDate.toLocaleString('pt-BR'),
+          now: now.toLocaleString('pt-BR'),
+          time_left_ms: timeLeft
+        });
+
+        if (timeLeft > 0) {
+          const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+          const hoursLeft = Math.ceil(timeLeft / (1000 * 60 * 60));
+
+          console.log('✅ GUARD: Trial válido - acesso liberado:', {
+            days_left: daysLeft,
+            hours_left: hoursLeft
+          });
+
+          setGuardStatus({
+            status: 'trial',
+            days_left: daysLeft,
+            hours_left: hoursLeft,
+            subscription_data: { ...subscriptionStatusData, has_access: true },
+            loading: false,
+            error: null,
+          });
+          return;
+        } else {
+          console.log('❌ GUARD: Trial expirado - acesso restrito');
+          setGuardStatus({
+            status: 'restricted',
+            days_left: 0,
+            hours_left: 0,
+            subscription_data: { ...subscriptionStatusData, has_access: false },
+            loading: false,
+            error: null,
+          });
+          return;
+        }
+      }
+
+      // TODOS OS OUTROS CASOS = ACESSO RESTRITO
+      console.log('❌ GUARD: Status não reconhecido ou inválido - acesso restrito');
+      setGuardStatus({
+        status: 'restricted',
+        days_left: 0,
+        hours_left: 0,
+        subscription_data: { ...subscriptionStatusData, has_access: false },
+        loading: false,
+        error: null,
+      });
+
     } catch (err: any) {
-      console.error('❌ TRIAL DEBUG: Erro geral:', err);
-      setError(err.message || 'Erro ao carregar status da assinatura');
-    } finally {
-      setLoading(false);
+      console.error('❌ GUARD: Erro geral na verificação de status:', err);
+      setGuardStatus({
+        status: 'restricted',
+        days_left: 0,
+        hours_left: 0,
+        subscription_data: null,
+        loading: false,
+        error: err.message || 'Erro ao verificar status da assinatura',
+      });
     }
   };
 
-  const isTrialing = subscriptionStatus?.subscription_status === 'trialing';
-  const isActive = subscriptionStatus?.subscription_status === 'active';
-  const isCanceled = subscriptionStatus?.subscription_status === 'canceled';
-  const hasAccess = subscriptionStatus?.has_access === true;
+  // FUNÇÕES AUXILIARES PARA COMPATIBILIDADE
+  const isTrialing = guardStatus.status === 'trial';
+  const isActive = guardStatus.status === 'full_access' || guardStatus.status === 'admin';
+  const isCanceled = guardStatus.subscription_data?.subscription_status === 'canceled';
+  const hasAccess = guardStatus.status === 'admin' || guardStatus.status === 'full_access' || guardStatus.status === 'trial';
+  const daysUntilTrialEnd = guardStatus.status === 'trial' ? guardStatus.days_left : null;
 
-  const daysUntilTrialEnd = subscriptionStatus?.trial_ends_at 
-    ? Math.ceil((new Date(subscriptionStatus.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  // LOGS FINAIS PARA DEBUG
-  console.log('🎯 TRIAL DEBUG: Valores finais do hook:', {
+  console.log('🎯 GUARD: Status final calculado:', {
+    status: guardStatus.status,
+    days_left: guardStatus.days_left,
+    hours_left: guardStatus.hours_left,
+    has_access: hasAccess,
     isTrialing,
     isActive,
-    hasAccess,
-    daysUntilTrialEnd,
-    subscription_status: subscriptionStatus?.subscription_status
+    loading: guardStatus.loading
   });
 
   return {
-    subscriptionStatus,
-    loading,
-    error,
+    ...guardStatus,
+    // Propriedades de compatibilidade para componentes existentes
+    subscriptionStatus: guardStatus.subscription_data,
     isTrialing,
     isActive,
     isCanceled,
     hasAccess,
     daysUntilTrialEnd,
-    refetch: fetchSubscriptionStatus,
-  };
+    refetch: fetchAndCalculateStatus,
+  } as any; // Type assertion para compatibilidade
 };
