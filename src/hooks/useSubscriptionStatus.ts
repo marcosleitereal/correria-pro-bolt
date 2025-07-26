@@ -91,17 +91,17 @@ export const useSubscriptionStatus = (): GuardStatus => {
         return;
       }
 
-      // ETAPA 1: VERIFICAR PERFIL DO STORE
-      console.log('📊 GUARD: Verificando perfil do store...');
+      // ETAPA 1: USAR PERFIL DO STORE (CENTRALIZADO)
+      console.log('📊 GUARD: Usando perfil do store centralizado...');
       if (!profile) {
-        console.error('❌ GUARD: Perfil não encontrado para usuário:', user?.id);
+        console.log('⏳ GUARD: Perfil ainda não carregado no store para usuário:', user?.id);
         setGuardStatus({
           status: 'restricted',
           days_left: 0,
           hours_left: 0,
           subscription_data: null,
           loading: false,
-          error: 'Perfil do usuário não encontrado',
+          error: 'Perfil do usuário ainda não foi carregado',
         });
         return;
       }
