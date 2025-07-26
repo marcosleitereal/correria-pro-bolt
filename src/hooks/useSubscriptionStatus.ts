@@ -36,24 +36,8 @@ export const useSubscriptionStatus = (): GuardStatus => {
 
   const { user } = useAuthContext();
 
-  useEffect(() => {
-    if (!user) {
-      console.log('🛡️ GUARD: Usuário não autenticado - status restrito');
-      setGuardStatus({
-        status: 'restricted',
-        days_left: null,
-        hours_left: null,
-        subscription_data: null,
-        loading: false,
-        error: null,
-      });
-      return;
-    }
-
-    fetchAndCalculateStatus();
-  }, [user]);
-
-  const fetchAndCalculateStatus = async () => {
+  // Memoizar a função para evitar re-criações desnecessárias
+  const fetchAndCalculateStatus = useCallback(async () => {
     try {
       console.log('🛡️ GUARD: Iniciando verificação de status para usuário:', user?.id);
       setGuardStatus(prev => ({ ...prev, loading: true, error: null }));
@@ -289,7 +273,24 @@ export const useSubscriptionStatus = (): GuardStatus => {
         error: err.message || 'Erro ao verificar status da assinatura',
       });
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      console.log('🛡️ GUARD: Usuário não autenticado - status restrito');
+      setGuardStatus({
+        status: 'restricted',
+        days_left: null,
+        hours_left: null,
+        subscription_data: null,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
+
+    fetchAndCalculateStatus();
+  }, [user, fetchAndCalculateStatus]);
 
   // FUNÇÕES AUXILIARES PARA COMPATIBILIDADE
   const isTrialing = guardStatus.status === 'trial';
