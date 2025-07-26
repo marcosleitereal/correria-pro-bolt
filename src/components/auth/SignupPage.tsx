@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { AuthError } from '@supabase/supabase-js';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { Link, useNavigate } from 'react-router-dom';
 
 const SignupPage: React.FC = () => {
@@ -10,6 +11,7 @@ const SignupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { settings } = useAppSettings();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -20,6 +22,13 @@ const SignupPage: React.FC = () => {
   const { signUp } = useAuthContext();
   const navigate = useNavigate();
 
+  // Obter duração do teste das configurações do admin
+  const getTrialDuration = () => {
+    if (settings?.trial_duration_days) {
+      return settings.trial_duration_days;
+    }
+    return 30; // Fallback padrão
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -111,7 +120,7 @@ const SignupPage: React.FC = () => {
               Criar Conta Gratuita
             </h2>
             <p className="text-slate-600">
-              Comece seu teste gratuito de 14 dias
+              Comece seu teste gratuito de {getTrialDuration()} dias
             </p>
           </div>
 
