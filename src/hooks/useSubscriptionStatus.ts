@@ -1,0 +1,222 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuthContext } from '../contexts/AuthContext';
+
+interface SubscriptionStatus {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+  role: 'coach' | 'admin' | null;
+  subscription_status: 'trialing' | 'active' | 'canceled' | null;
+  current_plan_name: string | null;
+  plan_id: string | null;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  has_access: boolean | null;
+}
+
+export const useSubscriptionStatus = () => {
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthContext();
+
+  useEffect(() => {
+    if (!user) {
+      setSubscriptionStatus(null);
+      setLoading(false);
+      return;
+    }
+
+    fetchSubscriptionStatus();
+  }, [user]);
+
+  const fetchSubscriptionStatus = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('🔍 TRIAL DEBUG: Buscando status da assinatura para usuário:', user?.id);
+      console.log('🔍 TRIAL DEBUG: Email do usuário:', user?.email);
+
+      // ACESSO TOTAL PARA DEV
+      if (user?.email === 'dev@sonnik.com.br') {
+        console.log('👑 TRIAL DEBUG: Usuário dev detectado - acesso total');
+        setSubscriptionStatus({
+          user_id: user.id,
+          email: user.email || null,
+          full_name: 'Desenvolvedor Admin',
+          role: 'admin',
+          subscription_status: 'active',
+          current_plan_name: 'Elite',
+          plan_id: null,
+          trial_ends_at: null,
+          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          has_access: true
+        });
+        setLoading(false);
+        return;
+      }
+
+      // CORREÇÃO CRÍTICA: Buscar configurações SEMPRE da tabela app_settings do Painel Admin
+      const { data: appSettings, error: settingsError } = await supabase
+        .from('app_settings')
+        .select('trial_duration_days, trial_athlete_limit, trial_training_limit, updated_at')
+        .gte('updated_at', '1970-01-01T00:00:00.000Z') // Cache-busting forçado
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (settingsError) {
+        console.error('❌ ERRO CRÍTICO ao buscar configurações do Painel Admin:', settingsError);
+        console.error('❌ Query executada: SELECT trial_duration_days, trial_athlete_limit, trial_training_limit FROM app_settings');
+        throw new Error('ERRO CRÍTICO: Configurações de trial não encontradas no Painel Admin. Verifique se a tabela app_settings possui dados.');
+      }
+
+      if (!appSettings) {
+        console.error('❌ ERRO CRÍTICO: Nenhuma configuração encontrada na tabela app_settings');
+        console.error('❌ Isso significa que a tabela está vazia ou a query não retornou dados');
+        throw new Error('ERRO CRÍTICO: Configurações de trial não configuradas no Painel Admin. Configure primeiro no Admin Dashboard.');
+      }
+
+      // USAR SEMPRE os valores do Painel Admin (NUNCA valores padrão hardcoded)
+      const trialDurationDays = appSettings.trial_duration_days;
+      const trialAthleteLimit = appSettings.trial_athlete_limit;
+      const trialTrainingLimit = appSettings.trial_training_limit;
+
+      console.log('✅ CONFIGURAÇÕES DO PAINEL ADMIN CARREGADAS (VALORES REAIS):', {
+        trial_duration_days: trialDurationDays,
+        trial_athlete_limit: trialAthleteLimit,
+        trial_training_limit: trialTrainingLimit,
+        fonte: 'app_settings (Painel Admin)',
+        updated_at: appSettings.updated_at,
+        timestamp_busca: new Date().toISOString()
+      });
+
+      // 1. BUSCAR PERFIL DO USUÁRIO
+      console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, email, role')
+        .eq('id', user?.id)
+        .single();
+
+      if (profileError) {
+        console.error('❌ TRIAL DEBUG: Erro ao buscar perfil:', profileError);
+        throw profileError;
+      }
+
+      console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileData);
+
+      // 2. BUSCAR ASSINATURA DO USUÁRIO
+      console.log('📊 TRIAL DEBUG: Buscando assinatura do usuário...');
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('❌ TRIAL DEBUG: Erro ao buscar assinatura:', subscriptionError);
+        throw subscriptionError;
+      }
+
+      console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
+
+      // 3. BUSCAR NOME DO PLANO SE HOUVER
+      let planName = null;
+      if (subscriptionData?.plan_id) {
+        console.log('📊 TRIAL DEBUG: Buscando nome do plano:', subscriptionData.plan_id);
+        const { data: planData, error: planError } = await supabase
+          .from('plans')
+          .select('name')
+          .eq('id', subscriptionData.plan_id)
+          .single();
+
+        if (!planError && planData) {
+          planName = planData.name;
+          console.log('✅ TRIAL DEBUG: Nome do plano encontrado:', planName);
+        }
+      }
+
+      // 4. CALCULAR HAS_ACCESS
+      let hasAccess = false;
+      let calculationDetails = '';
+
+      if (subscriptionData) {
+        if (subscriptionData.status === 'active') {
+          hasAccess = true;
+          calculationDetails = 'Status ativo';
+        } else if (subscriptionData.status === 'trialing' && subscriptionData.trial_ends_at) {
+          const trialEndDate = new Date(subscriptionData.trial_ends_at);
+          const now = new Date();
+          hasAccess = now < trialEndDate;
+          calculationDetails = `Trial: ${hasAccess ? 'VÁLIDO' : 'EXPIRADO'} - Termina em: ${trialEndDate.toLocaleString('pt-BR')} - Agora: ${now.toLocaleString('pt-BR')}`;
+        } else {
+          calculationDetails = 'Sem status válido ou trial_ends_at ausente';
+        }
+      } else {
+        calculationDetails = 'Nenhuma assinatura encontrada';
+      }
+
+      console.log('🎯 TRIAL DEBUG: Cálculo de acesso:', {
+        status: subscriptionData?.status,
+        trial_ends_at: subscriptionData?.trial_ends_at,
+        has_access: hasAccess,
+        details: calculationDetails
+      });
+
+      // 5. MONTAR OBJETO FINAL
+      const finalStatus: SubscriptionStatus = {
+        user_id: user.id,
+        email: profileData.email,
+        full_name: profileData.full_name,
+        role: profileData.role,
+        subscription_status: subscriptionData?.status || null,
+        current_plan_name: planName,
+        plan_id: subscriptionData?.plan_id || null,
+        trial_ends_at: subscriptionData?.trial_ends_at || null,
+        current_period_end: subscriptionData?.current_period_end || null,
+        has_access: hasAccess
+      };
+
+      console.log('✅ TRIAL DEBUG: Status final calculado:', finalStatus);
+      setSubscriptionStatus(finalStatus);
+    } catch (err: any) {
+      console.error('❌ TRIAL DEBUG: Erro geral:', err);
+      setError(err.message || 'Erro ao carregar status da assinatura');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isTrialing = subscriptionStatus?.subscription_status === 'trialing';
+  const isActive = subscriptionStatus?.subscription_status === 'active';
+  const isCanceled = subscriptionStatus?.subscription_status === 'canceled';
+  const hasAccess = subscriptionStatus?.has_access === true;
+
+  const daysUntilTrialEnd = subscriptionStatus?.trial_ends_at 
+    ? Math.ceil((new Date(subscriptionStatus.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // LOGS FINAIS PARA DEBUG
+  console.log('🎯 TRIAL DEBUG: Valores finais do hook:', {
+    isTrialing,
+    isActive,
+    hasAccess,
+    daysUntilTrialEnd,
+    subscription_status: subscriptionStatus?.subscription_status
+  });
+
+  return {
+    subscriptionStatus,
+    loading,
+    error,
+    isTrialing,
+    isActive,
+    isCanceled,
+    hasAccess,
+    daysUntilTrialEnd,
+    refetch: fetchSubscriptionStatus,
+  };
+};
