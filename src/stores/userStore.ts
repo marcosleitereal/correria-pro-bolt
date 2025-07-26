@@ -97,11 +97,13 @@ export const useUserStore = create<UserStore>((set, get) => ({
           // Criar perfil automaticamente
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
-            .insert({
+            .upsert({
               id: userId,
               full_name: authUser.user_metadata?.full_name || null,
               email: authUser.email,
               role: 'coach'
+            }, {
+              onConflict: 'id'
             })
             .select()
             .single();

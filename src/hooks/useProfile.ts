@@ -92,11 +92,13 @@ export const useProfile = () => {
         // Tentar criar perfil automaticamente para usuários sem perfil
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: user.id,
             full_name: user.user_metadata?.full_name || null,
             email: user.email,
             role: 'coach'
+          }, {
+            onConflict: 'id'
           })
           .select()
           .single();
@@ -110,7 +112,6 @@ export const useProfile = () => {
         
         console.log('✅ useProfile: Perfil criado automaticamente:', newProfile);
         setProfile(newProfile);
-        setProfile(null);
         setLoading(false);
         return;
       }
