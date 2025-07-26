@@ -5,10 +5,10 @@ import { MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRunners } from '../../hooks/useRunners';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import EmptyState from '../ui/EmptyState';
 import RunnerModal from './RunnerModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
-import SubscriptionGuard from '../ui/SubscriptionGuard';
 import { Runner } from '../../types/database';
 import Skeleton from '../ui/Skeleton';
 
@@ -16,6 +16,7 @@ const RunnersPage: React.FC = () => {
   const navigate = useNavigate();
   const { runners, loading, error, createRunner, updateRunner, archiveRunner, unarchiveRunner } = useRunners();
   const { notifications } = useNotifications();
+  const { status } = useSubscriptionStatus();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,20 +205,24 @@ const RunnersPage: React.FC = () => {
           </p>
         </div>
         
-        <SubscriptionGuard feature="create_runner">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
+              if (status === 'restricted') return;
               setEditingRunner(null);
               setIsModalOpen(true);
             }}
-            className="mt-4 sm:mt-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+            disabled={status === 'restricted'}
+            className={`mt-4 sm:mt-0 px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 flex items-center gap-2 ${
+              status === 'restricted'
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-xl'
+            }`}
           >
             <Plus className="w-5 h-5" />
-            Adicionar Corredor
+            {status === 'restricted' ? 'Acesso Restrito' : 'Adicionar Corredor'}
           </motion.button>
-        </SubscriptionGuard>
       </motion.div>
 
       {/* Search Bar */}
@@ -297,6 +302,7 @@ const RunnersPage: React.FC = () => {
             }
             actionText={viewMode === 'active' ? "+ Adicionar Primeiro Corredor" : undefined}
             onAction={viewMode === 'active' ? () => {
+              if (status === 'restricted') return;
               setEditingRunner(null);
               setIsModalOpen(true);
             } : undefined}
@@ -410,14 +416,22 @@ const RunnersPage: React.FC = () => {
                 {viewMode === 'active' ? (
                   <button
                     onClick={() => navigate(`/runners/${runner.id}/history`)}
-                    className={`w-full px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform duration-300 flex items-center justify-center gap-2 ${
+                    disabled={status === 'restricted'}
+                    className={`w-full px-4 py-2 rounded-lg font-medium transition-transform duration-300 flex items-center justify-center gap-2 ${
+                      status === 'restricted'
+                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                       hasUnreadFeedback(runner.id)
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white animate-pulse'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105'
                     }`}
                   >
                     <Calendar className="w-4 h-4" />
-                    {hasUnreadFeedback(runner.id) ? 'Ver Novo Feedback' : 'Ver Histórico'}
+                    {status === 'restricted' 
+                      ? 'Acesso Restrito' 
+                      : hasUnreadFeedback(runner.id) 
+                        ? 'Ver Novo Feedback' 
+                        : 'Ver Histórico'
+                    }
                   </button>
                 ) : (
                   <button

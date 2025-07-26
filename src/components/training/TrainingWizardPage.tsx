@@ -6,6 +6,7 @@ import { useRunners } from '../../hooks/useRunners';
 import { useTrainingGroups } from '../../hooks/useTrainingGroups';
 import { useTrainingStyles } from '../../hooks/useTrainingStyles';
 import { useTrainings } from '../../hooks/useTrainings';
+import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import { Runner, TrainingGroup, TrainingStyle } from '../../types/database';
 
 type TargetType = 'individual' | 'group';
@@ -26,6 +27,7 @@ const TrainingWizardPage: React.FC = () => {
   const { groups } = useTrainingGroups();
   const { styles, favoriteStyles } = useTrainingStyles();
   const { createTraining, generating } = useTrainings();
+  const { status } = useSubscriptionStatus();
 
   // Filtrar apenas corredores ativos (não arquivados)
   const activeRunners = runners.filter(runner => !runner.is_archived);
@@ -478,12 +480,16 @@ const TrainingWizardPage: React.FC = () => {
           ) : (
             <button
               onClick={generateTraining}
-              disabled={!canProceed() || generating}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              disabled={!canProceed() || generating || status === 'restricted'}
+              className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                status === 'restricted'
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:scale-105'
+              }`}
             >
               {generating && <Loader2 className="w-5 h-5 animate-spin" />}
               <Sparkles className="w-5 h-5" />
-              Gerar Rascunho do Treino
+              {status === 'restricted' ? 'Acesso Restrito' : 'Gerar Rascunho do Treino'}
             </button>
           )}
         </motion.div>
