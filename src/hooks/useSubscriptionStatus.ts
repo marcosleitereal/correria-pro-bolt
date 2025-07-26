@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useAppSettings } from './useAppSettings';
 
 interface SubscriptionStatus {
   user_id: string;
@@ -19,6 +20,7 @@ export const useSubscriptionStatus = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { settings: appSettings, loading: appSettingsLoading } = useAppSettings();
   const { user } = useAuthContext();
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export const useSubscriptionStatus = () => {
       setLoading(false);
       return;
     }
-
+    if (appSettingsLoading) return; // Wait for app settings to load
     fetchSubscriptionStatus();
   }, [user]);
 
@@ -58,40 +60,14 @@ export const useSubscriptionStatus = () => {
         return;
       }
 
-      // CORREÇÃO CRÍTICA: Buscar configurações SEMPRE da tabela app_settings do Painel Admin
-      const { data: appSettings, error: settingsError } = await supabase
-        .from('app_settings')
-        .select('trial_duration_days, trial_athlete_limit, trial_training_limit, updated_at')
-        .gte('updated_at', '1970-01-01T00:00:00.000Z') // Cache-busting forçado
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (settingsError) {
-        console.error('❌ ERRO CRÍTICO ao buscar configurações do Painel Admin:', settingsError);
-        console.error('❌ Query executada: SELECT trial_duration_days, trial_athlete_limit, trial_training_limit FROM app_settings');
-        throw new Error('ERRO CRÍTICO: Configurações de trial não encontradas no Painel Admin. Verifique se a tabela app_settings possui dados.');
-      }
-
-      if (!appSettings) {
-        console.error('❌ ERRO CRÍTICO: Nenhuma configuração encontrada na tabela app_settings');
-        console.error('❌ Isso significa que a tabela está vazia ou a query não retornou dados');
-        throw new Error('ERRO CRÍTICO: Configurações de trial não configuradas no Painel Admin. Configure primeiro no Admin Dashboard.');
+      if (!appSettings) { // Should be loaded by useAppSettings hook
+        throw new Error('Configurações da aplicação não carregadas.');
       }
 
       // USAR SEMPRE os valores do Painel Admin (NUNCA valores padrão hardcoded)
       const trialDurationDays = appSettings.trial_duration_days;
       const trialAthleteLimit = appSettings.trial_athlete_limit;
       const trialTrainingLimit = appSettings.trial_training_limit;
-
-      console.log('✅ CONFIGURAÇÕES DO PAINEL ADMIN CARREGADAS (VALORES REAIS):', {
-        trial_duration_days: trialDurationDays,
-        trial_athlete_limit: trialAthleteLimit,
-        trial_training_limit: trialTrainingLimit,
-        fonte: 'app_settings (Painel Admin)',
-        updated_at: appSettings.updated_at,
-        timestamp_busca: new Date().toISOString()
-      });
 
       // 1. BUSCAR PERFIL DO USUÁRIO
       console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
