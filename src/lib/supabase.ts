@@ -4,18 +4,63 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
+// Validação crítica das variáveis de ambiente
+if (!supabaseUrl) {
+  console.error('❌ ERRO CRÍTICO: VITE_SUPABASE_URL não está definida no arquivo .env');
+  console.error('📝 Solução: Adicione VITE_SUPABASE_URL=sua_url_do_supabase no arquivo .env');
+  throw new Error('VITE_SUPABASE_URL não configurada. Verifique o arquivo .env na raiz do projeto.');
+}
+
+if (!supabaseAnonKey) {
+  console.error('❌ ERRO CRÍTICO: VITE_SUPABASE_ANON_KEY não está definida no arquivo .env');
+  console.error('📝 Solução: Adicione VITE_SUPABASE_ANON_KEY=sua_chave_anonima no arquivo .env');
+  throw new Error('VITE_SUPABASE_ANON_KEY não configurada. Verifique o arquivo .env na raiz do projeto.');
+}
+
+// Validar formato da URL
+try {
+  new URL(supabaseUrl);
+} catch (error) {
+  console.error('❌ ERRO CRÍTICO: VITE_SUPABASE_URL tem formato inválido:', supabaseUrl);
+  console.error('📝 Formato esperado: https://seu-projeto.supabase.co');
+  throw new Error('VITE_SUPABASE_URL tem formato inválido. Deve ser uma URL válida.');
+}
+
+console.log('✅ Configurações do Supabase validadas:');
+console.log('🔗 URL:', supabaseUrl);
+console.log('🔑 Chave anônima:', supabaseAnonKey.substring(0, 20) + '...');
+
 // Criar cliente Supabase
 const supabase = createClient<Database>(
-  supabaseUrl || '',
-  supabaseAnonKey || '',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'correria-pro-web'
+      }
     }
   }
 );
+
+// Teste de conectividade inicial
+supabase.from('profiles').select('count').limit(1).then(
+  ({ error }) => {
+    if (error) {
+      console.error('❌ ERRO DE CONECTIVIDADE com Supabase:', error.message);
+      console.error('🔍 Verifique: 1) URL correta, 2) Chave válida, 3) Projeto ativo');
+    } else {
+      console.log('✅ Conectividade com Supabase confirmada');
+    }
+  }
+).catch((error) => {
+  console.error('❌ ERRO CRÍTICO na conectividade inicial:', error);
+});
 
 export interface Database {
   public: {
