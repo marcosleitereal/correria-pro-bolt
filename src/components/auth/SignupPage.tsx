@@ -238,14 +238,13 @@ const SignupPage: React.FC = () => {
 
             <p className="text-xs text-slate-500 text-center">
               Ao criar uma conta, você concorda com nossos{' '}
-              <a href="#" className="text-blue-600 hover:text-blue-700">
               <Link
                 to="/termos-de-uso"
                 className="text-blue-600 hover:text-blue-700"
               >
                 Termos de Uso
               </Link>
-              </a>{' '}
+              {' '}
               e{' '}
               <Link
                 to="/politica-de-privacidade"
