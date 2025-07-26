@@ -174,15 +174,13 @@ export const useSubscriptionStatus = () => {
           
           const { data: newSubscription, error: createSubError } = await supabase
             .from('subscriptions')
-            .upsert({
+            .insert({
               user_id: user.id,
               plan_id: null,
               status: 'trialing',
               trial_ends_at: trialEndsAt.toISOString(),
               current_period_start: new Date().toISOString(),
               current_period_end: trialEndsAt.toISOString()
-            }, {
-              onConflict: 'user_id'
             })
             .select()
             .single();
@@ -255,15 +253,13 @@ export const useSubscriptionStatus = () => {
         
         const { data: newSubscription, error: createSubError } = await supabase
           .from('subscriptions')
-          .upsert({
+          .insert({
             user_id: user.id,
             plan_id: null,
             status: 'trialing',
             trial_ends_at: trialEndsAt.toISOString(),
             current_period_start: new Date().toISOString(),
             current_period_end: trialEndsAt.toISOString()
-          }, {
-            onConflict: 'user_id'
           })
           .select()
           .single();
