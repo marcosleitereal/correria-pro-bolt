@@ -261,8 +261,14 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
 
           {/* User Info */}
           <div className="p-4 border-t border-slate-200">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 relative">
               {getUserAvatar()}
+              {/* Trial Countdown Badge */}
+              {isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0 && (
+                <div className="absolute -top-1 -left-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                  {daysUntilTrialEnd}d
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium text-slate-900">
                   {profile?.full_name || user.email?.split('@')[0]}
@@ -342,9 +348,15 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
             <div className="relative" data-user-menu>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors relative"
               >
                 {getUserAvatar()}
+                {/* Trial Countdown Badge for Header */}
+                {isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0 && (
+                  <div className="absolute -top-1 -left-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                    {daysUntilTrialEnd}d
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-slate-900">
                     {profile?.full_name || user?.email?.split('@')[0]}
