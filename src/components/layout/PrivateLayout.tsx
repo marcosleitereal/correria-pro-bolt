@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
@@ -53,6 +54,20 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const handleSignOut = useCallback(async () => {
+    console.log('🚪 PrivateLayout: Iniciando logout seguro');
+    
+    // CRÍTICO: Limpar estado do usuário ANTES do logout
+    const { clearProfile } = useUserStore.getState();
+    clearProfile();
+    
+    await signOut();
+    setUserMenuOpen(false);
+    navigate('/login');
+    
+    console.log('✅ PrivateLayout: Logout concluído com limpeza de dados');
+  }, [signOut, navigate]);
+
   // Hook para fechar dropdown ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,12 +111,27 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
       const checkUserExists = async () => {
         try {
           const { data: currentUser, error } = await supabase.auth.getUser();
-          if (error || !currentUser.user) {
-            console.log('🚨 Usuário não encontrado na autenticação, fazendo logout...');
+          if (error) {
+            // Diferenciar entre erros esperados e inesperados
+            if (error.message?.includes('session_not_found') || error.message?.includes('Session from session_id claim in JWT does not exist')) {
+              console.log('🔄 Sessão expirada detectada, fazendo logout automático...');
+            } else {
+              console.warn('⚠️ Erro na verificação de sessão:', error.message);
+            }
+            await handleSignOut();
+          } else if (!currentUser.user) {
+            console.log('🔄 Usuário não encontrado na autenticação, fazendo logout...');
             await handleSignOut();
           }
         } catch (err) {
-          console.error('Erro ao verificar usuário:', err);
+          // Tratar erros de rede ou outros erros inesperados
+          const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+          if (errorMessage.includes('session_not_found') || errorMessage.includes('Session from session_id claim in JWT does not exist')) {
+            console.log('🔄 Sessão expirada detectada durante verificação, fazendo logout...');
+            await handleSignOut();
+          } else {
+            console.error('❌ Erro inesperado ao verificar usuário:', err);
+          }
         }
       };
       
@@ -109,7 +139,7 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
       const interval = setInterval(checkUserExists, 30000);
       return () => clearInterval(interval);
     }
-  }, [user, profile, profileLoading, fetchProfile]);
+  }, [user, profile, profileLoading, fetchProfile, handleSignOut]);
 
   // Authentication guard
   useEffect(() => {
@@ -117,20 +147,6 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
       navigate('/login');
     }
   }, [user, loading, navigate]);
-
-  const handleSignOut = async () => {
-    console.log('🚪 PrivateLayout: Iniciando logout seguro');
-    
-    // CRÍTICO: Limpar estado do usuário ANTES do logout
-    const { clearProfile } = useUserStore.getState();
-    clearProfile();
-    
-    await signOut();
-    setUserMenuOpen(false);
-    navigate('/login');
-    
-    console.log('✅ PrivateLayout: Logout concluído com limpeza de dados');
-  };
 
   // Função para obter avatar do usuário
   const getUserAvatar = () => {
