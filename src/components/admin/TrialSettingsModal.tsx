@@ -29,12 +29,20 @@ const TrialSettingsModal: React.FC<TrialSettingsModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Sempre usar valores padrão atuais (baseados no admin)
-      setFormData({
-        trial_duration_days: 35,
-        trial_athlete_limit: 33,
-        trial_training_limit: 44
-      });
+      if (initialSettings) {
+        setFormData({
+          trial_duration_days: initialSettings.trial_duration_days,
+          trial_athlete_limit: initialSettings.trial_athlete_limit,
+          trial_training_limit: initialSettings.trial_training_limit
+        });
+      } else {
+        // Valores padrão se não houver configurações
+        setFormData({
+          trial_duration_days: 35,
+          trial_athlete_limit: 33,
+          trial_training_limit: 44
+        });
+      }
       setErrors({});
     }
   }, [isOpen, initialSettings]);

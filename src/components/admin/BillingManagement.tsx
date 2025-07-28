@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { usePlans } from '../../hooks/usePlans';
 import { usePaymentGateways } from '../../hooks/usePaymentGateways';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import PlanModal from './PlanModal';
@@ -40,17 +41,19 @@ const BillingManagement: React.FC = () => {
     updateGateway
   } = usePaymentGateways();
 
+  const {
+    settings: appSettings,
+    loading: appSettingsLoading,
+    updateSettings: updateAppSettings,
+    refreshSettings
+  } = useAppSettings();
+
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [showSecretKeys, setShowSecretKeys] = useState<Record<string, boolean>>({});
   const [savingGateways, setSavingGateways] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
-  const [trialSettings, setTrialSettings] = useState({
-    trial_duration_days: 35,
-    trial_athlete_limit: 33,
-    trial_training_limit: 44
-  });
 
   const [gatewayConfig, setGatewayConfig] = useState({
     stripe_public_key: '',
@@ -139,43 +142,22 @@ const BillingManagement: React.FC = () => {
   };
 
   const handleSaveTrialSettings = async (settings: any) => {
-    if (!user) {
-      console.error('Usuário não autenticado');
-      return false;
-    }
-
     try {
-      console.log('💾 SALVANDO configurações de trial no banco:', settings);
+      console.log('💾 SALVANDO configurações via useAppSettings:', settings);
       
-      // Usar o hook useAppSettings para salvar no banco
-      const { data, error } = await supabase
-        .from('app_settings')
-        .upsert({
-          trial_duration_days: settings.trial_duration_days,
-          trial_athlete_limit: settings.trial_athlete_limit,
-          trial_training_limit: settings.trial_training_limit,
-          updated_by: user.id,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'id'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Erro ao salvar no banco:', error);
-        throw error;
+      // Usar o hook correto para salvar
+      const success = await updateAppSettings(settings);
+      
+      if (success) {
+        console.log('✅ Configurações salvas com sucesso via hook');
+        showSuccess('Configurações do período de teste salvas com sucesso!');
+        setIsTrialModalOpen(false);
+        
+        // Refresh dos dados para mostrar novos valores
+        await refreshSettings();
+      } else {
+        throw new Error('Falha ao salvar configurações');
       }
-
-      console.log('✅ Configurações salvas no banco com sucesso:', data);
-      
-      // Atualizar estado local
-      setTrialSettings(settings);
-      showSuccess('Configurações do período de teste salvas com sucesso!');
-      setIsTrialModalOpen(false);
-      
-      // Forçar refresh da página para mostrar novos valores
-      window.location.reload();
       
       return true;
     } catch (error) {
@@ -599,18 +581,29 @@ const BillingManagement: React.FC = () => {
               <h4 className="text-lg font-medium text-slate-700 mb-4">Configurações Atuais:</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
                 <div className="bg-white rounded-lg p-4 border border-slate-200">
-                  <div className="text-3xl font-bold text-orange-600 mb-2">35</div>
+                  <div className="text-3xl font-bold text-orange-600 mb-2">
+                    {appSettingsLoading ? '...' : (appSettings?.trial_duration_days || 35)}
+                  </div>
                   <div className="text-sm text-slate-600">Dias de Teste</div>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-slate-200">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">33</div>
+                  <div className="text-3xl font-bold text-blue-600 mb-2">
+                    {appSettingsLoading ? '...' : (appSettings?.trial_athlete_limit || 33)}
+                  </div>
                   <div className="text-sm text-slate-600">Atletas Máximo</div>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-slate-200">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">44</div>
+                  <div className="text-3xl font-bold text-purple-600 mb-2">
+                    {appSettingsLoading ? '...' : (appSettings?.trial_training_limit || 44)}
+                  </div>
                   <div className="text-sm text-slate-600">Treinos Máximo</div>
                 </div>
               </div>
+              {appSettings?.updated_at && (
+                <p className="text-xs text-slate-500 mt-4 text-center">
+                  Última atualização: {new Date(appSettings.updated_at).toLocaleString('pt-BR')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -643,7 +636,7 @@ const BillingManagement: React.FC = () => {
         isOpen={isTrialModalOpen}
         onClose={() => setIsTrialModalOpen(false)}
         onSave={handleSaveTrialSettings}
-        initialSettings={trialSettings}
+        initialSettings={appSettings}
         loading={false}
       />
     </div>
