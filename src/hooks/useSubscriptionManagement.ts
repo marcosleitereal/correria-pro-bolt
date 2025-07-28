@@ -158,11 +158,11 @@ export const useSubscriptionManagement = () => {
   };
 
   const getPublicPlans = (): Plan[] => {
-    return allPlans.filter(plan => plan.is_publicly_listed);
+    return allPlans.filter(plan => plan.is_active && plan.price_monthly > 0);
   };
 
   const getAdminOnlyPlans = (): Plan[] => {
-    return allPlans.filter(plan => !plan.is_publicly_listed);
+    return allPlans.filter(plan => plan.is_active && plan.price_monthly === 0);
   };
 
   return {

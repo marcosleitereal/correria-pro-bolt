@@ -281,17 +281,17 @@ const SubscriptionManagement: React.FC = () => {
                             <optgroup label="Planos Públicos">
                               {getPublicPlans().map((plan) => (
                                 <option key={plan.id} value={plan.id}>
-                                  {plan.name} - {formatPrice(plan.price_monthly)}
+                                  {plan.name} - {formatPrice(plan.price_monthly)}/mês
                                 </option>
                               ))}
                             </optgroup>
                             
                             {/* Planos Administrativos */}
                             {getAdminOnlyPlans().length > 0 && (
-                              <optgroup label="Planos Especiais (Admin)">
+                              <optgroup label="Planos Especiais (Admin) - Gratuitos">
                                 {getAdminOnlyPlans().map((plan) => (
                                   <option key={plan.id} value={plan.id}>
-                                    👑 {plan.name} - {formatPrice(plan.price_monthly)}
+                                    👑 {plan.name} - GRATUITO
                                   </option>
                                 ))}
                               </optgroup>
@@ -382,17 +382,17 @@ const SubscriptionManagement: React.FC = () => {
                       <optgroup label="Planos Públicos">
                         {getPublicPlans().map((plan) => (
                           <option key={plan.id} value={plan.id}>
-                            {plan.name} - {formatPrice(plan.price_monthly)}
+                            {plan.name} - {formatPrice(plan.price_monthly)}/mês
                           </option>
                         ))}
                       </optgroup>
                       
                       {/* Planos Administrativos */}
                       {getAdminOnlyPlans().length > 0 && (
-                        <optgroup label="Planos Especiais (Admin)">
+                        <optgroup label="Planos Especiais (Admin) - Gratuitos">
                           {getAdminOnlyPlans().map((plan) => (
                             <option key={plan.id} value={plan.id}>
-                              👑 {plan.name} - {formatPrice(plan.price_monthly)}
+                              👑 {plan.name} - GRATUITO
                             </option>
                           ))}
                         </optgroup>
