@@ -279,8 +279,8 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
               {getUserAvatar()}
               {/* Trial Countdown Badge */}
               {isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0 && (
-                <div className="absolute -top-1 -left-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
-                  {daysUntilTrialEnd}d
+                <div className="absolute -top-1 -left-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-medium shadow-md">
+                  {daysUntilTrialEnd}
                 </div>
               )}
               <div>
@@ -312,22 +312,16 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           <div className="flex-1"></div>
 
           {/* Trial Counter - POSICIONAMENTO CORRETO COM DEBUG */}
+          {/* Trial Counter - Design Sutil */}
           {(isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 animate-pulse mr-4"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-md flex items-center gap-1 mr-4"
             >
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span>Trial: {daysUntilTrialEnd} {daysUntilTrialEnd === 1 ? 'dia' : 'dias'}</span>
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+              <span>{daysUntilTrialEnd} {daysUntilTrialEnd === 1 ? 'dia' : 'dias'} restantes</span>
             </motion.div>
-          )}
-          
-          {/* DEBUG: Mostrar sempre para testar */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-yellow-500 text-black px-2 py-1 rounded text-xs mr-2">
-              DEBUG: Trial={isTrialing ? 'SIM' : 'NÃO'} | Dias={daysUntilTrialEnd} | Status={subscriptionStatus?.subscription_status}
-            </div>
           )}
 
           {/* User menu */}
