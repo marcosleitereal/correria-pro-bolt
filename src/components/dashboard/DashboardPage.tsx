@@ -4,6 +4,7 @@ import { Plus, Users, Calendar, TrendingUp, Clock, Target, Share2, FileText, Eye
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../hooks/useProfile';
 import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import { useTrainings } from '../../hooks/useTrainings';
 import { useRunners } from '../../hooks/useRunners';
 import { useFeedbackCompletionRate } from '../../hooks/useFeedbackCompletionRate';
@@ -16,6 +17,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { isTrialing, daysUntilTrialEnd } = useSubscriptionStatus();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
   const { trainings, draftTrainings, finalizedTrainings, loading } = useTrainings();
   const { runners } = useRunners();
   const { 
@@ -32,6 +34,19 @@ const DashboardPage: React.FC = () => {
     setSelectedTraining(training);
     setIsViewModalOpen(true);
   };
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="h-full bg-slate-50">
+        <div className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 h-full">
+          <SubscriptionGuard feature="general">
+            <div></div>
+          </SubscriptionGuard>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-slate-50">

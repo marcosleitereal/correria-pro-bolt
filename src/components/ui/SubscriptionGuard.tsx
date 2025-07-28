@@ -58,7 +58,7 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
   const getTitle = () => {
     if (trialExpired) return 'Período de Teste Expirado';
     if (athleteLimitReached) return 'Limite de Atletas Atingido';
-    if (blockingReason?.includes('restrito')) return 'Conta Restrita';
+    if (blockingReason?.includes('restrito') || blockingReason?.includes('Restrito')) return '🚫 Conta Restrita';
     return 'Acesso Restrito';
   };
 
@@ -69,8 +69,8 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
     if (athleteLimitReached) {
       return `Você está usando ${getAthleteCountDisplay()}. Faça upgrade do seu plano para adicionar mais atletas e expandir sua operação.`;
     }
-    if (blockingReason?.includes('restrito')) {
-      return 'Sua conta foi colocada em modo restrito. Entre em contato com o suporte ou faça upgrade para um plano pago.';
+    if (blockingReason?.includes('restrito') || blockingReason?.includes('Restrito')) {
+      return 'Sua conta está em modo restrito. Você pode navegar pela plataforma, mas não pode criar atletas ou treinos. Faça upgrade para um plano pago para reativar todas as funcionalidades.';
     }
     return 'Você precisa de uma assinatura ativa para acessar este recurso.';
   };
@@ -119,9 +119,16 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={showUpgradeModal}
-        className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+        className={`px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 ${
+          blockingReason?.includes('restrito') || blockingReason?.includes('Restrito')
+            ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+        }`}
       >
-        {trialExpired ? 'Assinar Agora' : 'Fazer Upgrade'}
+        {blockingReason?.includes('restrito') || blockingReason?.includes('Restrito') 
+          ? '🚀 Fazer Upgrade Agora' 
+          : trialExpired ? 'Assinar Agora' : 'Fazer Upgrade'
+        }
       </motion.button>
     </motion.div>
   );

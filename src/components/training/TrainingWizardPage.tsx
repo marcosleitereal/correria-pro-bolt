@@ -6,6 +6,8 @@ import { useRunners } from '../../hooks/useRunners';
 import { useTrainingGroups } from '../../hooks/useTrainingGroups';
 import { useTrainingStyles } from '../../hooks/useTrainingStyles';
 import { useTrainings } from '../../hooks/useTrainings';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
+import SubscriptionGuard from '../ui/SubscriptionGuard';
 import { Runner, TrainingGroup, TrainingStyle } from '../../types/database';
 
 type TargetType = 'individual' | 'group';
@@ -26,6 +28,7 @@ const TrainingWizardPage: React.FC = () => {
   const { groups } = useTrainingGroups();
   const { styles, favoriteStyles } = useTrainingStyles();
   const { createTraining, generating } = useTrainings();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
 
   // Filtrar apenas corredores ativos (não arquivados)
   const activeRunners = runners.filter(runner => !runner.is_archived);
@@ -169,6 +172,19 @@ const TrainingWizardPage: React.FC = () => {
         return '';
     }
   };
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <SubscriptionGuard feature="general">
+            <div></div>
+          </SubscriptionGuard>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">

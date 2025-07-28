@@ -63,7 +63,8 @@ export const useSubscriptionGuard = () => {
       hasAccess,
       isActive,
       subscription_status: subscriptionStatus?.subscription_status,
-      current_plan_name: subscriptionStatus?.current_plan_name
+      current_plan_name: subscriptionStatus?.current_plan_name,
+      plan_id: subscriptionStatus?.plan_id
     });
 
     // ACESSO TOTAL PARA DEV
@@ -82,8 +83,10 @@ export const useSubscriptionGuard = () => {
       return;
     }
 
-    // VERIFICAR SE ESTÁ NO PLANO RESTRITO
-    const isRestrictedPlan = subscriptionStatus?.current_plan_name === 'Restrito';
+    // VERIFICAR SE ESTÁ NO PLANO RESTRITO (múltiplas verificações)
+    const isRestrictedPlan = subscriptionStatus?.current_plan_name === 'Restrito' || 
+                            subscriptionStatus?.current_plan_name === 'restrito' ||
+                            subscriptionStatus?.current_plan_name?.toLowerCase().includes('restrito');
     
     if (isRestrictedPlan) {
       console.log('🚫 GUARD DEBUG: Usuário no plano RESTRITO - acesso bloqueado');

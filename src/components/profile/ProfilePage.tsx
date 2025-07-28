@@ -560,11 +560,14 @@ const ProfilePage: React.FC = () => {
                     </div>
                   )}
                   
-                  {!subscriptionStatus.has_access && (
+                  {(!subscriptionStatus.has_access || subscriptionStatus.current_plan_name === 'Restrito') && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-3">
                       <p className="text-orange-800 text-sm">
-                        <strong>⚠️ Acesso Restrito</strong><br />
-                        Seu período de teste expirou. Assine um plano para continuar usando a plataforma.
+                        <strong>🚫 Acesso Restrito</strong><br />
+                        {subscriptionStatus.current_plan_name === 'Restrito' 
+                          ? 'Sua conta está em modo restrito. Faça upgrade para um plano pago para continuar usando a plataforma.'
+                          : 'Seu período de teste expirou. Assine um plano para continuar usando a plataforma.'
+                        }
                       </p>
                       <button
                         onClick={() => window.location.href = '/pricing'}

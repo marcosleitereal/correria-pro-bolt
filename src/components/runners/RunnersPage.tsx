@@ -5,6 +5,7 @@ import { MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRunners } from '../../hooks/useRunners';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import EmptyState from '../ui/EmptyState';
 import RunnerModal from './RunnerModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -16,6 +17,7 @@ const RunnersPage: React.FC = () => {
   const navigate = useNavigate();
   const { runners, loading, error, createRunner, updateRunner, archiveRunner, unarchiveRunner } = useRunners();
   const { notifications } = useNotifications();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -182,6 +184,17 @@ const RunnersPage: React.FC = () => {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="p-6 lg:p-8">
+        <SubscriptionGuard feature="general">
+          <div></div>
+        </SubscriptionGuard>
       </div>
     );
   }

@@ -426,7 +426,7 @@ export const useSubscriptionStatus = () => {
         status: subscriptionData?.status,
         trial_ends_at: subscriptionData?.trial_ends_at,
         has_access: hasAccess,
-        details: calculationDetails
+        blockingReason: 'Sua conta está em modo restrito. Faça upgrade para um plano pago para continuar usando a plataforma.',
       });
 
       // 5. MONTAR OBJETO FINAL
