@@ -288,10 +288,10 @@ const SubscriptionManagement: React.FC = () => {
                             
                             {/* Planos Administrativos */}
                             {getAdminOnlyPlans().length > 0 && (
-                              <optgroup label="Planos Especiais (Admin) - Gratuitos">
+                              <optgroup label="Planos Especiais (Admin)">
                                 {getAdminOnlyPlans().map((plan) => (
                                   <option key={plan.id} value={plan.id}>
-                                    👑 {plan.name} - GRATUITO
+                                    {plan.name === 'Restrito' ? '🚫' : '👑'} {plan.name} - {plan.name === 'Restrito' ? 'BLOQUEADO' : 'GRATUITO'}
                                   </option>
                                 ))}
                               </optgroup>
