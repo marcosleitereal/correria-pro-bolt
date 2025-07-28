@@ -51,12 +51,14 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
   const getIcon = () => {
     if (trialExpired) return Calendar;
     if (athleteLimitReached) return Users;
+    if (blockingReason?.includes('restrito')) return AlertTriangle;
     return Crown;
   };
 
   const getTitle = () => {
     if (trialExpired) return 'Período de Teste Expirado';
     if (athleteLimitReached) return 'Limite de Atletas Atingido';
+    if (blockingReason?.includes('restrito')) return 'Conta Restrita';
     return 'Acesso Restrito';
   };
 
@@ -66,6 +68,9 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
     }
     if (athleteLimitReached) {
       return `Você está usando ${getAthleteCountDisplay()}. Faça upgrade do seu plano para adicionar mais atletas e expandir sua operação.`;
+    }
+    if (blockingReason?.includes('restrito')) {
+      return 'Sua conta foi colocada em modo restrito. Entre em contato com o suporte ou faça upgrade para um plano pago.';
     }
     return 'Você precisa de uma assinatura ativa para acessar este recurso.';
   };

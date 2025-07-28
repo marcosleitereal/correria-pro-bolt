@@ -62,7 +62,8 @@ export const useSubscriptionGuard = () => {
       daysUntilTrialEnd,
       hasAccess,
       isActive,
-      subscription_status: subscriptionStatus?.subscription_status
+      subscription_status: subscriptionStatus?.subscription_status,
+      current_plan_name: subscriptionStatus?.current_plan_name
     });
 
     // ACESSO TOTAL PARA DEV
@@ -77,6 +78,24 @@ export const useSubscriptionGuard = () => {
         currentAthleteCount,
         athleteLimit: Infinity,
         blockingReason: null,
+      });
+      return;
+    }
+
+    // VERIFICAR SE ESTÁ NO PLANO RESTRITO
+    const isRestrictedPlan = subscriptionStatus?.current_plan_name === 'Restrito';
+    
+    if (isRestrictedPlan) {
+      console.log('🚫 GUARD DEBUG: Usuário no plano RESTRITO - acesso bloqueado');
+      setGuard({
+        canCreateRunner: false,
+        canGenerateTraining: false,
+        canAccessFeature: false,
+        trialExpired: false,
+        athleteLimitReached: false,
+        currentAthleteCount,
+        athleteLimit: 0,
+        blockingReason: 'Sua conta está em modo restrito. Entre em contato com o suporte ou faça upgrade para um plano pago para continuar usando a plataforma.',
       });
       return;
     }
@@ -147,7 +166,7 @@ export const useSubscriptionGuard = () => {
     let blockingReason: string | null = null;
     
     if (trialExpired) {
-      blockingReason = 'Seu período de teste expirou. Assine um plano para continuar usando a plataforma.';
+      blockingReason = 'Seu período de teste expirou. Faça upgrade para um plano pago para continuar usando a plataforma.';
     } else if (!hasAccess && !isTrialing && !isActive) {
       blockingReason = 'Você não possui acesso ativo à plataforma. Verifique sua assinatura.';
     } else {
