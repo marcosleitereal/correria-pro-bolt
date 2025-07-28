@@ -58,6 +58,14 @@ const AICustomization: React.FC = () => {
     }
   };
 
+  const handlePersonaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSystemPersona(e.target.value);
+  };
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPromptTemplate(e.target.value);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -131,21 +139,25 @@ const AICustomization: React.FC = () => {
             </p>
           </div>
 
-          <textarea
-            value={systemPersona}
-            onChange={(e) => setSystemPersona(e.target.value)}
-            rows={4}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-            placeholder="Digite a personalidade e comportamento desejado para a IA..."
-            disabled={false}
-            readOnly={false}
-          />
+          <div className="mb-4">
+            <textarea
+              id="system-persona-field"
+              name="systemPersona"
+              value={systemPersona}
+              onChange={handlePersonaChange}
+              rows={4}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none text-base"
+              placeholder="Digite a personalidade e comportamento desejado para a IA..."
+              style={{ minHeight: '120px' }}
+            />
+          </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span className="text-xs text-slate-500">
               {systemPersona.length} caracteres
             </span>
             <button
+              type="button"
               onClick={handleSavePersona}
               disabled={savingPersona || !systemPersona.trim()}
               className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm"
@@ -203,21 +215,25 @@ const AICustomization: React.FC = () => {
             </p>
           </div>
 
-          <textarea
-            value={promptTemplate}
-            onChange={(e) => setPromptTemplate(e.target.value)}
-            rows={6}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none"
-            placeholder="Digite o template do prompt que será usado para gerar treinos..."
-            disabled={false}
-            readOnly={false}
-          />
+          <div className="mb-4">
+            <textarea
+              id="prompt-template-field"
+              name="promptTemplate"
+              value={promptTemplate}
+              onChange={handleTemplateChange}
+              rows={6}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none text-base"
+              placeholder="Digite o template do prompt que será usado para gerar treinos..."
+              style={{ minHeight: '180px' }}
+            />
+          </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span className="text-xs text-slate-500">
               {promptTemplate.length} caracteres
             </span>
             <button
+              type="button"
               onClick={handleSaveTemplate}
               disabled={savingTemplate || !promptTemplate.trim()}
               className="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm"
