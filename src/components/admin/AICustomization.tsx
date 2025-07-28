@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Brain, FileText, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Edit, Brain, FileText, Check, AlertCircle } from 'lucide-react';
 import { useAISettings } from '../../hooks/useAISettings';
+import AISettingsModal from './AISettingsModal';
 
 const AICustomization: React.FC = () => {
   const { 
@@ -12,58 +13,34 @@ const AICustomization: React.FC = () => {
     getSetting 
   } = useAISettings();
 
-  const [systemPersona, setSystemPersona] = useState('');
-  const [promptTemplate, setPromptTemplate] = useState('');
-  const [savingPersona, setSavingPersona] = useState(false);
-  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (settings.length > 0) {
-      setSystemPersona(getSetting('system_persona') || '');
-      setPromptTemplate(getSetting('training_prompt_template') || '');
-    }
-  }, [settings, getSetting]);
+  const systemPersona = getSetting('system_persona') || '';
+  const promptTemplate = getSetting('training_prompt_template') || '';
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleSavePersona = async () => {
-    setSavingPersona(true);
+  const handleSave = async (type: 'persona' | 'template', value: string): Promise<boolean> => {
     try {
-      const success = await updateSetting('system_persona', systemPersona);
+      const settingKey = type === 'persona' ? 'system_persona' : 'training_prompt_template';
+      const success = await updateSetting(settingKey, value);
+      
       if (success) {
-        showSuccess('Personalidade da IA salva com sucesso!');
+        const message = type === 'persona' 
+          ? 'Personalidade da IA salva com sucesso!' 
+          : 'Template do prompt salvo com sucesso!';
+        showSuccess(message);
       }
+      
+      return success;
     } catch (error) {
-      console.error('Error saving persona:', error);
-    } finally {
-      setSavingPersona(false);
+      console.error('Erro ao salvar configuração:', error);
+      return false;
     }
-  };
-
-  const handleSaveTemplate = async () => {
-    setSavingTemplate(true);
-    try {
-      const success = await updateSetting('training_prompt_template', promptTemplate);
-      if (success) {
-        showSuccess('Template do prompt salvo com sucesso!');
-      }
-    } catch (error) {
-      console.error('Error saving template:', error);
-    } finally {
-      setSavingTemplate(false);
-    }
-  };
-
-  const handlePersonaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setSystemPersona(e.target.value);
-  };
-
-  const handleTemplateChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setPromptTemplate(e.target.value);
   };
 
   if (loading) {
@@ -110,141 +87,125 @@ const AICustomization: React.FC = () => {
         </motion.div>
       )}
 
-      {/* AI Personality Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden w-full"
-      >
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 sm:p-6">
-          <div className="flex items-center gap-3">
-            <Brain className="w-6 h-6" />
-            <div>
-              <h3 className="text-base sm:text-lg md:text-xl font-bold">Personalidade da IA (System Prompt)</h3>
-              <p className="text-blue-100 text-sm sm:text-base">
-                Defina o comportamento e a persona da IA que será usada em todas as gerações de treino
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-6 w-full">
-          <div className="mb-4">
-            <p className="text-slate-600 text-xs sm:text-sm mb-2">
-              <strong>Exemplo:</strong> "Você é um treinador de corrida de elite, especialista em fisiologia do esporte..."
-            </p>
-            <p className="text-slate-500 text-xs">
-              Esta personalidade será aplicada a todas as interações com a IA para manter consistência no tom e abordagem.
+      {/* Header */}
+      <div className="w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+              <Brain className="w-6 h-6 text-purple-600" />
+              Customização da IA
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600">
+              Personalize o comportamento e os prompts da Inteligência Artificial
             </p>
           </div>
-
-          <div className="mb-4">
-            <textarea
-              id="system-persona-field"
-              name="systemPersona"
-              value={systemPersona}
-              onChange={handlePersonaChange}
-              rows={4}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none text-base"
-              placeholder="Digite a personalidade e comportamento desejado para a IA..."
-              style={{ minHeight: '120px' }}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <span className="text-xs text-slate-500">
-              {systemPersona.length} caracteres
-            </span>
-            <button
-              type="button"
-              onClick={handleSavePersona}
-              disabled={savingPersona || !systemPersona.trim()}
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm"
-            >
-              {savingPersona && <Loader2 className="w-4 h-4 animate-spin" />}
-              <Save className="w-4 h-4" />
-              Salvar Personalidade
-            </button>
-          </div>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsModalOpen(true)}
+            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap"
+          >
+            <Edit className="w-5 h-5" />
+            Editar Configurações
+          </motion.button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Prompt Template Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden w-full"
-      >
-        <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-4 sm:p-6">
-          <div className="flex items-center gap-3">
-            <FileText className="w-6 h-6" />
-            <div>
-              <h3 className="text-base sm:text-lg md:text-xl font-bold">Template do Prompt de Geração de Treino</h3>
-              <p className="text-purple-100 text-sm sm:text-base">
-                Configure como os dados são enviados para a IA durante a geração de treinos
-              </p>
+      {/* Current Settings Display */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* System Persona Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden"
+        >
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4">
+            <div className="flex items-center gap-3">
+              <Brain className="w-5 h-5" />
+              <div>
+                <h3 className="font-bold">Personalidade da IA</h3>
+                <p className="text-blue-100 text-sm">System Prompt atual</p>
+              </div>
             </div>
           </div>
-        </div>
+          
+          <div className="p-4">
+            {systemPersona ? (
+              <div className="bg-slate-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+                <p className="text-slate-700 text-sm whitespace-pre-wrap">
+                  {systemPersona}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Brain className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500">Nenhuma personalidade configurada</p>
+                <p className="text-slate-400 text-sm">A IA usará comportamento padrão</p>
+              </div>
+            )}
+            
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                {systemPersona.length} caracteres
+              </span>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+              >
+                Editar →
+              </button>
+            </div>
+          </div>
+        </motion.div>
 
-        <div className="p-4 sm:p-6 w-full">
-          <div className="mb-4">
-            <h4 className="font-semibold text-slate-900 mb-3 text-xs sm:text-sm md:text-base">Variáveis Disponíveis:</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
-              <div className="bg-slate-50 rounded-lg p-2 sm:p-3 w-full">
-                <code className="text-blue-600 font-mono text-sm">[runner_data]</code>
-                <p className="text-xs text-slate-600 mt-1">Dados completos do corredor (nome, idade, nível, etc.)</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-2 sm:p-3 w-full">
-                <code className="text-purple-600 font-mono text-sm">[style_data]</code>
-                <p className="text-xs text-slate-600 mt-1">Informações do estilo de treino selecionado</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-2 sm:p-3 w-full">
-                <code className="text-green-600 font-mono text-sm">[period_data]</code>
-                <p className="text-xs text-slate-600 mt-1">Duração e período do plano de treino</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-2 sm:p-3 w-full">
-                <code className="text-orange-600 font-mono text-sm">[athlete_first_name]</code>
-                <p className="text-xs text-slate-600 mt-1">Primeiro nome do atleta para personalização</p>
+        {/* Prompt Template Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden"
+        >
+          <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-4">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5" />
+              <div>
+                <h3 className="font-bold">Template do Prompt</h3>
+                <p className="text-purple-100 text-sm">Estrutura de geração</p>
               </div>
             </div>
-            <p className="text-slate-500 text-xs">
-              Use essas variáveis no template para inserir dinamicamente os dados do atleta e treino.
-            </p>
           </div>
-
-          <div className="mb-4">
-            <textarea
-              id="prompt-template-field"
-              name="promptTemplate"
-              value={promptTemplate}
-              onChange={handleTemplateChange}
-              rows={6}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none text-base"
-              placeholder="Digite o template do prompt que será usado para gerar treinos..."
-              style={{ minHeight: '180px' }}
-            />
+          
+          <div className="p-4">
+            {promptTemplate ? (
+              <div className="bg-slate-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+                <p className="text-slate-700 text-sm whitespace-pre-wrap">
+                  {promptTemplate}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500">Nenhum template configurado</p>
+                <p className="text-slate-400 text-sm">A IA usará template padrão</p>
+              </div>
+            )}
+            
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                {promptTemplate.length} caracteres
+              </span>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="text-purple-600 hover:text-purple-700 text-sm font-medium transition-colors"
+              >
+                Editar →
+              </button>
+            </div>
           </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <span className="text-xs text-slate-500">
-              {promptTemplate.length} caracteres
-            </span>
-            <button
-              type="button"
-              onClick={handleSaveTemplate}
-              disabled={savingTemplate || !promptTemplate.trim()}
-              className="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm"
-            >
-              {savingTemplate && <Loader2 className="w-4 h-4 animate-spin" />}
-              <Save className="w-4 h-4" />
-              Salvar Template
-            </button>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Usage Instructions */}
       <motion.div
@@ -269,6 +230,16 @@ const AICustomization: React.FC = () => {
           </p>
         </div>
       </motion.div>
+
+      {/* AI Settings Modal */}
+      <AISettingsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        initialPersona={systemPersona}
+        initialTemplate={promptTemplate}
+        loading={loading}
+      />
     </div>
   );
 };
