@@ -135,7 +135,7 @@ const AICustomization: React.FC = () => {
             value={systemPersona}
             onChange={(e) => setSystemPersona(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-xs sm:text-sm break-all"
+            className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
             placeholder="Digite a personalidade e comportamento desejado para a IA..."
           />
 
@@ -205,7 +205,7 @@ const AICustomization: React.FC = () => {
             value={promptTemplate}
             onChange={(e) => setPromptTemplate(e.target.value)}
             rows={6}
-            className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none font-mono text-xs sm:text-sm break-all"
+            className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none"
             placeholder="Digite o template do prompt que será usado para gerar treinos..."
           />
 
