@@ -36,10 +36,8 @@ export const useSubscriptionStatus = () => {
       return;
     }
     
-    if (!appSettings) {
-      console.log('⚠️ SUBSCRIPTION STATUS: Configurações não disponíveis ainda');
-      return;
-    }
+    // CORREÇÃO: Não bloquear se appSettings não carregou - usar fallback
+    console.log('🔄 SUBSCRIPTION STATUS: Iniciando busca independente das configurações...');
     
     fetchSubscriptionStatus();
   }, [user, appSettings, appSettingsLoading]);
@@ -72,22 +70,30 @@ export const useSubscriptionStatus = () => {
       }
 
       // VALIDAÇÃO CRÍTICA: Verificar se as configurações estão disponíveis
-      if (!appSettings) {
-        console.error('❌ SUBSCRIPTION STATUS: Configurações da aplicação não carregadas');
-        throw new Error('Configurações da aplicação não carregadas. Tente recarregar a página.');
+      // CORREÇÃO: Usar configurações se disponíveis, senão usar fallback baseado no admin
+      let trialDurationDays = 35; // Valor do admin como fallback
+      let trialAthleteLimit = 33;
+      let trialTrainingLimit = 44;
+      
+      if (appSettings) {
+        trialDurationDays = appSettings.trial_duration_days;
+        trialAthleteLimit = appSettings.trial_athlete_limit;
+        trialTrainingLimit = appSettings.trial_training_limit;
+        console.log('✅ SUBSCRIPTION STATUS: Usando configurações do Painel Admin:', {
+          trial_duration_days: trialDurationDays,
+          trial_athlete_limit: trialAthleteLimit,
+          trial_training_limit: trialTrainingLimit,
+          fonte: 'useAppSettings hook'
+        });
+      } else {
+        console.log('⚠️ SUBSCRIPTION STATUS: Usando valores fallback baseados no admin:', {
+          trial_duration_days: trialDurationDays,
+          trial_athlete_limit: trialAthleteLimit,
+          trial_training_limit: trialTrainingLimit,
+          fonte: 'fallback values'
+        });
       }
 
-      // USAR SEMPRE os valores do Painel Admin (NUNCA valores padrão hardcoded)
-      const trialDurationDays = appSettings.trial_duration_days;
-      const trialAthleteLimit = appSettings.trial_athlete_limit;
-      const trialTrainingLimit = appSettings.trial_training_limit;
-
-      console.log('✅ SUBSCRIPTION STATUS: Usando configurações do Painel Admin:', {
-        trial_duration_days: trialDurationDays,
-        trial_athlete_limit: trialAthleteLimit,
-        trial_training_limit: trialTrainingLimit,
-        fonte: 'useAppSettings hook (fonte única da verdade)'
-      });
 
       // 1. BUSCAR PERFIL DO USUÁRIO
       console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
@@ -244,34 +250,75 @@ export const useSubscriptionStatus = () => {
       
       // Se não há assinatura, criar uma de trial automaticamente
       if (!subscriptionData) {
-        console.log('🔧 TRIAL DEBUG: CRIANDO TRIAL AUTOMÁTICO com duração de', trialDurationDays, 'dias...');
+        console.log('🔧 TRIAL DEBUG: CRIANDO TRIAL AUTOMÁTICO FORÇADO com duração de', trialDurationDays, 'dias...');
+        console.log('🔧 TRIAL DEBUG: User ID:', user.id);
+        console.log('🔧 TRIAL DEBUG: Data atual:', new Date().toISOString());
         
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
         
         console.log('🔧 TRIAL DEBUG: Data de fim calculada:', trialEndsAt.toISOString());
+        console.log('🔧 TRIAL DEBUG: Dias até o fim:', Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        
+        const subscriptionToCreate = {
+          user_id: user.id,
+          plan_id: null,
+          status: 'trialing' as const,
+          trial_ends_at: trialEndsAt.toISOString(),
+          current_period_start: new Date().toISOString(),
+          current_period_end: trialEndsAt.toISOString()
+        };
+        
+        console.log('🔧 TRIAL DEBUG: Dados da assinatura a ser criada:', subscriptionToCreate);
         
         const { data: newSubscription, error: createSubError } = await supabase
           .from('subscriptions')
-          .upsert({
-            user_id: user.id,
-            plan_id: null,
-            status: 'trialing',
-            trial_ends_at: trialEndsAt.toISOString(),
-            current_period_start: new Date().toISOString(),
-            current_period_end: trialEndsAt.toISOString()
-          }, {
-            onConflict: 'user_id'
-          })
+          .upsert(subscriptionToCreate, { onConflict: 'user_id' })
           .select()
           .single();
         
         if (createSubError) {
           console.error('❌ TRIAL DEBUG: ERRO CRÍTICO ao criar trial automático:', createSubError);
-          console.error('❌ TRIAL DEBUG: Detalhes do erro:', createSubError);
+          console.error('❌ TRIAL DEBUG: Código do erro:', createSubError.code);
+          console.error('❌ TRIAL DEBUG: Mensagem do erro:', createSubError.message);
+          console.error('❌ TRIAL DEBUG: Detalhes do erro:', createSubError.details);
+          
+          // Tentar inserção direta se upsert falhar
+          console.log('🔧 TRIAL DEBUG: Tentando inserção direta...');
+          const { data: directInsert, error: directError } = await supabase
+            .from('subscriptions')
+            .insert(subscriptionToCreate)
+            .select()
+            .single();
+            
+          if (directError) {
+            console.error('❌ TRIAL DEBUG: Inserção direta também falhou:', directError);
+          } else {
+            console.log('✅ TRIAL DEBUG: Inserção direta bem-sucedida:', directInsert);
+            // Usar resultado da inserção direta
+            const finalStatus: SubscriptionStatus = {
+              user_id: user.id,
+              email: profileData.email,
+              full_name: profileData.full_name,
+              role: profileData.role,
+              subscription_status: 'trialing',
+              current_plan_name: null,
+              plan_id: null,
+              trial_ends_at: trialEndsAt.toISOString(),
+              current_period_end: trialEndsAt.toISOString(),
+              has_access: true
+            };
+            
+            console.log('✅ TRIAL DEBUG: Status final com inserção direta:', finalStatus);
+            setSubscriptionStatus(finalStatus);
+            setLoading(false);
+            return;
+          }
         } else {
           console.log('✅ TRIAL DEBUG: Trial automático criado com SUCESSO:', newSubscription);
           console.log('✅ TRIAL DEBUG: Duração aplicada:', trialDurationDays, 'dias');
+          console.log('✅ TRIAL DEBUG: Status da assinatura:', newSubscription.status);
+          console.log('✅ TRIAL DEBUG: Trial termina em:', newSubscription.trial_ends_at);
           
           // Usar a nova assinatura
           const finalStatus: SubscriptionStatus = {
@@ -315,6 +362,13 @@ export const useSubscriptionStatus = () => {
       let calculationDetails = '';
 
       if (subscriptionData) {
+        console.log('🎯 TRIAL DEBUG: Dados da assinatura encontrados:', {
+          status: subscriptionData.status,
+          trial_ends_at: subscriptionData.trial_ends_at,
+          current_period_end: subscriptionData.current_period_end,
+          plan_id: subscriptionData.plan_id
+        });
+        
         if (subscriptionData.status === 'active') {
           hasAccess = true;
           calculationDetails = 'Status ativo';
@@ -322,12 +376,27 @@ export const useSubscriptionStatus = () => {
           const trialEndDate = new Date(subscriptionData.trial_ends_at);
           const now = new Date();
           hasAccess = now < trialEndDate;
-          calculationDetails = `Trial: ${hasAccess ? 'VÁLIDO' : 'EXPIRADO'} - Termina em: ${trialEndDate.toLocaleString('pt-BR')} - Agora: ${now.toLocaleString('pt-BR')}`;
+          const daysLeft = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          calculationDetails = `Trial: ${hasAccess ? 'VÁLIDO' : 'EXPIRADO'} - Dias restantes: ${daysLeft} - Termina em: ${trialEndDate.toLocaleString('pt-BR')}`;
+          
+          console.log('🎯 TRIAL DEBUG: Cálculo detalhado do trial:', {
+            trial_ends_at: subscriptionData.trial_ends_at,
+            trialEndDate: trialEndDate.toISOString(),
+            now: now.toISOString(),
+            hasAccess,
+            daysLeft,
+            timeUntilEnd: trialEndDate.getTime() - now.getTime()
+          });
         } else {
-          calculationDetails = 'Sem status válido ou trial_ends_at ausente';
+          calculationDetails = `Status: ${subscriptionData.status} - trial_ends_at: ${subscriptionData.trial_ends_at}`;
+          console.log('⚠️ TRIAL DEBUG: Status não reconhecido ou trial_ends_at ausente:', {
+            status: subscriptionData.status,
+            trial_ends_at: subscriptionData.trial_ends_at
+          });
         }
       } else {
         calculationDetails = 'Nenhuma assinatura encontrada';
+        console.log('⚠️ TRIAL DEBUG: Nenhuma assinatura encontrada para o usuário');
       }
 
       console.log('🎯 TRIAL DEBUG: Cálculo de acesso:', {

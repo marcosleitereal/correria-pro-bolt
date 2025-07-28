@@ -61,7 +61,11 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
     trial_ends_at: subscriptionStatus?.trial_ends_at,
     has_access: subscriptionStatus?.has_access,
     subscriptionLoading,
-    userEmail: user?.email
+    userEmail: user?.email,
+    shouldShowCounter: isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0,
+    rawDaysCalculation: subscriptionStatus?.trial_ends_at 
+      ? Math.ceil((new Date(subscriptionStatus.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 'N/A'
   });
   const handleSignOut = useCallback(async () => {
     console.log('🚪 PrivateLayout: Iniciando logout seguro');
