@@ -162,7 +162,11 @@ export const useSubscriptionManagement = () => {
   };
 
   const getAdminOnlyPlans = (): Plan[] => {
-    return allPlans.filter(plan => plan.is_active && plan.price_monthly === 0);
+    return allPlans.filter(plan => 
+      plan.is_active && 
+      plan.price_monthly === 0 && 
+      (plan.name === 'Restrito' || plan.name === 'Elite' || plan.name === 'Premium')
+    );
   };
 
   return {

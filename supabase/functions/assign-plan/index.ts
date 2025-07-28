@@ -86,13 +86,20 @@ Deno.serve(async (req) => {
     // Buscar dados do plano
     const { data: plan, error: planError } = await supabase
       .from('plans')
-      .select('name, price_monthly, max_athletes')
+      .select('id, name, price_monthly, max_athletes')
       .eq('id', new_plan_id)
       .single();
 
     if (planError || !plan) {
       return corsResponse({ error: 'Plano não encontrado' }, 404);
     }
+
+    console.log('✅ ASSIGN-PLAN: Plano encontrado:', {
+      id: plan.id,
+      name: plan.name,
+      price: plan.price_monthly,
+      max_athletes: plan.max_athletes
+    });
 
     // Buscar assinatura atual
     const { data: currentSubscription, error: subError } = await supabase
@@ -109,7 +116,6 @@ Deno.serve(async (req) => {
         .from('subscriptions')
         .update({
           plan_id: new_plan_id,
-          plan_name: plan.name,
           status: 'active',
           trial_ends_at: null,
           current_period_start: new Date().toISOString(),
@@ -132,7 +138,6 @@ Deno.serve(async (req) => {
         .insert({
           user_id: user_id,
           plan_id: new_plan_id,
-          plan_name: plan.name,
           status: 'active',
           trial_ends_at: null,
           current_period_start: new Date().toISOString(),
