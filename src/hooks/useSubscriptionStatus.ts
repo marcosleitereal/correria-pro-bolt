@@ -244,10 +244,12 @@ export const useSubscriptionStatus = () => {
       
       // Se não há assinatura, criar uma de trial automaticamente
       if (!subscriptionData) {
-        console.log('🔧 TRIAL DEBUG: Nenhuma assinatura encontrada, criando trial automaticamente com duração de', trialDurationDays, 'dias...');
+        console.log('🔧 TRIAL DEBUG: CRIANDO TRIAL AUTOMÁTICO com duração de', trialDurationDays, 'dias...');
         
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
+        
+        console.log('🔧 TRIAL DEBUG: Data de fim calculada:', trialEndsAt.toISOString());
         
         const { data: newSubscription, error: createSubError } = await supabase
           .from('subscriptions')
@@ -265,10 +267,11 @@ export const useSubscriptionStatus = () => {
           .single();
         
         if (createSubError) {
-          console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
-          // Continuar sem trial se falhar
+          console.error('❌ TRIAL DEBUG: ERRO CRÍTICO ao criar trial automático:', createSubError);
+          console.error('❌ TRIAL DEBUG: Detalhes do erro:', createSubError);
         } else {
-          console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente com', trialDurationDays, 'dias');
+          console.log('✅ TRIAL DEBUG: Trial automático criado com SUCESSO:', newSubscription);
+          console.log('✅ TRIAL DEBUG: Duração aplicada:', trialDurationDays, 'dias');
           
           // Usar a nova assinatura
           const finalStatus: SubscriptionStatus = {
@@ -284,7 +287,7 @@ export const useSubscriptionStatus = () => {
             has_access: true
           };
           
-          console.log('✅ TRIAL DEBUG: Status final com trial automático:', finalStatus);
+          console.log('✅ TRIAL DEBUG: Status final CONFIRMADO:', finalStatus);
           setSubscriptionStatus(finalStatus);
           setLoading(false);
           return;

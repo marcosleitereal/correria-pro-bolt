@@ -151,54 +151,51 @@ Deno.serve(async (req) => {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
 
-    // O trigger handle_new_user deve criar automaticamente o perfil e assinatura
-    // Aguardar um momento para o trigger executar
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Verificar se o perfil foi criado
+    console.log('✅ CREATE-USER: Criando perfil manualmente para garantir consistência...');
+    
+    // Criar perfil manualmente SEMPRE (não depender do trigger)
     const { data: newProfile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('id', newUser.user.id)
+      .upsert({
+        id: newUser.user.id,
+        full_name: full_name,
+        email: email,
+        role: 'coach'
+      }, {
+        onConflict: 'id'
+      })
+      .select()
       .single();
 
     if (profileError) {
-      console.error('Erro ao verificar perfil criado:', profileError);
-      // Tentar criar perfil manualmente se o trigger falhou
-      const { error: manualProfileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: newUser.user.id,
-          full_name: full_name,
-          email: email,
-          role: 'coach'
-        });
-
-      if (manualProfileError) {
-        console.error('Erro ao criar perfil manualmente:', manualProfileError);
-      }
+      console.error('❌ CREATE-USER: Erro ao criar perfil:', profileError);
+      return corsResponse({ error: 'Erro ao criar perfil do usuário' }, 500);
     }
 
-    // Criar assinatura de período de teste para o novo treinador
+    console.log('✅ CREATE-USER: Perfil criado com sucesso:', newProfile);
+
+    // CRÍTICO: Criar assinatura de período de teste SEMPRE
+    console.log('✅ CREATE-USER: Criando assinatura de trial com duração de', trialDurationDays, 'dias...');
     const { data: newSubscription, error: subscriptionError } = await supabase
       .from('subscriptions')
-      .insert({
+      .upsert({
         user_id: newUser.user.id,
         plan_id: null, // Sem plano específico durante o trial
         status: 'trialing',
         trial_ends_at: trialEndsAt.toISOString(),
         current_period_start: new Date().toISOString(),
         current_period_end: trialEndsAt.toISOString()
+      }, {
+        onConflict: 'user_id'
       })
       .select()
       .single();
 
     if (subscriptionError) {
-      console.error('Erro ao criar assinatura de trial:', subscriptionError);
-      // Não falhar a operação principal por causa da assinatura
-      // O usuário ainda será criado, mas sem trial automático
+      console.error('❌ CREATE-USER: ERRO CRÍTICO ao criar assinatura de trial:', subscriptionError);
+      return corsResponse({ error: 'Erro ao criar período de teste para o usuário' }, 500);
     } else {
-      console.log('✅ Assinatura de trial criada com sucesso para o usuário:', newUser.user.id);
+      console.log('✅ CREATE-USER: Assinatura de trial criada com sucesso:', newSubscription);
     }
 
     // Criar log de auditoria

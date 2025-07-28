@@ -39,7 +39,7 @@ const navigationItems = [
 const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
   const { user, signOut, loading } = useAuthContext();
   const { profile, fetchProfile, loading: profileLoading } = useUserStore();
-  const { isTrialing, daysUntilTrialEnd } = useSubscriptionStatus();
+  const { isTrialing, daysUntilTrialEnd, subscriptionStatus, loading: subscriptionLoading } = useSubscriptionStatus();
   const { 
     notifications, 
     unreadCount, 
@@ -53,6 +53,16 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // DEBUG: Logs para rastrear o problema do contador
+  console.log('🔍 LAYOUT DEBUG: Estado da assinatura:', {
+    isTrialing,
+    daysUntilTrialEnd,
+    subscriptionStatus: subscriptionStatus?.subscription_status,
+    trial_ends_at: subscriptionStatus?.trial_ends_at,
+    has_access: subscriptionStatus?.has_access,
+    subscriptionLoading,
+    userEmail: user?.email
+  });
   const handleSignOut = useCallback(async () => {
     console.log('🚪 PrivateLayout: Iniciando logout seguro');
     
@@ -297,8 +307,8 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           {/* Trial Counter */}
           <div className="flex-1"></div>
 
-          {/* Trial Counter - POSICIONAMENTO CORRETO */}
-          {isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0 && (
+          {/* Trial Counter - POSICIONAMENTO CORRETO COM DEBUG */}
+          {(isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -307,6 +317,13 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
               <div className="w-2 h-2 bg-white rounded-full"></div>
               <span>Trial: {daysUntilTrialEnd} {daysUntilTrialEnd === 1 ? 'dia' : 'dias'}</span>
             </motion.div>
+          )}
+          
+          {/* DEBUG: Mostrar sempre para testar */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-yellow-500 text-black px-2 py-1 rounded text-xs mr-2">
+              DEBUG: Trial={isTrialing ? 'SIM' : 'NÃO'} | Dias={daysUntilTrialEnd} | Status={subscriptionStatus?.subscription_status}
+            </div>
           )}
 
           {/* User menu */}
