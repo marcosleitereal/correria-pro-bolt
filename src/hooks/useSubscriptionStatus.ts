@@ -63,16 +63,37 @@ export const useSubscriptionStatus = () => {
       }
 
       // CORREÇÃO CRÍTICA: Sempre usar valores fixos baseados no admin (35 dias)
-      const trialDurationDays = 35; // Valor correto do admin
-      const trialAthleteLimit = 33;
-      const trialTrainingLimit = 44;
+      // BUSCAR CONFIGURAÇÕES DINÂMICAS DO BANCO
+      const { data: dynamicSettings, error: settingsError } = await supabase
+        .from('app_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       
-      console.log('✅ SUBSCRIPTION STATUS: Usando valores fixos do admin:', {
-        trial_duration_days: trialDurationDays,
-        trial_athlete_limit: trialAthleteLimit,
-        trial_training_limit: trialTrainingLimit,
-        fonte: 'valores fixos baseados no admin'
-      });
+      let trialDurationDays = 70; // Fallback
+      let trialAthleteLimit = 70;
+      let trialTrainingLimit = 70;
+      
+      if (!settingsError && dynamicSettings) {
+        trialDurationDays = dynamicSettings.trial_duration_days;
+        trialAthleteLimit = dynamicSettings.trial_athlete_limit;
+        trialTrainingLimit = dynamicSettings.trial_training_limit;
+        console.log('✅ SUBSCRIPTION STATUS: Usando configurações dinâmicas do banco:', {
+          trial_duration_days: trialDurationDays,
+          trial_athlete_limit: trialAthleteLimit,
+          trial_training_limit: trialTrainingLimit,
+          fonte: 'app_settings dinâmico'
+        });
+      } else {
+        console.warn('⚠️ SUBSCRIPTION STATUS: Usando valores fallback:', {
+          trial_duration_days: trialDurationDays,
+          trial_athlete_limit: trialAthleteLimit,
+          trial_training_limit: trialTrainingLimit,
+          erro: settingsError?.message
+        });
+      }
+      
 
 
       // 1. BUSCAR PERFIL DO USUÁRIO
