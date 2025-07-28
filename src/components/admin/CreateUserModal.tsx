@@ -237,12 +237,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             {/* Aviso */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 text-sm">
-                {appSettingsLoading 
-                  ? 'Carregando informações sobre o período de teste...' 
-                  : <>
-                      <strong>Importante:</strong> O treinador receberá automaticamente um período de teste de {getTrialDuration()} dias. 
-                      Certifique-se de compartilhar as credenciais de acesso com segurança.
-                    </>}
+                <strong>Importante:</strong> O treinador receberá automaticamente um período de teste de {getTrialDuration()} dias. 
+                Certifique-se de compartilhar as credenciais de acesso com segurança.
               </p>
             </div>
           </form>

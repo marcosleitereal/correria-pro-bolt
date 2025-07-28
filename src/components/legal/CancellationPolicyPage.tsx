@@ -53,9 +53,7 @@ const getCancellationPolicyContent = (trialDays: number, appSettingsLoading: boo
       'Reembolso integral: Disponível nos primeiros 7 dias após a primeira cobrança',
       'Problemas técnicos: Reembolso proporcional se nossos serviços estiverem indisponíveis por mais de 48h consecutivas',
       'Cobrança indevida: Reembolso integral em caso de erro de cobrança',
-      appSettingsLoading 
-        ? 'Cancelamento no período de teste: Carregando informações...' 
-        : `Cancelamento no período de teste: Não há cobrança durante os ${trialDays} dias de teste, portanto não há necessidade de reembolso`,
+      `Cancelamento no período de teste: Não há cobrança durante os ${trialDays} dias de teste, portanto não há necessidade de reembolso`,
       'Processamento: Reembolsos são processados em até 5-10 dias úteis'
     ]
   },

@@ -51,9 +51,7 @@ const CTASection: React.FC = () => {
             </Link>
             
             <p className="text-blue-100 text-sm">
-              {appSettingsLoading 
-                ? 'Carregando...' 
-                : `✓ Teste grátis por ${getTrialDuration()} dias • ✓ Sem compromisso • ✓ Suporte completo`}
+              ✓ Teste grátis por {getTrialDuration()} dias • ✓ Sem compromisso • ✓ Suporte completo
             </p>
           </motion.div>
         </motion.div>

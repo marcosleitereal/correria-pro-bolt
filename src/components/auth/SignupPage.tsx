@@ -120,9 +120,7 @@ const SignupPage: React.FC = () => {
               Criar Conta Gratuita
             </h2>
             <p className="text-slate-600">
-              {appSettingsLoading 
-                ? 'Carregando...' 
-                : `Comece seu teste gratuito de ${getTrialDuration()} dias`}
+              Comece seu teste gratuito de {getTrialDuration()} dias
             </p>
           </div>
 

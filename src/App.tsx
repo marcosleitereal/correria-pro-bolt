@@ -153,7 +153,6 @@ function App() {
             } />
           </Routes>
           <Toaster />
-          <Toaster />
         </div>
       </Router>
     </AuthProvider>

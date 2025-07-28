@@ -8,7 +8,7 @@ export interface Runner {
   weight_kg: number | null;
   height_cm: number | null;
   main_goal: string | null;
-  fitness_level: 'beginner' | 'intermediate' | 'advanced' | 'professional';
+  fitness_level: string;
   resting_heart_rate: number | null;
   max_heart_rate: number | null;
   notes: string | null;

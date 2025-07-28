@@ -60,9 +60,7 @@ const PricingPage: React.FC = () => {
     },
     {
       question: "Como funciona o período de teste gratuito?",
-      answer: appSettingsLoading
-        ? 'Carregando informações sobre o período de teste...'
-        : `Você tem ${getTrialDuration()} dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada.`
+      answer: `Você tem ${getTrialDuration()} dias para testar todas as funcionalidades da plataforma gratuitamente. Não é necessário cartão de crédito para começar. Após o período, você pode escolher um plano ou continuar com a versão gratuita limitada.`
     },
     {
       question: "Há suporte técnico incluído?",

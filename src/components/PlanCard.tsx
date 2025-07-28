@@ -186,11 +186,9 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, 
       </button>
 
       {/* Trial Notice */}
-      {!appSettingsLoading && (
         <p className="text-center text-xs text-slate-500 mt-4">
           ✓ {getTrialDuration()} dias grátis • ✓ Sem compromisso • ✓ Cancele quando quiser
         </p>
-      )}
     </motion.div>
   );
 };
