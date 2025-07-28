@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Clock, Users, FileText, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Save, Clock, Users, FileText, Loader2, AlertCircle, RefreshCw, Edit, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import TrialSettingsModal from './TrialSettingsModal';
 
 const TrialSettingsCard: React.FC = () => {
   const { settings, loading, error, updateSettings, refreshSettings } = useAppSettings();
@@ -85,10 +86,6 @@ const TrialSettingsCard: React.FC = () => {
     }
   };
 
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-6">
@@ -126,12 +123,12 @@ const TrialSettingsCard: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleOpenModal}
+            onClick={() => setIsModalOpen(true)}
             disabled={refreshing || loading}
             className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             title="Editar configurações"
           >
-            <Settings className="w-5 h-5" />
+            <Edit className="w-5 h-5" />
             <span className="text-sm font-medium">Editar</span>
           </motion.button>
         </div>
@@ -189,7 +186,7 @@ const TrialSettingsCard: React.FC = () => {
               onClick={handleOpenModal}
               className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 flex items-center gap-2 mx-auto"
             >
-              <Settings className="w-5 h-5" />
+              <Edit className="w-5 h-5" />
               Configurar Agora
             </button>
           </div>
