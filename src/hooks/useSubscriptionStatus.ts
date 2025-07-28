@@ -148,26 +148,6 @@ export const useSubscriptionStatus = () => {
         console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
         
         // Se não há assinatura, criar uma de trial automaticamente
-              
-              // ÚLTIMO RECURSO: Definir status local mesmo sem salvar no banco
-              console.log('🆘 TRIAL DEBUG: ÚLTIMO RECURSO - Definindo trial local');
-              const emergencyStatus: SubscriptionStatus = {
-                user_id: user.id,
-                email: profileData.email,
-                full_name: profileData.full_name,
-                role: profileData.role,
-                subscription_status: 'trialing',
-                current_plan_name: null,
-                plan_id: null,
-                trial_ends_at: trialEndsAt.toISOString(),
-                current_period_end: trialEndsAt.toISOString(),
-                has_access: true
-              };
-              
-              console.log('🆘 TRIAL DEBUG: Status de emergência definido:', emergencyStatus);
-              setSubscriptionStatus(emergencyStatus);
-              setLoading(false);
-              return;
         if (!subscriptionData) {
           console.log('🔧 TRIAL DEBUG: ⚡ CRIANDO TRIAL AUTOMÁTICO FORÇADO com duração de', trialDurationDays, 'dias...');
           
@@ -190,9 +170,30 @@ export const useSubscriptionStatus = () => {
             .select()
             .single();
           
-            console.log('✅ TRIAL DEBUG: 🎉 Trial automático criado com SUCESSO:', newSubscription);
+          if (createSubError) {
             console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
+            
+            // ÚLTIMO RECURSO: Definir status local mesmo sem salvar no banco
+            console.log('🆘 TRIAL DEBUG: ÚLTIMO RECURSO - Definindo trial local');
+            const emergencyStatus: SubscriptionStatus = {
+              user_id: user.id,
+              email: profileData.email,
+              full_name: profileData.full_name,
+              role: profileData.role,
+              subscription_status: 'trialing',
+              current_plan_name: null,
+              plan_id: null,
+              trial_ends_at: trialEndsAt.toISOString(),
+              current_period_end: trialEndsAt.toISOString(),
+              has_access: true
+            };
+            
+            console.log('🆘 TRIAL DEBUG: Status de emergência definido:', emergencyStatus);
+            setSubscriptionStatus(emergencyStatus);
+            setLoading(false);
+            return;
           } else {
+            console.log('✅ TRIAL DEBUG: 🎉 Trial automático criado com SUCESSO:', newSubscription);
             console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente com', trialDurationDays, 'dias');
             
             // Usar a nova assinatura
