@@ -6,7 +6,7 @@ import { AppSettings } from '../../types/database';
 interface TrialSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (settings: Partial<AppSettings>) => Promise<boolean>;
+  onSave: (settings: any) => Promise<boolean>;
   initialSettings: AppSettings | null;
   loading: boolean;
 }
@@ -29,20 +29,12 @@ const TrialSettingsModal: React.FC<TrialSettingsModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      if (initialSettings) {
-        setFormData({
-          trial_duration_days: initialSettings.trial_duration_days,
-          trial_athlete_limit: initialSettings.trial_athlete_limit,
-          trial_training_limit: initialSettings.trial_training_limit
-        });
-      } else {
-        // Valores padrão se não há configurações
-        setFormData({
-          trial_duration_days: 35,
-          trial_athlete_limit: 33,
-          trial_training_limit: 44
-        });
-      }
+      // Sempre usar valores padrão atuais (baseados no admin)
+      setFormData({
+        trial_duration_days: 35,
+        trial_athlete_limit: 33,
+        trial_training_limit: 44
+      });
       setErrors({});
     }
   }, [isOpen, initialSettings]);

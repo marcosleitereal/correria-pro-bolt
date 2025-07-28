@@ -17,12 +17,15 @@ import {
 } from 'lucide-react';
 import { usePlans } from '../../hooks/usePlans';
 import { usePaymentGateways } from '../../hooks/usePaymentGateways';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import PlanModal from './PlanModal';
 import { Plan } from '../../types/database';
 import TrialSettingsModal from './TrialSettingsModal';
 import SubscriptionManagement from './SubscriptionManagement';
 
 const BillingManagement: React.FC = () => {
+  const { user } = useAuthContext();
   const { 
     plans, 
     loading: plansLoading, 
@@ -136,14 +139,48 @@ const BillingManagement: React.FC = () => {
   };
 
   const handleSaveTrialSettings = async (settings: any) => {
+    if (!user) {
+      console.error('Usuário não autenticado');
+      return false;
+    }
+
     try {
-      // Aqui você pode implementar a lógica de salvamento real
+      console.log('💾 SALVANDO configurações de trial no banco:', settings);
+      
+      // Usar o hook useAppSettings para salvar no banco
+      const { data, error } = await supabase
+        .from('app_settings')
+        .upsert({
+          trial_duration_days: settings.trial_duration_days,
+          trial_athlete_limit: settings.trial_athlete_limit,
+          trial_training_limit: settings.trial_training_limit,
+          updated_by: user.id,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erro ao salvar no banco:', error);
+        throw error;
+      }
+
+      console.log('✅ Configurações salvas no banco com sucesso:', data);
+      
+      // Atualizar estado local
       setTrialSettings(settings);
       showSuccess('Configurações do período de teste salvas com sucesso!');
       setIsTrialModalOpen(false);
+      
+      // Forçar refresh da página para mostrar novos valores
+      window.location.reload();
+      
       return true;
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
+      console.error('❌ Erro ao salvar configurações:', error);
+      showSuccess('Erro ao salvar configurações. Tente novamente.');
       return false;
     }
   };
