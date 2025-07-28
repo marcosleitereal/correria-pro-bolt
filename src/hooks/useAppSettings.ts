@@ -32,7 +32,7 @@ export const useAppSettings = () => {
 
       console.log('🔍 FETCH DEBUG: Executando query na tabela app_settings...');
       
-      // Query mais robusta - buscar todos e pegar o mais recente
+      // CORREÇÃO CRÍTICA: Tentar buscar configurações existentes primeiro
       const { data, error: fetchError } = await supabase
         .from('app_settings')
         .select('*')
@@ -44,42 +44,47 @@ export const useAppSettings = () => {
       if (fetchError) {
         console.error('❌ FETCH DEBUG: Erro na query:', fetchError);
         
-        // Se a tabela não existe, criar configuração padrão
-        if (fetchError.code === 'PGRST116' || fetchError.code === '42P01') {
-          console.log('⚠️ FETCH DEBUG: Tabela vazia ou não existe, criando configuração padrão...');
-          
-          const defaultSettings: AppSettings = {
-            id: 'default-' + Date.now(),
-            trial_duration_days: 35, // VALOR CORRETO baseado no admin
-            trial_athlete_limit: 33,
-            trial_training_limit: 44,
-            updated_by: user?.id || null,
-            updated_at: new Date().toISOString()
-          };
-          
-          setSettings(defaultSettings);
-          console.log('✅ FETCH DEBUG: Configuração padrão definida:', defaultSettings);
-          return;
-        }
-        
         throw fetchError;
       }
 
       // Se não há dados, criar configuração padrão
       if (!data || data.length === 0) {
-        console.log('⚠️ FETCH DEBUG: Nenhum dado encontrado, criando configuração padrão...');
+        console.log('⚠️ FETCH DEBUG: Nenhum dado encontrado, tentando criar configuração inicial...');
         
-        const defaultSettings: AppSettings = {
-          id: 'default-' + Date.now(),
-          trial_duration_days: 35, // VALOR CORRETO baseado no admin
+        // Tentar criar configuração inicial no banco
+        if (user?.id) {
+          const { data: newSettings, error: createError } = await supabase
+            .from('app_settings')
+            .insert({
+              trial_duration_days: 35,
+              trial_athlete_limit: 33,
+              trial_training_limit: 44,
+              updated_by: user.id
+            })
+            .select()
+            .single();
+          
+          if (!createError && newSettings) {
+            console.log('✅ FETCH DEBUG: Configuração inicial criada no banco:', newSettings);
+            setSettings(newSettings);
+            return;
+          } else {
+            console.error('❌ FETCH DEBUG: Erro ao criar configuração inicial:', createError);
+          }
+        }
+        
+        // Fallback para configuração local se não conseguir criar no banco
+        const fallbackSettings: AppSettings = {
+          id: 'fallback-' + Date.now(),
+          trial_duration_days: 35,
           trial_athlete_limit: 33,
           trial_training_limit: 44,
           updated_by: user?.id || null,
           updated_at: new Date().toISOString()
         };
         
-        setSettings(defaultSettings);
-        console.log('✅ FETCH DEBUG: Configuração padrão definida:', defaultSettings);
+        setSettings(fallbackSettings);
+        console.log('✅ FETCH DEBUG: Configuração fallback definida:', fallbackSettings);
         return;
       }
 
@@ -94,18 +99,18 @@ export const useAppSettings = () => {
     } catch (err: any) {
       console.error('❌ FETCH DEBUG: Erro geral:', err);
       
-      // Em caso de erro, usar configuração padrão baseada no admin
-      const defaultSettings: AppSettings = {
-        id: 'default-error-' + Date.now(),
-        trial_duration_days: 35, // VALOR CORRETO baseado no admin
+      // Em caso de erro, usar configuração padrão
+      const errorSettings: AppSettings = {
+        id: 'error-' + Date.now(),
+        trial_duration_days: 35,
         trial_athlete_limit: 33,
         trial_training_limit: 44,
         updated_by: null,
         updated_at: new Date().toISOString()
       };
       
-      setSettings(defaultSettings);
-      console.log('✅ FETCH DEBUG: Usando configuração padrão devido ao erro:', defaultSettings);
+      setSettings(errorSettings);
+      console.log('✅ FETCH DEBUG: Usando configuração de erro:', errorSettings);
       setError(err.message || 'Erro ao carregar configurações');
     } finally {
       setLoading(false);
@@ -137,43 +142,93 @@ export const useAppSettings = () => {
       setError(null);
       console.log('💾 UPDATE DEBUG: Iniciando salvamento:', settingsData);
       
-      if (!settings?.id) {
-        console.error('❌ UPDATE DEBUG: Sem ID para atualizar, tentando criar novo registro...');
+      // CORREÇÃO CRÍTICA: Sempre tentar salvar no banco de dados
+      if (!settings?.id || settings.id.startsWith('default-') || settings.id.startsWith('fallback-') || settings.id.startsWith('error-')) {
+        console.log('💾 UPDATE DEBUG: Criando novo registro no banco...');
         
-        // Se não há settings, criar um novo registro
-        const newSettings: AppSettings = {
-          id: 'new-' + Date.now(),
-          trial_duration_days: settingsData.trial_duration_days || 35,
-          trial_athlete_limit: settingsData.trial_athlete_limit || 33,
-          trial_training_limit: settingsData.trial_training_limit || 44,
-          updated_by: user.id,
-          updated_at: new Date().toISOString()
-        };
+        const { data: newSettings, error: createError } = await supabase
+          .from('app_settings')
+          .insert({
+            trial_duration_days: settingsData.trial_duration_days || 35,
+            trial_athlete_limit: settingsData.trial_athlete_limit || 33,
+            trial_training_limit: settingsData.trial_training_limit || 44,
+            updated_by: user.id
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          throw createError;
+        }
         
         setSettings(newSettings);
-        console.log('✅ UPDATE DEBUG: Novo registro criado localmente:', newSettings);
+        console.log('✅ UPDATE DEBUG: Novo registro criado:', newSettings);
         toast.success('Configurações criadas com sucesso!');
         return true;
+      } else {
+        console.log('💾 UPDATE DEBUG: Atualizando registro existente:', settings.id);
+        
+        const { data: updatedSettings, error: updateError } = await supabase
+          .from('app_settings')
+          .update({
+            trial_duration_days: settingsData.trial_duration_days || settings.trial_duration_days,
+            trial_athlete_limit: settingsData.trial_athlete_limit || settings.trial_athlete_limit,
+            trial_training_limit: settingsData.trial_training_limit || settings.trial_training_limit,
+            updated_by: user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', settings.id)
+          .select()
+          .single();
+        
+        if (updateError) {
+          throw updateError;
+        }
+        
+        setSettings(updatedSettings);
+        console.log('✅ UPDATE DEBUG: Registro atualizado:', updatedSettings);
+        toast.success('Configurações atualizadas com sucesso!');
+        return true;
       }
-      
-      // Atualizar registro existente localmente (simulação)
-      const updatedSettings = {
-        ...settings,
-        ...settingsData,
-        updated_by: user.id,
-        updated_at: new Date().toISOString()
-      };
-
-      console.log('💾 UPDATE DEBUG: Dados para UPDATE:', updatedSettings);
-      setSettings(updatedSettings);
-      console.log('✅ UPDATE DEBUG: Settings atualizados localmente');
-      
-      toast.success('Configurações atualizadas com sucesso!');
-      return true;
     } catch (err: any) {
       console.error('❌ UPDATE DEBUG: Erro geral:', err);
       setError(err.message || 'Erro ao atualizar configurações');
       toast.error('Erro ao atualizar configurações');
+      return false;
+    }
+  };
+
+  // Função para criar configurações iniciais se não existirem
+  const createInitialSettings = async (): Promise<boolean> => {
+    if (!user) {
+      return false;
+    }
+
+    try {
+      console.log('🔧 CREATE DEBUG: Criando configurações iniciais...');
+      
+      const { data: newSettings, error: createError } = await supabase
+        .from('app_settings')
+        .insert({
+          trial_duration_days: settingsData.trial_duration_days || 35,
+          trial_athlete_limit: settingsData.trial_athlete_limit || 33,
+          trial_training_limit: settingsData.trial_training_limit || 44,
+          updated_by: user.id
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        throw createError;
+      }
+        
+      setSettings(newSettings);
+      console.log('✅ CREATE DEBUG: Configurações iniciais criadas:', newSettings);
+        toast.success('Configurações criadas com sucesso!');
+        return true;
+
+    } catch (err: any) {
+      console.error('❌ CREATE DEBUG: Erro ao criar configurações iniciais:', err);
       return false;
     }
   };

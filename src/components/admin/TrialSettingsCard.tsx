@@ -19,6 +19,7 @@ const TrialSettingsCard: React.FC = () => {
     trial_athlete_limit: 0,
     trial_training_limit: 0
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -83,6 +84,11 @@ const TrialSettingsCard: React.FC = () => {
       setRefreshing(false);
     }
   };
+
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-6">
@@ -120,13 +126,13 @@ const TrialSettingsCard: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
+            onClick={handleOpenModal}
             disabled={refreshing || loading}
-            className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 py-2 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            title="Atualizar dados do servidor"
+            className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Editar configurações"
           >
-            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="text-sm font-medium">Atualizar</span>
+            <Settings className="w-5 h-5" />
+            <span className="text-sm font-medium">Editar</span>
           </motion.button>
         </div>
       </div>
@@ -148,119 +154,56 @@ const TrialSettingsCard: React.FC = () => {
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* Duração do Teste */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Duração do Teste (dias)
-            </label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="number"
-                min="1"
-                max="365"
-                value={formData.trial_duration_days}
-                onChange={(e) => handleInputChange('trial_duration_days', parseInt(e.target.value) || 30)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                placeholder="30"
-              />
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Quantos dias os novos usuários terão de acesso gratuito
-            </p>
-          </div>
-
-          {/* Limite de Atletas */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Limite de Atletas no Teste
-            </label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={formData.trial_athlete_limit}
-                onChange={(e) => handleInputChange('trial_athlete_limit', parseInt(e.target.value) || 5)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                placeholder="5"
-              />
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Máximo de atletas que podem ser criados durante o teste
-            </p>
-          </div>
-
-          {/* Limite de Treinos */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Limite de Treinos no Teste
-            </label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={formData.trial_training_limit}
-                onChange={(e) => handleInputChange('trial_training_limit', parseInt(e.target.value) || 10)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                placeholder="10"
-              />
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Máximo de treinos que podem ser gerados durante o teste
-            </p>
-          </div>
-
-          {/* Informações Atuais */}
-          {settings && (
-            <div className="bg-slate-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-slate-700 mb-3">Configurações Atuais (Dados do Banco):</h4>
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-slate-500">Duração:</span>
-                  <p className="font-medium text-slate-900">{settings.trial_duration_days} dias</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Atletas:</span>
-                  <p className="font-medium text-slate-900">{settings.trial_athlete_limit} máximo</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Treinos:</span>
-                  <p className="font-medium text-slate-900">{settings.trial_training_limit} máximo</p>
-                </div>
+        {/* Informações Atuais */}
+        {settings ? (
+          <div className="bg-slate-50 rounded-lg p-6">
+            <h4 className="text-lg font-medium text-slate-700 mb-4">Configurações Atuais:</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div className="bg-white rounded-lg p-4 border border-slate-200">
+                <div className="text-3xl font-bold text-orange-600 mb-2">{settings.trial_duration_days}</div>
+                <div className="text-sm text-slate-600">Dias de Teste</div>
               </div>
-              {settings.updated_at && (
-                <p className="text-xs text-slate-500 mt-2">
-                  Última atualização no banco: {new Date(settings.updated_at).toLocaleString('pt-BR')}
-                </p>
-              )}
-              <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-xs text-blue-700">
-                  <strong>🔍 Auditoria:</strong> Estes valores são carregados diretamente do banco de dados Supabase.
-                  Se não correspondem aos valores do formulário, clique em "Atualizar\" acima.
-                </p>
+              <div className="bg-white rounded-lg p-4 border border-slate-200">
+                <div className="text-3xl font-bold text-blue-600 mb-2">{settings.trial_athlete_limit}</div>
+                <div className="text-sm text-slate-600">Atletas Máximo</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-slate-200">
+                <div className="text-3xl font-bold text-purple-600 mb-2">{settings.trial_training_limit}</div>
+                <div className="text-sm text-slate-600">Treinos Máximo</div>
               </div>
             </div>
-          )}
-
-          {/* Botão Salvar */}
-          <div className="pt-4">
+            {settings.updated_at && (
+              <p className="text-xs text-slate-500 mt-4 text-center">
+                Última atualização: {new Date(settings.updated_at).toLocaleString('pt-BR')}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
+            <h4 className="text-lg font-medium text-slate-900 mb-2">Configurações Não Encontradas</h4>
+            <p className="text-slate-600 mb-4">
+              As configurações do período de teste não foram encontradas no banco de dados.
+            </p>
             <button
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              onClick={handleOpenModal}
+              className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 flex items-center gap-2 mx-auto"
             >
-              {saving && <Loader2 className="w-5 h-5 animate-spin" />}
-              <Save className="w-5 h-5" />
-              {hasChanges ? 'Salvar Configurações' : 'Configurações Salvas'}
+              <Settings className="w-5 h-5" />
+              Configurar Agora
             </button>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Modal de Configurações */}
+      <TrialSettingsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={updateSettings}
+        initialSettings={settings}
+        loading={saving}
+      />
     </motion.div>
   );
 };
