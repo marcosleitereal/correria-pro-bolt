@@ -12,13 +12,14 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  Save
+  Save,
+  Clock
 } from 'lucide-react';
 import { usePlans } from '../../hooks/usePlans';
 import { usePaymentGateways } from '../../hooks/usePaymentGateways';
 import PlanModal from './PlanModal';
 import { Plan } from '../../types/database';
-import TrialSettingsCard from './TrialSettingsCard';
+import TrialSettingsModal from './TrialSettingsModal';
 import SubscriptionManagement from './SubscriptionManagement';
 
 const BillingManagement: React.FC = () => {
@@ -41,6 +42,12 @@ const BillingManagement: React.FC = () => {
   const [showSecretKeys, setShowSecretKeys] = useState<Record<string, boolean>>({});
   const [savingGateways, setSavingGateways] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [trialSettings, setTrialSettings] = useState({
+    trial_duration_days: 35,
+    trial_athlete_limit: 33,
+    trial_training_limit: 44
+  });
 
   const [gatewayConfig, setGatewayConfig] = useState({
     stripe_public_key: '',
@@ -126,6 +133,19 @@ const BillingManagement: React.FC = () => {
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const handleSaveTrialSettings = async (settings: any) => {
+    try {
+      // Aqui você pode implementar a lógica de salvamento real
+      setTrialSettings(settings);
+      showSuccess('Configurações do período de teste salvas com sucesso!');
+      setIsTrialModalOpen(false);
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      return false;
+    }
   };
 
   const toggleSecretKeyVisibility = (field: string) => {
@@ -511,7 +531,52 @@ const BillingManagement: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.2 }}
         className="w-full"
       >
-        <TrialSettingsCard />
+        {/* Configurações do Período de Teste - Inline */}
+        <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="w-6 h-6" />
+                <div>
+                  <h3 className="text-xl font-bold">Configurações do Período de Teste</h3>
+                  <p className="text-orange-100">
+                    Configure os limites e duração do período de avaliação gratuita
+                  </p>
+                </div>
+              </div>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsTrialModalOpen(true)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2"
+              >
+                <Edit className="w-5 h-5" />
+                <span className="text-sm font-medium">Editar</span>
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="bg-slate-50 rounded-lg p-6">
+              <h4 className="text-lg font-medium text-slate-700 mb-4">Configurações Atuais:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="text-3xl font-bold text-orange-600 mb-2">35</div>
+                  <div className="text-sm text-slate-600">Dias de Teste</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="text-3xl font-bold text-blue-600 mb-2">33</div>
+                  <div className="text-sm text-slate-600">Atletas Máximo</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="text-3xl font-bold text-purple-600 mb-2">44</div>
+                  <div className="text-sm text-slate-600">Treinos Máximo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Gerenciamento de Assinaturas */}
@@ -534,6 +599,15 @@ const BillingManagement: React.FC = () => {
         onSave={handleUpdatePlan}
         plan={editingPlan}
         loading={plansLoading}
+      />
+
+      {/* Trial Settings Modal */}
+      <TrialSettingsModal
+        isOpen={isTrialModalOpen}
+        onClose={() => setIsTrialModalOpen(false)}
+        onSave={handleSaveTrialSettings}
+        initialSettings={trialSettings}
+        loading={false}
       />
     </div>
   );
