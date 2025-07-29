@@ -151,13 +151,11 @@ const PricingPage: React.FC = () => {
                   <Zap className="w-5 h-5" />
                 </div>
                 <h3 className="text-xl font-bold text-green-800">
-                  {appSettingsLoading ? 'Carregando...' : `${getTrialDuration()} Dias Grátis para Testar`}
+                  30 Dias Grátis para Testar
                 </h3>
               </div>
               <p className="text-green-700">
-                {appSettingsLoading 
-                  ? 'Carregando detalhes...' 
-                  : 'Experimente todas as funcionalidades sem compromisso. Não é necessário cartão de crédito.'}
+                Experimente todas as funcionalidades sem compromisso. Não é necessário cartão de crédito.
               </p>
             </motion.div>
           </motion.div>
