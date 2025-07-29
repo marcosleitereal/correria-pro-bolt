@@ -47,7 +47,7 @@ export const usePWA = () => {
       try {
         console.log('🔧 PWA: Registrando Service Worker...');
         
-        const reg = await navigator.serviceWorker.register('/sw.js', {
+        const reg = await navigator.serviceWorker.register('/service-worker.js', {
           scope: '/'
         });
         
@@ -237,8 +237,8 @@ export const usePWA = () => {
     try {
       await registration.showNotification(title, {
         body: options?.body || '',
-        icon: options?.icon || '/icons/icon-192x192.png',
-        badge: '/icons/icon-192x192.png',
+        icon: options?.icon || '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
         vibrate: [100, 50, 100],
         ...options
       });

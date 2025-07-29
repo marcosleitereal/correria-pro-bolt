@@ -35,6 +35,9 @@ import CookiePolicyPage from './components/legal/CookiePolicyPage';
 import CancellationPolicyPage from './components/legal/CancellationPolicyPage';
 import AcceptableUsePolicyPage from './components/legal/AcceptableUsePolicyPage';
 import NotFoundPage from './components/NotFoundPage';
+import PWAInstallButton from './components/PWAInstallButton';
+import PWAUpdatePrompt from './components/PWAUpdatePrompt';
+import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/PWAComponents/InstallPrompt';
 import UpdatePrompt from './components/PWAComponents/UpdatePrompt';
 import OfflineBanner from './components/PWAComponents/OfflineBanner';
@@ -156,6 +159,10 @@ function App() {
             } />
           </Routes>
           <Toaster />
+          
+          {/* PWA Components */}
+          <PWAUpdatePrompt />
+          <OfflineBanner />
           
           {/* PWA Components */}
           <InstallPrompt />

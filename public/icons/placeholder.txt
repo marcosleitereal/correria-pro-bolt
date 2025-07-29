@@ -1,0 +1,33 @@
+# Ícones PWA - Correria Pro
+
+Para completar a PWA, crie os seguintes ícones nesta pasta:
+
+## 📱 ÍCONES OBRIGATÓRIOS:
+
+### icon-192.png
+- Tamanho: 192x192 pixels
+- Formato: PNG com transparência
+- Uso: Ícone principal do app
+
+### icon-512.png  
+- Tamanho: 512x512 pixels
+- Formato: PNG com transparência
+- Uso: Ícone de alta resolução
+
+### icon-1024.png
+- Tamanho: 1024x1024 pixels
+- Formato: PNG com transparência
+- Uso: Ícone para stores
+
+## 🎨 DESIGN:
+- Logo da Correria Pro
+- Cores: Azul (#1e40af) e roxo (#8b5cf6)
+- Fundo: Branco ou transparente
+- Bordas: Cantos arredondados
+- Padding: 10-15% interno
+
+## 🛠️ FERRAMENTAS:
+- PWA Builder: https://www.pwabuilder.com/imageGenerator
+- Favicon Generator: https://realfavicongenerator.net/
+
+**Substitua este arquivo pelos ícones reais!**

@@ -1,7 +1,7 @@
 {
   "name": "Correria Pro",
   "short_name": "Correria",
-  "description": "Plataforma para treinadores de corrida com suporte a treinos, planos e atletas.",
+  "description": "Plataforma para treinadores de corrida com treinos, atletas e planos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -12,19 +12,19 @@
   "categories": ["sports", "fitness", "productivity"],
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-1024x1024.png",
+      "src": "/icons/icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
@@ -52,7 +52,7 @@
       "url": "/dashboard",
       "icons": [
         {
-          "src": "/icons/icon-192x192.png",
+          "src": "/icons/icon-192.png",
           "sizes": "192x192"
         }
       ]
@@ -64,7 +64,7 @@
       "url": "/dashboard/generate-training",
       "icons": [
         {
-          "src": "/icons/icon-192x192.png",
+          "src": "/icons/icon-192.png",
           "sizes": "192x192"
         }
       ]

@@ -1,0 +1,24 @@
+# Screenshots PWA - Correria Pro
+
+Para completar a PWA, crie os seguintes screenshots nesta pasta:
+
+## 📸 SCREENSHOTS OBRIGATÓRIOS:
+
+### desktop.png
+- Tamanho: 1280x720 pixels
+- Formato: PNG
+- Conteúdo: Dashboard principal (desktop)
+
+### mobile.png
+- Tamanho: 390x844 pixels
+- Formato: PNG  
+- Conteúdo: Dashboard principal (mobile)
+
+## 📋 COMO CRIAR:
+1. Abra a aplicação no navegador
+2. Navegue para `/dashboard`
+3. Use DevTools para simular dispositivos
+4. Tire screenshot da tela completa
+5. Redimensione conforme necessário
+
+**Substitua este arquivo pelos screenshots reais!**

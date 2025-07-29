@@ -22,6 +22,8 @@ import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import NotificationDropdown from '../notifications/NotificationDropdown';
+import PWAInstallButton from '../PWAInstallButton';
+import NotificationButton from '../NotificationButton';
 import PWAInstallButton from '../PWAComponents/PWAInstallButton';
 import NotificationButton from '../PWAComponents/NotificationButton';
 
@@ -323,6 +325,8 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           {/* User menu */}
           <div className="flex items-center gap-4">
             {/* Notification Bell */}
+            <NotificationButton variant="icon" />
+            
             <div className="relative" data-notification-dropdown>
               <NotificationButton variant="icon" />
               <button
@@ -355,6 +359,9 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
                 onMarkAllAsRead={markAllAsRead}
               />
             </div>
+
+            {/* PWA Install Button */}
+            <PWAInstallButton variant="secondary" size="sm" />
 
             {/* PWA Install Button */}
             <PWAInstallButton variant="secondary" size="sm" />
