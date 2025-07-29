@@ -20,6 +20,7 @@ import { usePaymentGateways } from '../../hooks/usePaymentGateways';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import GatewayConfigModal from './GatewayConfigModal';
 import PlanModal from './PlanModal';
 import { Plan } from '../../types/database';
 import TrialSettingsModal from './TrialSettingsModal';
@@ -54,6 +55,7 @@ const BillingManagement: React.FC = () => {
   const [savingGateways, setSavingGateways] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
 
   const [gatewayConfig, setGatewayConfig] = useState({
     stripe_public_key: '',
@@ -92,51 +94,55 @@ const BillingManagement: React.FC = () => {
     }
   };
 
-  const handleSaveGateways = async () => {
-    setSavingGateways(true);
+  const handleSaveGateways = async (gatewayData: any) => {
     try {
-      // CORREÇÃO CRÍTICA: Sempre salvar as configurações, mesmo se apenas uma chave for fornecida
+      console.log('💾 BILLING: Recebendo dados do modal:', gatewayData);
       
       // Update Stripe configuration
-      const stripeData: any = {
-        public_key: gatewayConfig.stripe_public_key.trim() || null
-      };
-      
-      if (gatewayConfig.stripe_secret_key.trim()) {
-        stripeData.secret_key_encrypted = gatewayConfig.stripe_secret_key.trim();
-      }
+      if (gatewayData.stripe_public_key || gatewayData.stripe_secret_key) {
+        const stripeData: any = {};
+        
+        if (gatewayData.stripe_public_key) {
+          stripeData.public_key = gatewayData.stripe_public_key.trim();
+        }
+        
+        if (gatewayData.stripe_secret_key) {
+          stripeData.secret_key_encrypted = gatewayData.stripe_secret_key.trim();
+        }
 
-      console.log('💾 Salvando configuração Stripe:', stripeData);
-      await updateGateway('stripe', stripeData);
+        console.log('💾 BILLING: Salvando Stripe:', stripeData);
+        const stripeSuccess = await updateGateway('stripe', stripeData);
+        if (!stripeSuccess) {
+          throw new Error('Falha ao salvar configurações do Stripe');
+        }
+      }
 
       // Update Mercado Pago configuration
-      const mercadopagoData: any = {
-        public_key: gatewayConfig.mercadopago_public_key.trim() || null
-      };
-      
-      if (gatewayConfig.mercadopago_access_token.trim()) {
-        mercadopagoData.secret_key_encrypted = gatewayConfig.mercadopago_access_token.trim();
+      if (gatewayData.mercadopago_public_key || gatewayData.mercadopago_access_token) {
+        const mercadopagoData: any = {};
+        
+        if (gatewayData.mercadopago_public_key) {
+          mercadopagoData.public_key = gatewayData.mercadopago_public_key.trim();
+        }
+        
+        if (gatewayData.mercadopago_access_token) {
+          mercadopagoData.secret_key_encrypted = gatewayData.mercadopago_access_token.trim();
+        }
       }
 
-      console.log('💾 Salvando configuração Mercado Pago:', mercadopagoData);
-      await updateGateway('mercadopago', mercadopagoData);
+        console.log('💾 BILLING: Salvando Mercado Pago:', mercadopagoData);
+        const mpSuccess = await updateGateway('mercadopago', mercadopagoData);
+        if (!mpSuccess) {
+          throw new Error('Falha ao salvar configurações do Mercado Pago');
+        }
+      }
 
       showSuccess('Configurações dos gateways salvas com sucesso!');
-      
-      // CORREÇÃO: Não limpar os campos após salvar para o usuário ver que foram salvos
-      setGatewayConfig(prev => ({
-        ...prev,
-        // Manter os valores para o usuário ver que foram salvos
-      }));
-      
-      // Recarregar dados dos gateways para mostrar valores atualizados
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      return true;
     } catch (error) {
-      console.error('Erro ao salvar configurações dos gateways:', error);
-    } finally {
-      setSavingGateways(false);
+      console.error('❌ BILLING: Erro ao salvar configurações:', error);
+      showSuccess('Erro ao salvar configurações. Tente novamente.');
+      return false;
     }
   };
 
@@ -415,136 +421,54 @@ const BillingManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 w-full">
-          {/* Security Warning */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 w-full">
-            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-            <div>
-              <p className="text-yellow-800 font-medium">Segurança</p>
-              <p className="text-yellow-700 text-sm">
-                As chaves secretas são criptografadas antes de serem armazenadas no banco de dados.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-8 w-full">
-            {/* Stripe Configuration */}
-            <div className="space-y-4 w-full">
-              <h4 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 font-bold text-sm">S</span>
+          <div className="p-4 sm:p-6 w-full">
+            {/* Current Status */}
+            <div className="bg-slate-50 rounded-lg p-6 mb-6">
+              <h4 className="text-lg font-medium text-slate-700 mb-4">Status Atual dos Gateways:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    <h5 className="font-semibold text-slate-900">Stripe</h5>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-slate-600">
+                      Chave Pública: {gateways.find(g => g.gateway_name === 'stripe')?.public_key ? '✅ Configurada' : '❌ Não configurada'}
+                    </p>
+                    <p className="text-slate-600">
+                      Chave Secreta: {gateways.find(g => g.gateway_name === 'stripe')?.secret_key_encrypted ? '✅ Configurada' : '❌ Não configurada'}
+                    </p>
+                  </div>
                 </div>
-                Stripe
-              </h4>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Chave Pública (Publishable Key)
-                </label>
-                <input
-                  type="text"
-                  value={gatewayConfig.stripe_public_key}
-                  onChange={(e) => setGatewayConfig(prev => ({
-                    ...prev,
-                    stripe_public_key: e.target.value
-                  }))}
-                  className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors font-mono text-xs sm:text-sm break-all"
-                  placeholder="pk_live_..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Chave Secreta (Secret Key)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showSecretKeys.stripe ? 'text' : 'password'}
-                    value={gatewayConfig.stripe_secret_key}
-                    onChange={(e) => setGatewayConfig(prev => ({
-                      ...prev,
-                      stripe_secret_key: e.target.value
-                    }))}
-                    className="w-full px-3 py-2 pr-10 sm:px-4 sm:py-3 sm:pr-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors font-mono text-xs sm:text-sm break-all"
-                    placeholder="sk_live_..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleSecretKeyVisibility('stripe')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showSecretKeys.stripe ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+                
+                <div className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">MP</span>
+                    </div>
+                    <h5 className="font-semibold text-slate-900">Mercado Pago</h5>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-slate-600">
+                      Chave Pública: {gateways.find(g => g.gateway_name === 'mercadopago')?.public_key ? '✅ Configurada' : '❌ Não configurada'}
+                    </p>
+                    <p className="text-slate-600">
+                      Token de Acesso: {gateways.find(g => g.gateway_name === 'mercadopago')?.secret_key_encrypted ? '✅ Configurada' : '❌ Não configurada'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Mercado Pago Configuration */}
-            <div className="space-y-4 w-full">
-              <h4 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 font-bold text-sm">MP</span>
-                </div>
-                Mercado Pago
-              </h4>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Chave Pública (Public Key)
-                </label>
-                <input
-                  type="text"
-                  value={gatewayConfig.mercadopago_public_key}
-                  onChange={(e) => setGatewayConfig(prev => ({
-                    ...prev,
-                    mercadopago_public_key: e.target.value
-                  }))}
-                  className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors font-mono text-xs sm:text-sm break-all"
-                  placeholder="APP_USR_..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Token de Acesso (Access Token)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showSecretKeys.mercadopago ? 'text' : 'password'}
-                    value={gatewayConfig.mercadopago_access_token}
-                    onChange={(e) => setGatewayConfig(prev => ({
-                      ...prev,
-                      mercadopago_access_token: e.target.value
-                    }))}
-                    className="w-full px-3 py-2 pr-10 sm:px-4 sm:py-3 sm:pr-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors font-mono text-xs sm:text-sm break-all"
-                    placeholder="APP_USR_..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleSecretKeyVisibility('mercadopago')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showSecretKeys.mercadopago ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="mt-8 pt-6 border-t border-slate-200 w-full">
+            {/* Configure Button */}
             <button
-              onClick={handleSaveGateways}
-              disabled={savingGateways}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              onClick={() => setIsGatewayModalOpen(true)}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-4 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 flex items-center justify-center gap-2"
             >
-              {savingGateways && <Loader2 className="w-5 h-5 animate-spin" />}
-              <Save className="w-5 h-5" />
-              <span className="hidden sm:inline">Salvar Configurações dos Gateways</span>
-              <span className="sm:hidden">Salvar Configurações</span>
+              <CreditCard className="w-5 h-5" />
+              Configurar Chaves dos Gateways
             </button>
           </div>
-        </div>
       </motion.div>
 
       {/* Configurações do Período de Teste */}
@@ -642,6 +566,14 @@ const BillingManagement: React.FC = () => {
         onSave={handleSaveTrialSettings}
         initialSettings={appSettings}
         loading={false}
+      />
+
+      {/* Gateway Config Modal */}
+      <GatewayConfigModal
+        isOpen={isGatewayModalOpen}
+        onClose={() => setIsGatewayModalOpen(false)}
+        onSave={handleSaveGateways}
+        loading={gatewaysLoading}
       />
     </div>
   );

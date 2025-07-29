@@ -94,6 +94,13 @@ const PricingPage: React.FC = () => {
   };
 
   const handlePlanSelect = (plan: Plan) => {
+    console.log('🎯 PRICING: Plano selecionado:', {
+      id: plan.id,
+      name: plan.name,
+      price: plan.price_monthly,
+      stripe_price_id: plan.stripe_price_id_monthly,
+      mercadopago_plan_id: plan.mercadopago_plan_id
+    });
     setSelectedPlan(plan);
     setIsCheckoutModalOpen(true);
   };

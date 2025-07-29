@@ -51,7 +51,11 @@ export const usePaymentGateways = () => {
     try {
       setError(null);
       
-      console.log('🔧 Atualizando gateway:', gatewayName, 'com dados:', gatewayData);
+      console.log('🔧 PAYMENT GATEWAYS: Atualizando gateway:', gatewayName);
+      console.log('🔧 PAYMENT GATEWAYS: Dados recebidos:', {
+        public_key: gatewayData.public_key ? 'PREENCHIDO' : 'VAZIO',
+        secret_key_encrypted: gatewayData.secret_key_encrypted ? 'PREENCHIDO' : 'VAZIO'
+      });
 
       const updateData = {
         ...gatewayData,
@@ -59,7 +63,7 @@ export const usePaymentGateways = () => {
         updated_at: new Date().toISOString()
       };
 
-      // CORREÇÃO CRÍTICA: Usar UPSERT em vez de UPDATE para criar se não existir
+      console.log('💾 PAYMENT GATEWAYS: Executando UPSERT para:', gatewayName);
       const { data, error: updateError } = await supabase
         .from('payment_gateways')
         .upsert({
@@ -72,18 +76,29 @@ export const usePaymentGateways = () => {
         .single();
 
       if (updateError) {
-        console.error('❌ Erro ao atualizar gateway:', updateError);
+        console.error('❌ PAYMENT GATEWAYS: Erro no UPSERT:', updateError);
         throw updateError;
       }
 
-      console.log('✅ Gateway atualizado com sucesso:', data);
+      console.log('✅ PAYMENT GATEWAYS: Gateway salvo com sucesso:', {
+        id: data.id,
+        gateway_name: data.gateway_name,
+        has_public_key: !!data.public_key,
+        has_secret_key: !!data.secret_key_encrypted,
+        updated_at: data.updated_at
+      });
       
+      // Atualizar estado local
       setGateways(prev => prev.map(gateway => 
         gateway.gateway_name === gatewayName ? data : gateway
       ));
+      
+      // Recarregar todos os gateways para garantir sincronização
+      await fetchGateways();
+      
       return true;
     } catch (err: any) {
-      console.error('Erro ao atualizar gateway:', err);
+      console.error('❌ PAYMENT GATEWAYS: Erro geral:', err);
       setError(err.message || 'Erro ao atualizar gateway');
       return false;
     }
