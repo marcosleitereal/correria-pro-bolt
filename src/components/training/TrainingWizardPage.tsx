@@ -260,6 +260,44 @@ const TrainingWizardPage: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="bg-white rounded-xl p-8 shadow-lg mb-8"
           >
+            {/* Navigation Buttons - Moved to Top */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="flex items-center justify-between mb-8 pb-6 border-b border-slate-200"
+            >
+              <button
+                onClick={prevStep}
+                disabled={wizardState.step === 1}
+                className="flex items-center gap-2 px-6 py-3 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Anterior
+              </button>
+
+              {wizardState.step < 3 ? (
+                <button
+                  onClick={nextStep}
+                  disabled={!canProceed()}
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  Próximo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={generateTraining}
+                  disabled={!canProceed() || generating}
+                  className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {generating && <Loader2 className="w-5 h-5 animate-spin" />}
+                  <Sparkles className="w-5 h-5" />
+                  Gerar Rascunho do Treino
+                </button>
+              )}
+            </motion.div>
+
             {/* Step 1: Target Selection */}
             {wizardState.step === 1 && (
               <div className="space-y-6">
@@ -478,43 +516,6 @@ const TrainingWizardPage: React.FC = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex items-center justify-between"
-        >
-          <button
-            onClick={prevStep}
-            disabled={wizardState.step === 1}
-            className="flex items-center gap-2 px-6 py-3 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Anterior
-          </button>
-
-          {wizardState.step < 3 ? (
-            <button
-              onClick={nextStep}
-              disabled={!canProceed()}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              Próximo
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={generateTraining}
-              disabled={!canProceed() || generating}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {generating && <Loader2 className="w-5 h-5 animate-spin" />}
-              <Sparkles className="w-5 h-5" />
-              Gerar Rascunho do Treino
-            </button>
-          )}
-        </motion.div>
       </div>
     </div>
   );
