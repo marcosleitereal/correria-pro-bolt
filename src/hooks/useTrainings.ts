@@ -380,9 +380,146 @@ Varie os exercícios e abordagens mesmo para parâmetros similares.
 
 // Mock AI function - replace with actual AI integration
 async function callAIForTraining(prompt: string): Promise<any> {
-  console.log('🤖 FUNÇÃO MOCK DA IA INICIADA');
-  console.log('📥 Prompt recebido pela IA:', prompt);
+  console.log('🤖 CHAMADA REAL DA IA INICIADA');
+  console.log('📥 Prompt sendo enviado para IA:', prompt.substring(0, 200) + '...');
   console.log('📏 Tamanho do prompt:', prompt.length, 'caracteres');
+
+  try {
+    // CRÍTICO: Verificar se há provedor de IA configurado
+    const { data: aiSettings, error: settingsError } = await supabase
+      .from('ai_settings')
+      .select('setting_value')
+      .eq('setting_name', 'global_ai_provider')
+      .maybeSingle();
+
+    if (settingsError || !aiSettings?.setting_value) {
+      console.warn('⚠️ IA: Nenhum provedor configurado, usando função MOCK');
+      return await mockAIGeneration(prompt);
+    }
+
+    const globalProvider = aiSettings.setting_value;
+    console.log('🤖 IA: Usando provedor configurado:', globalProvider);
+
+    // Buscar configurações do provedor
+    const { data: providerConfig, error: providerError } = await supabase
+      .from('ai_providers')
+      .select('*')
+      .eq('name', globalProvider)
+      .eq('is_active', true)
+      .single();
+
+    if (providerError || !providerConfig?.api_key_encrypted) {
+      console.warn('⚠️ IA: Provedor não configurado corretamente, usando MOCK');
+      return await mockAIGeneration(prompt);
+    }
+
+    console.log('✅ IA: Provedor configurado encontrado:', globalProvider);
+    
+    // CHAMADA REAL DA IA
+    const aiResponse = await callRealAI(globalProvider, providerConfig, prompt);
+    
+    if (aiResponse) {
+      console.log('✅ IA: Resposta recebida da IA real');
+      return aiResponse;
+    } else {
+      console.warn('⚠️ IA: Falha na IA real, usando fallback MOCK');
+      return await mockAIGeneration(prompt);
+    }
+    
+  } catch (error) {
+    console.error('❌ IA: Erro na chamada da IA real:', error);
+    console.log('🔄 IA: Usando fallback MOCK devido ao erro');
+    return await mockAIGeneration(prompt);
+  }
+}
+
+// Função para chamar IA real
+async function callRealAI(provider: string, config: any, prompt: string): Promise<any> {
+  try {
+    console.log('🚀 IA REAL: Iniciando chamada para', provider);
+    
+    // Aqui você implementaria as chamadas reais para cada provedor
+    if (provider === 'OpenAI') {
+      return await callOpenAI(config.api_key_encrypted, config.selected_model, prompt);
+    } else if (provider === 'Anthropic') {
+      return await callAnthropic(config.api_key_encrypted, config.selected_model, prompt);
+    } else if (provider === 'Groq') {
+      return await callGroq(config.api_key_encrypted, config.selected_model, prompt);
+    } else {
+      console.warn('⚠️ IA REAL: Provedor não suportado:', provider);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ IA REAL: Erro na chamada:', error);
+    return null;
+  }
+}
+
+// Implementações das chamadas reais (exemplo para OpenAI)
+async function callOpenAI(apiKey: string, model: string, prompt: string): Promise<any> {
+  try {
+    console.log('🤖 OpenAI: Fazendo chamada real');
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.8, // Adicionar variabilidade
+        max_tokens: 2000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('Resposta vazia da OpenAI');
+    }
+
+    // Tentar parsear como JSON
+    try {
+      return JSON.parse(content);
+    } catch (parseError) {
+      console.warn('⚠️ OpenAI: Resposta não é JSON válido, usando como texto');
+      return { error: 'Resposta da IA não está em formato JSON válido' };
+    }
+    
+  } catch (error) {
+    console.error('❌ OpenAI: Erro na chamada:', error);
+    return null;
+  }
+}
+
+// Placeholder para outros provedores
+async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<any> {
+  console.log('🤖 Anthropic: Implementação pendente');
+  return null;
+}
+
+async function callGroq(apiKey: string, model: string, prompt: string): Promise<any> {
+  console.log('🤖 Groq: Implementação pendente');
+  return null;
+}
+
+// Função MOCK melhorada (fallback)
+async function mockAIGeneration(prompt: string): Promise<any> {
+  console.log('🎭 MOCK IA: Usando geração simulada');
+  console.log('📥 Prompt recebido:', prompt.substring(0, 200) + '...');
 
   // Simulate AI processing time
   await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
@@ -390,12 +527,61 @@ async function callAIForTraining(prompt: string): Promise<any> {
   // Extract variability seed from prompt for more randomness
   const seedMatch = prompt.match(/Seed[:\s]+([a-z0-9]+)/i);
   const seed = seedMatch ? seedMatch[1] : Math.random().toString(36).substring(7);
-  console.log('🎲 VARIABILIDADE: Usando seed:', seed);
+  console.log('🎲 MOCK: Usando seed para variabilidade:', seed);
   
   // Create deterministic but varied randomness based on seed
   const seedNumber = parseInt(seed.replace(/[a-z]/g, ''), 36) || Math.random() * 1000;
   const variation = (seedNumber % 100) / 100; // 0 to 1
   
+  // VARIABILIDADE MÁXIMA: Arrays muito maiores para evitar repetição
+  const warmupVariations = [
+    "corrida leve progressiva de 10 minutos",
+    "caminhada rápida de 5 min + trote leve de 10 min",
+    "corrida em ritmo conversacional por 12 minutos",
+    "aquecimento dinâmico com mobilidade articular de 8 min + corrida leve de 7 min",
+    "trote suave de 15 minutos com acelerações progressivas",
+    "caminhada energética de 3 min + corrida moderada de 12 min",
+    "aquecimento específico com exercícios funcionais de 10 min + trote de 5 min",
+    "corrida lenta e controlada por 14 minutos com foco na respiração"
+  ];
+  
+  const cooldownVariations = [
+    "corrida leve desacelerando gradualmente por 8 minutos",
+    "caminhada lenta de 5 min + alongamento dinâmico de 10 min",
+    "volta à calma progressiva com respiração controlada por 12 min",
+    "relaxamento ativo com caminhada de 6 min + alongamento de 8 min",
+    "corrida muito lenta por 4 min + caminhada de 4 min + alongamento de 7 min",
+    "desaceleração gradual com foco na recuperação por 10 minutos",
+    "volta à calma com exercícios de flexibilidade por 15 minutos",
+    "caminhada meditativa de 8 min + alongamento passivo de 7 min"
+  ];
+  
+  const workoutVariations = [
+    { intervals: "6x400m", recovery: "90s", pace: "ritmo de 5km", description: "intervalos curtos e intensos" },
+    { intervals: "5x600m", recovery: "2min", pace: "ritmo de 10km", description: "intervalos médios" },
+    { intervals: "4x800m", recovery: "2min30s", pace: "ritmo de 5km", description: "intervalos longos" },
+    { intervals: "8x300m", recovery: "60s", pace: "ritmo forte", description: "intervalos muito curtos" },
+    { intervals: "3x1000m", recovery: "3min", pace: "ritmo de 10km", description: "intervalos de resistência" },
+    { intervals: "10x200m", recovery: "45s", pace: "ritmo máximo", description: "velocidade pura" },
+    { intervals: "4x1200m", recovery: "3min30s", pace: "ritmo de limiar", description: "resistência anaeróbica" },
+    { intervals: "6x500m", recovery: "90s", pace: "ritmo de 3km", description: "potência aeróbica" }
+  ];
+
+  // Select variations based on seed for consistency but variety
+  const warmupIndex = Math.floor(variation * warmupVariations.length);
+  const cooldownIndex = Math.floor((variation * 2) % cooldownVariations.length);
+  const workoutIndex = Math.floor((variation * 3) % workoutVariations.length);
+  
+  const selectedWarmup = warmupVariations[warmupIndex];
+  const selectedCooldown = cooldownVariations[cooldownIndex];
+  const selectedWorkout = workoutVariations[workoutIndex];
+  
+  console.log('🎲 MOCK: Variações selecionadas:', {
+    warmup: selectedWarmup,
+    cooldown: selectedCooldown,
+    workout: selectedWorkout.description
+  });
+
   // Extract duration from prompt to generate appropriate number of sessions
   const durationMatch = prompt.match(/duração de (um dia|uma semana|duas semanas|um mês)/i);
   let duration = "daily";
@@ -418,69 +604,13 @@ async function callAIForTraining(prompt: string): Promise<any> {
     }
   }
 
-  console.log('⏱️ Duração detectada:', duration, 'Sessões:', sessionCount);
-  console.log('🎲 Variação aplicada:', (variation * 100).toFixed(1) + '%');
+  console.log('⏱️ MOCK: Duração detectada:', duration, 'Sessões:', sessionCount);
 
-  // NOVA ABORDAGEM: Extrair dados diretamente do prompt de forma mais robusta
+  // Calcular zonas cardíacas se possível
   let heartRateZones = null;
-  let age = null;
-  
-  // Tentar extrair idade de várias formas
-  const agePatterns = [
-    /(\d+)\s*anos/i,
-    /idade:\s*(\d+)/i,
-    /age:\s*(\d+)/i
-  ];
-  
-  for (const pattern of agePatterns) {
-    const match = prompt.match(pattern);
-    if (match) {
-      age = parseInt(match[1]);
-      console.log('🎂 Idade extraída com padrão:', pattern, 'Idade:', age);
-      break;
-    }
-  }
-  
-  // Se não encontrou idade, tentar extrair da data de nascimento
-  if (!age) {
-    const birthPatterns = [
-      /Data de nascimento:\s*(\d{4}-\d{2}-\d{2})/i,
-      /birth_date:\s*(\d{4}-\d{2}-\d{2})/i,
-      /nascimento:\s*(\d{4}-\d{2}-\d{2})/i
-    ];
-    
-    for (const pattern of birthPatterns) {
-      const match = prompt.match(pattern);
-      if (match) {
-        const birthDate = new Date(match[1]);
-        const today = new Date();
-        age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        console.log('🎂 Idade calculada da data de nascimento:', age);
-        break;
-      }
-    }
-  }
-  
-  // Se ainda não tem idade, usar idade padrão baseada no nível
-  if (!age) {
-    if (prompt.toLowerCase().includes('iniciante') || prompt.toLowerCase().includes('beginner')) {
-      age = 30; // Idade padrão para iniciantes
-    } else if (prompt.toLowerCase().includes('intermediário') || prompt.toLowerCase().includes('intermediate')) {
-      age = 35; // Idade padrão para intermediários
-    } else if (prompt.toLowerCase().includes('avançado') || prompt.toLowerCase().includes('advanced')) {
-      age = 40; // Idade padrão para avançados
-    } else {
-      age = 35; // Idade padrão geral
-    }
-    console.log('🎯 Usando idade padrão baseada no nível:', age);
-  }
-  
-  // Calcular zonas cardíacas
-  if (age) {
+  const ageMatch = prompt.match(/(\d+)\s*anos/i);
+  if (ageMatch) {
+    const age = parseInt(ageMatch[1]);
     const maxHR = Math.round(208 - (0.7 * age));
     heartRateZones = {
       zone1: `${Math.round(maxHR * 0.5)}-${Math.round(maxHR * 0.6)} bpm`,
@@ -489,47 +619,122 @@ async function callAIForTraining(prompt: string): Promise<any> {
       zone4: `${Math.round(maxHR * 0.8)}-${Math.round(maxHR * 0.9)} bpm`,
       zone5: `${Math.round(maxHR * 0.9)}-${maxHR} bpm`
     };
-    console.log('✅ Zonas cardíacas calculadas - Idade:', age, 'FCmáx:', maxHR);
-    console.log('📊 Zonas finais:', heartRateZones);
+    console.log('✅ MOCK: Zonas cardíacas calculadas para idade', age);
   }
 
-  console.log('🎯 ZONAS CARDÍACAS FINAIS:', heartRateZones);
+  // Generate sessions with MAXIMUM variability
+  const sessions = [];
   
-  // Arrays de variações para criar treinos diferentes
-  const warmupVariations = [
-    "corrida leve progressiva",
-    "caminhada rápida seguida de trote",
-    "corrida em ritmo conversacional",
-    "aquecimento dinâmico com mobilidade"
+  if (sessionCount === 1) {
+    // Single day training with maximum variation
+    sessions.push({
+      day: 1,
+      title: `${selectedWorkout.description} - Variação ${seed.substring(0,4).toUpperCase()}`,
+      description: `Sessão focada em ${selectedWorkout.pace} - Método ${seed.substring(2,5)}`,
+      duration: `${55 + Math.floor(variation * 20)} minutos`, // 55-75 min
+      warmup: heartRateZones 
+        ? `${selectedWarmup} (manter FC na Zona 2: ${heartRateZones.zone2}) + exercícios dinâmicos específicos`
+        : `${selectedWarmup} + exercícios dinâmicos de mobilidade`,
+      main_workout: heartRateZones
+        ? `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação ativa. Durante os intervalos, mantenha a FC na Zona 4 (${heartRateZones.zone4}). Na recuperação, deixe a FC baixar para Zona 2 (${heartRateZones.zone2}). ${selectedWorkout.description}`
+        : `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação. Foque em ${selectedWorkout.description}`,
+      cooldown: heartRateZones
+        ? `${selectedCooldown} (manter FC na Zona 1: ${heartRateZones.zone1}) + alongamento específico`
+        : `${selectedCooldown} + alongamento completo`,
+      notes: heartRateZones
+        ? `IMPORTANTE: Use monitor cardíaco durante todo o treino. Variação ${seed}: foque na consistência dos ${selectedWorkout.intervals}. Se não conseguir atingir a Zona 4 (${heartRateZones.zone4}), ajuste o ritmo gradualmente.`
+        : `Manter ritmo consistente em todos os intervalos. Variação ${seed}: atenção especial na recuperação de ${selectedWorkout.recovery}.`
+    });
+  } else {
+    // Multi-day training plan with varied sessions
+    for (let i = 1; i <= Math.min(sessionCount, 7); i++) {
+      const dayVariation = (variation + i * 0.15) % 1; // Mais variação entre dias
+      const dayWarmupIndex = Math.floor(dayVariation * warmupVariations.length);
+      const dayCooldownIndex = Math.floor((dayVariation * 2) % cooldownVariations.length);
+      const dayWorkoutIndex = Math.floor((dayVariation * 3) % workoutVariations.length);
+      
+      const dayWarmup = warmupVariations[dayWarmupIndex];
+      const dayCooldown = cooldownVariations[dayCooldownIndex];
+      const dayWorkout = workoutVariations[dayWorkoutIndex];
+      
+      sessions.push({
+        day: i,
+        title: `Dia ${i} - ${dayWorkout.description} - ${seed.substring(i-1,i+2)}`,
+        description: `Sessão personalizada com ${dayWorkout.intervals} - Variação ${seed.substring(i,i+3)}`,
+        duration: `${50 + Math.floor(dayVariation * 30)} minutos`, // 50-80 min
+        warmup: heartRateZones 
+          ? `${dayWarmup} (iniciar na Zona 1: ${heartRateZones.zone1} e terminar na Zona 2: ${heartRateZones.zone2})`
+          : dayWarmup,
+        main_workout: heartRateZones
+          ? `${dayWorkout.intervals} em ${dayWorkout.pace} com ${dayWorkout.recovery} de recuperação (alternar entre Zona 3: ${heartRateZones.zone3} para ritmo moderado e Zona 4: ${heartRateZones.zone4} para intensidade alta)`
+          : `${dayWorkout.intervals} em ${dayWorkout.pace} com ${dayWorkout.recovery} de recuperação`,
+        cooldown: heartRateZones
+          ? `${dayCooldown} (retornar gradualmente para Zona 1: ${heartRateZones.zone1})`
+          : dayCooldown,
+        notes: heartRateZones
+          ? `MONITORAMENTO: Use o monitor cardíaco constantemente. Variação ${seed}: foque nos ${dayWorkout.intervals}. Ajuste o ritmo conforme necessário para manter-se nas faixas indicadas.`
+          : `Ajuste o ritmo conforme sua condição física. Variação ${seed}: atenção especial aos intervalos de ${dayWorkout.recovery}.`
+      });
+    }
+  }
+
+  console.log('📋 MOCK: Sessões geradas com máxima variabilidade:', sessions.length);
+
+  // Generate varied tips and equipment
+  const tipVariations = [
+    [
+      "ESSENCIAL: Use um monitor cardíaco para acompanhar suas zonas durante todo o treino",
+      "Mantenha-se hidratado antes, durante e após o treino",
+      "Respeite os tempos de recuperação entre os intervalos",
+      "Se não conseguir atingir a zona indicada, ajuste o ritmo gradualmente",
+      "Em caso de desconforto ou dor, pare imediatamente"
+    ],
+    [
+      "Monitor cardíaco é fundamental para treinos de qualidade",
+      "Hidratação adequada é crucial para performance",
+      "Recuperação ativa é tão importante quanto o treino principal",
+      "Escute seu corpo e ajuste a intensidade conforme necessário",
+      "Aquecimento adequado previne lesões"
+    ],
+    [
+      "Controle de frequência cardíaca garante treino eficaz",
+      "Beba água regularmente durante toda a sessão",
+      "Intervalos de recuperação devem ser respeitados rigorosamente",
+      "Adapte o ritmo às suas sensações corporais",
+      "Pare imediatamente se sentir qualquer desconforto"
+    ],
+    [
+      "Foque na técnica de corrida durante todo o treino",
+      "Respiração controlada melhora a performance",
+      "Varie o terreno quando possível para maior desafio",
+      "Registre suas sensações pós-treino para análise",
+      "Mantenha consistência na execução dos intervalos"
+    ]
   ];
   
-  const cooldownVariations = [
-    "corrida leve desacelerando gradualmente",
-    "caminhada lenta com respiração controlada",
-    "volta à calma progressiva",
-    "relaxamento com alongamento dinâmico"
+  const equipmentVariations = [
+    ["Monitor cardíaco (essencial)", "Cronômetro", "Tênis de corrida adequado", "Garrafa de água"],
+    ["Relógio esportivo com GPS", "Cronômetro", "Tênis apropriados para corrida", "Hidratação"],
+    ["Monitor de frequência cardíaca", "Timer", "Calçado de corrida", "Água para hidratação"],
+    ["GPS watch", "Aplicativo de cronômetro", "Tênis específicos para treino", "Sistema de hidratação"]
   ];
   
-  const workoutVariations = [
-    { intervals: "6x400m", recovery: "90s", pace: "ritmo de 5km" },
-    { intervals: "5x600m", recovery: "2min", pace: "ritmo de 10km" },
-    { intervals: "4x800m", recovery: "2min30s", pace: "ritmo de 5km" },
-    { intervals: "8x300m", recovery: "60s", pace: "ritmo forte" }
-  ];
-  
-  // Select variations based on seed for consistency but variety
-  const warmupIndex = Math.floor(variation * warmupVariations.length);
-  const cooldownIndex = Math.floor((variation * 2) % cooldownVariations.length);
-  const workoutIndex = Math.floor((variation * 3) % workoutVariations.length);
-  
-  const selectedWarmup = warmupVariations[warmupIndex];
-  const selectedCooldown = cooldownVariations[cooldownIndex];
-  const selectedWorkout = workoutVariations[workoutIndex];
-  
-  console.log('🎲 VARIAÇÕES SELECIONADAS:', {
-    warmup: selectedWarmup,
-    cooldown: selectedCooldown,
-    workout: selectedWorkout
+  const tipIndex = Math.floor(variation * tipVariations.length);
+  const equipmentIndex = Math.floor((variation * 2) % equipmentVariations.length);
+
+  // Mock response with MAXIMUM variability
+  const mockResponse = {
+    title: `${selectedWorkout.description} - Método ${seed.substring(0,6).toUpperCase()}`,
+    description: `Plano focado no desenvolvimento da ${selectedWorkout.pace.includes('5km') ? 'velocidade e resistência anaeróbica' : 'resistência e capacidade aeróbica'} - Variação personalizada ${seed}`,
+    duration: duration,
+    sessions: sessions,
+    tips: tipVariations[tipIndex],
+    equipment: equipmentVariations[equipmentIndex]
+  };
+
+  console.log('🎉 MOCK: Resposta final com máxima variabilidade gerada');
+  return mockResponse;
+}
   });
   
   // Generate sessions based on duration
