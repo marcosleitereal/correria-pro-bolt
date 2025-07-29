@@ -42,23 +42,36 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     let priceId = gateway === 'stripe' ? plan.stripe_price_id_monthly : plan.mercadopago_plan_id;
     
-    console.log('💳 CHECKOUT MODAL: Dados do plano:', {
+    console.log('💳 CHECKOUT MODAL DEBUG: Dados completos do plano:', {
       planName: plan.name,
+      planId: plan.id,
       stripeId: plan.stripe_price_id_monthly,
       mercadopagoId: plan.mercadopago_plan_id,
       selectedGateway: gateway,
-      priceId
+      priceId,
+      fullPlan: plan
     });
 
-    // Se não tiver price_id, usar um padrão para teste
-    if (!priceId && gateway === 'stripe') {
-      console.warn('⚠️ CHECKOUT MODAL: Price ID não encontrado, usando fallback');
-      priceId = 'price_1RbPUPBnjFk91bSiqDgyZW9j'; // Do stripe-config.ts
+    // CORREÇÃO CRÍTICA: Verificar se o gateway está configurado
+    if (!priceId) {
+      console.error('❌ CHECKOUT MODAL: Price ID não encontrado para', gateway);
+      
+      if (gateway === 'stripe') {
+        console.warn('⚠️ CHECKOUT MODAL: Usando Price ID padrão do Stripe');
+        priceId = 'price_1RbPUPBnjFk91bSiqDgyZW9j'; // Do stripe-config.ts
+      } else {
+        console.error('❌ CHECKOUT MODAL: Mercado Pago não configurado');
+        alert('Mercado Pago não está configurado. Use o Stripe ou configure o Mercado Pago no painel admin.');
+        setSelectedGateway(null);
+        return;
+      }
     }
+
+    console.log('🚀 CHECKOUT MODAL: Iniciando checkout com Price ID:', priceId);
 
     await createCheckoutSession({
       gateway,
-      price_id: priceId,
+      price_id: priceId!,
       success_url,
       cancel_url,
     });

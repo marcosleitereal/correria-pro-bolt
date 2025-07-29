@@ -50,26 +50,34 @@ export const usePaymentGateways = () => {
 
     try {
       setError(null);
+      
+      console.log('🔧 Atualizando gateway:', gatewayName, 'com dados:', gatewayData);
 
-      // Note: In production, secret keys should be encrypted via Edge Function
-      // For now, we'll store them as-is but mark them for encryption
       const updateData = {
         ...gatewayData,
         updated_by: user.id,
         updated_at: new Date().toISOString()
       };
 
+      // CORREÇÃO CRÍTICA: Usar UPSERT em vez de UPDATE para criar se não existir
       const { data, error: updateError } = await supabase
         .from('payment_gateways')
-        .update(updateData)
-        .eq('gateway_name', gatewayName)
+        .upsert({
+          gateway_name: gatewayName,
+          ...updateData
+        }, {
+          onConflict: 'gateway_name'
+        })
         .select()
         .single();
 
       if (updateError) {
+        console.error('❌ Erro ao atualizar gateway:', updateError);
         throw updateError;
       }
 
+      console.log('✅ Gateway atualizado com sucesso:', data);
+      
       setGateways(prev => prev.map(gateway => 
         gateway.gateway_name === gatewayName ? data : gateway
       ));

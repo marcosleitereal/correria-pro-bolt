@@ -95,40 +95,44 @@ const BillingManagement: React.FC = () => {
   const handleSaveGateways = async () => {
     setSavingGateways(true);
     try {
+      // CORREÇÃO CRÍTICA: Sempre salvar as configurações, mesmo se apenas uma chave for fornecida
+      
       // Update Stripe configuration
-      if (gatewayConfig.stripe_public_key || gatewayConfig.stripe_secret_key) {
-        const stripeData: any = {
-          public_key: gatewayConfig.stripe_public_key || null
-        };
-        
-        if (gatewayConfig.stripe_secret_key) {
-          stripeData.secret_key_encrypted = gatewayConfig.stripe_secret_key; // Will be encrypted server-side
-        }
-
-        await updateGateway('stripe', stripeData);
+      const stripeData: any = {
+        public_key: gatewayConfig.stripe_public_key.trim() || null
+      };
+      
+      if (gatewayConfig.stripe_secret_key.trim()) {
+        stripeData.secret_key_encrypted = gatewayConfig.stripe_secret_key.trim();
       }
+
+      console.log('💾 Salvando configuração Stripe:', stripeData);
+      await updateGateway('stripe', stripeData);
 
       // Update Mercado Pago configuration
-      if (gatewayConfig.mercadopago_public_key || gatewayConfig.mercadopago_access_token) {
-        const mercadopagoData: any = {
-          public_key: gatewayConfig.mercadopago_public_key || null
-        };
-        
-        if (gatewayConfig.mercadopago_access_token) {
-          mercadopagoData.secret_key_encrypted = gatewayConfig.mercadopago_access_token; // Will be encrypted server-side
-        }
-
-        await updateGateway('mercadopago', mercadopagoData);
+      const mercadopagoData: any = {
+        public_key: gatewayConfig.mercadopago_public_key.trim() || null
+      };
+      
+      if (gatewayConfig.mercadopago_access_token.trim()) {
+        mercadopagoData.secret_key_encrypted = gatewayConfig.mercadopago_access_token.trim();
       }
+
+      console.log('💾 Salvando configuração Mercado Pago:', mercadopagoData);
+      await updateGateway('mercadopago', mercadopagoData);
 
       showSuccess('Configurações dos gateways salvas com sucesso!');
       
-      // Reset secret fields after successful save
+      // CORREÇÃO: Não limpar os campos após salvar para o usuário ver que foram salvos
       setGatewayConfig(prev => ({
         ...prev,
-        stripe_secret_key: '',
-        mercadopago_access_token: ''
+        // Manter os valores para o usuário ver que foram salvos
       }));
+      
+      // Recarregar dados dos gateways para mostrar valores atualizados
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Erro ao salvar configurações dos gateways:', error);
     } finally {
