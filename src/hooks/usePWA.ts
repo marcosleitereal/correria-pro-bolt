@@ -43,7 +43,8 @@ export const usePWA = () => {
   }, []);
 
   const registerServiceWorker = async () => {
-    if ('serviceWorker' in navigator) {
+    // Check if Service Workers are supported and not in an unsupported environment
+    if ('serviceWorker' in navigator && !isUnsupportedEnvironment()) {
       try {
         console.log('🔧 PWA: Registrando Service Worker...');
         
@@ -74,9 +75,32 @@ export const usePWA = () => {
         }
         
       } catch (error) {
-        console.error('❌ PWA: Erro ao registrar Service Worker:', error);
+        if (error.message && error.message.includes('Service Workers are not yet supported')) {
+          console.warn('⚠️ PWA: Service Workers não suportados neste ambiente (StackBlitz/WebContainer)');
+          console.log('ℹ️ PWA: Funcionalidades PWA estarão disponíveis em produção');
+        } else {
+          console.error('❌ PWA: Erro ao registrar Service Worker:', error);
+        }
       }
+    } else {
+      console.warn('⚠️ PWA: Service Workers não disponíveis neste ambiente');
+      console.log('ℹ️ PWA: Funcionalidades PWA funcionarão em produção');
     }
+  };
+
+  const isUnsupportedEnvironment = (): boolean => {
+    // Detect StackBlitz/WebContainer environment
+    return (
+      typeof window !== 'undefined' && (
+        window.location.hostname.includes('stackblitz') ||
+        window.location.hostname.includes('webcontainer') ||
+        window.location.hostname.includes('local-credentialless') ||
+        // Check for WebContainer specific globals
+        (window as any).__webcontainer__ ||
+        // Check user agent for WebContainer
+        navigator.userAgent.includes('WebContainer')
+      )
+    );
   };
 
   const trackInstalling = (worker: ServiceWorker) => {
@@ -190,7 +214,7 @@ export const usePWA = () => {
   };
 
   const updateApp = async (): Promise<void> => {
-    if (!registration || !registration.waiting) {
+    if (!registration || !registration.waiting || isUnsupportedEnvironment()) {
       console.warn('⚠️ PWA: Nenhuma atualização disponível');
       return;
     }
@@ -229,7 +253,7 @@ export const usePWA = () => {
   };
 
   const showNotification = async (title: string, options?: NotificationOptions): Promise<void> => {
-    if (!('serviceWorker' in navigator) || !registration) {
+    if (!('serviceWorker' in navigator) || !registration || isUnsupportedEnvironment()) {
       console.warn('⚠️ PWA: Service Worker não disponível para notificações');
       return;
     }
