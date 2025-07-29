@@ -10,16 +10,6 @@ interface PlanCardProps {
   featured?: boolean;
   delay?: number;
   onSelect?: () => void;
-}
-
-const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, onSelect }) => {
-  const { loading: appSettingsLoading, getTrialDuration } = useAppSettings();
-
-  // Não renderizar planos administrativos na página pública
-  if (plan.name === 'Restrito' || plan.name === 'Elite Admin' || plan.price_monthly === 0) {
-    return null;
-  }
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',

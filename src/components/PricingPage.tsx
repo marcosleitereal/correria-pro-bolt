@@ -30,9 +30,7 @@ const PricingPage: React.FC = () => {
         .from('plans')
         .select('*')
         .eq('is_active', true)
-        .neq('name', 'Restrito')
-        .neq('name', 'Elite Admin')
-        .gt('price_monthly', 0)
+        .eq('is_public', true)
         .order('price_monthly', { ascending: true });
 
       if (fetchError) {
