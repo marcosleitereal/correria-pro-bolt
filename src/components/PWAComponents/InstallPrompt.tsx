@@ -2,23 +2,54 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Smartphone, Zap, Shield, Wifi } from 'lucide-react';
 import { usePWA } from '../../hooks/usePWA';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 const InstallPrompt: React.FC = () => {
   const { canInstall, installApp, isInstalled } = usePWA();
+  const { user } = useAuthContext();
   const [showPrompt, setShowPrompt] = useState(false);
   const [hasShown, setHasShown] = useState(false);
 
+  // Chave para localStorage baseada no usuário
+  const getStorageKey = () => {
+    return user ? `pwa-install-prompt-${user.id}` : 'pwa-install-prompt-guest';
+  };
+
+  // Verificar se já foi mostrado nos últimos 30 dias
+  const shouldShowPrompt = () => {
+    if (!user || !canInstall || isInstalled) {
+      return false;
+    }
+
+    const storageKey = getStorageKey();
+    const lastShown = localStorage.getItem(storageKey);
+    
+    if (!lastShown) {
+      return true; // Primeira vez
+    }
+
+    const lastShownDate = new Date(lastShown);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return lastShownDate < thirtyDaysAgo;
+  };
+
   React.useEffect(() => {
-    // Mostrar prompt após 10 segundos se for instalável e não foi mostrado
-    if (canInstall && !hasShown && !isInstalled) {
+    // Mostrar prompt apenas para usuários logados, após 10 segundos, respeitando frequência de 30 dias
+    if (shouldShowPrompt() && !hasShown) {
       const timer = setTimeout(() => {
         setShowPrompt(true);
         setHasShown(true);
+        
+        // Registrar que foi mostrado
+        const storageKey = getStorageKey();
+        localStorage.setItem(storageKey, new Date().toISOString());
       }, 10000);
 
       return () => clearTimeout(timer);
     }
-  }, [canInstall, hasShown, isInstalled]);
+  }, [user, canInstall, hasShown, isInstalled]);
 
   const handleInstall = async () => {
     const success = await installApp();
@@ -29,11 +60,18 @@ const InstallPrompt: React.FC = () => {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Não mostrar novamente nesta sessão
+    
+    // Registrar que foi dispensado (para respeitar os 30 dias)
+    if (user) {
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, new Date().toISOString());
+    }
+    
     setHasShown(true);
   };
 
-  if (!canInstall || isInstalled || !showPrompt) {
+  // Não mostrar se não for usuário logado, não for instalável, já estiver instalado ou não deve mostrar
+  if (!user || !canInstall || isInstalled || !showPrompt) {
     return null;
   }
 
