@@ -625,10 +625,26 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
     console.log('✅ [callOpenAI] - Resposta bruta da OpenAI:', content);
     // Tentar parsear como JSON
     try {
-      return JSON.parse(content);
+      // Extrair JSON do bloco markdown se necessário
+      let jsonContent = content.trim();
+      
+      // Se a resposta está em um bloco de código markdown, extrair o JSON
+      if (jsonContent.startsWith('```json') && jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(7, -3).trim(); // Remove ```json e ```
+      } else if (jsonContent.startsWith('```') && jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(3, -3).trim(); // Remove ``` genérico
+      }
+      
+      console.log('🔧 [callOpenAI] - JSON extraído para parsing:', jsonContent.substring(0, 200) + '...');
+      
+      const parsedResponse = JSON.parse(jsonContent);
+      console.log('✅ [callOpenAI] - JSON parseado com sucesso:', parsedResponse);
+      
+      return parsedResponse;
     } catch (parseError) {
-      console.warn('⚠️ OpenAI: Resposta não é JSON válido, usando como texto');
-      return { error: 'Resposta da IA não está em formato JSON válido' };
+      console.error('❌ [callOpenAI] - Erro ao parsear JSON:', parseError);
+      console.error('❌ [callOpenAI] - Conteúdo que falhou:', content);
+      return { error: 'Resposta da IA não está em formato JSON válido', rawContent: content };
     }
     
   } catch (error: any) {
