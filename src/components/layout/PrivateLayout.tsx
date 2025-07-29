@@ -362,9 +362,6 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
             {/* PWA Install Button */}
             <PWAInstallButton variant="secondary" size="sm" />
 
-            {/* PWA Install Button */}
-            <PWAInstallButton variant="secondary" size="sm" />
-
             {/* User Menu */}
             <div className="relative" data-user-menu>
               <button

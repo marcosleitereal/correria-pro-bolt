@@ -51,8 +51,6 @@ const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             <PWAInstallButton variant="secondary" size="sm" />
             
-            <PWAInstallButton variant="secondary" size="sm" />
-            
             {user ? (
               <div className="relative">
                 <button
