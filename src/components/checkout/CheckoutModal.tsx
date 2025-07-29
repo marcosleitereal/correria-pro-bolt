@@ -40,12 +40,20 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const success_url = `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancel_url = `${window.location.origin}/pricing`;
 
-    const priceId = gateway === 'stripe' ? plan.stripe_price_id_monthly : plan.mercadopago_plan_id;
+    let priceId = gateway === 'stripe' ? plan.stripe_price_id_monthly : plan.mercadopago_plan_id;
     
-    if (!priceId) {
-      alert('Configuração de pagamento não encontrada para este plano.');
-      setSelectedGateway(null);
-      return;
+    console.log('💳 CHECKOUT MODAL: Dados do plano:', {
+      planName: plan.name,
+      stripeId: plan.stripe_price_id_monthly,
+      mercadopagoId: plan.mercadopago_plan_id,
+      selectedGateway: gateway,
+      priceId
+    });
+
+    // Se não tiver price_id, usar um padrão para teste
+    if (!priceId && gateway === 'stripe') {
+      console.warn('⚠️ CHECKOUT MODAL: Price ID não encontrado, usando fallback');
+      priceId = 'price_1RbPUPBnjFk91bSiqDgyZW9j'; // Do stripe-config.ts
     }
 
     await createCheckoutSession({
@@ -125,7 +133,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {/* Stripe Option */}
             <button
               onClick={() => handleCheckout('stripe')}
-              disabled={loading || !plan.stripe_price_id_monthly}
+              disabled={loading}
               className="w-full p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
             >
               <div className="flex items-center gap-4">
@@ -145,7 +153,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {/* Mercado Pago Option */}
             <button
               onClick={() => handleCheckout('mercadopago')}
-              disabled={loading || !plan.mercadopago_plan_id}
+              disabled={loading}
               className="w-full p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
             >
               <div className="flex items-center gap-4">
