@@ -150,19 +150,29 @@ export const useAIProviders = () => {
   const getActiveProvider = (): AIProvider | null => {
     if (!globalProvider) return null;
     const foundProvider = providers.find(p => p.name === globalProvider && p.api_key_encrypted);
-    console.log('🔍 [useAIProviders] - getActiveProvider called. Current globalProvider:', globalProvider, 'Current providers count:', providers.length, 'Found:', !!foundProvider);
+    console.log('🔍 [useAIProviders] - getActiveProvider called:', {
+      globalProvider,
+      providersCount: providers.length,
+      foundProvider: !!foundProvider,
+      providerDetails: foundProvider ? {
+        name: foundProvider.name,
+        hasApiKey: !!foundProvider.api_key_encrypted,
+        model: foundProvider.selected_model,
+        isActive: foundProvider.is_active
+      } : null
+    });
     return foundProvider || null;
   };
 
   return {
     providers,
     globalProvider,
+    activeProvider: getActiveProvider(),
     loading,
     error,
     updateProvider,
     setGlobalProvider,
     testConnection,
-    getActiveProvider,
     refetch: fetchProviders,
   };
 };

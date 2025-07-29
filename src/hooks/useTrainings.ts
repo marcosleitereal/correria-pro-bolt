@@ -19,7 +19,6 @@ export const useTrainings = () => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { getSetting } = useAISettings();
 
   useEffect(() => {
@@ -58,12 +57,20 @@ export const useTrainings = () => {
 
   const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
     const { user } = useAuthContext(); // Get user inside the function to ensure it's fresh
-
+  const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
     if (!user) {
       setError('Usuário não autenticado');
       toast.error('Usuário não autenticado');
       return null;
     }
+    
+    console.log('🔍 [createTraining] - Provedor recebido:', {
+      hasProvider: !!activeProvider,
+      providerName: activeProvider?.name,
+      hasApiKey: !!activeProvider?.api_key_encrypted,
+      model: activeProvider?.selected_model
+    });
+    
     if (!activeProvider) {
       setError('Provedor de IA não configurado ou não carregado. Verifique as configurações de IA.');
       toast.error('Provedor de IA não disponível.');
