@@ -58,8 +58,8 @@ export const useOneSignal = () => {
       console.log('🔔 OneSignal: Inicializando...');
 
       await OneSignal.init({
-        appId: process.env.REACT_APP_ONESIGNAL_APP_ID || 'YOUR_ONESIGNAL_APP_ID',
-        safari_web_id: process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID,
+        appId: import.meta.env.VITE_ONESIGNAL_APP_ID || 'YOUR_ONESIGNAL_APP_ID',
+        safari_web_id: import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID,
         notifyButton: {
           enable: false // Usar nosso próprio botão
         },
