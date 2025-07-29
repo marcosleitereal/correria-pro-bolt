@@ -10,6 +10,11 @@ interface PlanCardProps {
   featured?: boolean;
   delay?: number;
   onSelect?: () => void;
+}
+
+const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, onSelect }) => {
+  const { settings } = useAppSettings();
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -20,6 +25,10 @@ interface PlanCardProps {
   const getAthleteLimit = (limit: number) => {
     if (limit === -1) return 'Atletas ilimitados';
     return `Até ${limit} atletas ativos`;
+  };
+
+  const getTrialDuration = () => {
+    return settings?.trial_duration_days || 30;
   };
 
   const getPlanIcon = () => {
@@ -181,9 +190,9 @@ interface PlanCardProps {
       </button>
 
       {/* Trial Notice */}
-        <p className="text-center text-xs text-slate-500 mt-4">
-          ✓ {getTrialDuration()} dias grátis • ✓ Sem compromisso • ✓ Cancele quando quiser
-        </p>
+      <p className="text-center text-xs text-slate-500 mt-4">
+        ✓ {getTrialDuration()} dias grátis • ✓ Sem compromisso • ✓ Cancele quando quiser
+      </p>
     </motion.div>
   );
 };
