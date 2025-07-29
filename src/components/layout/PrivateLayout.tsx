@@ -22,6 +22,8 @@ import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import NotificationDropdown from '../notifications/NotificationDropdown';
+import PWAInstallButton from '../PWAComponents/PWAInstallButton';
+import NotificationButton from '../PWAComponents/NotificationButton';
 
 interface PrivateLayoutProps {
   children: React.ReactNode;
@@ -322,6 +324,7 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           <div className="flex items-center gap-4">
             {/* Notification Bell */}
             <div className="relative" data-notification-dropdown>
+              <NotificationButton variant="icon" />
               <button
                 onClick={() => setNotificationMenuOpen(!notificationMenuOpen)}
                 className="relative p-2 rounded-lg hover:bg-slate-50 transition-colors"
@@ -352,6 +355,9 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
                 onMarkAllAsRead={markAllAsRead}
               />
             </div>
+
+            {/* PWA Install Button */}
+            <PWAInstallButton variant="secondary" size="sm" />
 
             {/* User Menu */}
             <div className="relative" data-user-menu>

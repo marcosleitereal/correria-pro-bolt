@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { User, LogOut, Settings, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
+import PWAInstallButton from './PWAComponents/PWAInstallButton';
 
 const Navbar: React.FC = () => {
   const { user, signOut } = useAuthContext();
@@ -48,6 +49,8 @@ const Navbar: React.FC = () => {
 
           {/* Auth Buttons / User Menu */}
           <div className="hidden md:flex items-center space-x-4">
+            <PWAInstallButton variant="secondary" size="sm" />
+            
             {user ? (
               <div className="relative">
                 <button

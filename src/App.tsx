@@ -35,6 +35,9 @@ import CookiePolicyPage from './components/legal/CookiePolicyPage';
 import CancellationPolicyPage from './components/legal/CancellationPolicyPage';
 import AcceptableUsePolicyPage from './components/legal/AcceptableUsePolicyPage';
 import NotFoundPage from './components/NotFoundPage';
+import InstallPrompt from './components/PWAComponents/InstallPrompt';
+import UpdatePrompt from './components/PWAComponents/UpdatePrompt';
+import OfflineBanner from './components/PWAComponents/OfflineBanner';
 
 // Landing Page Component
 const LandingPage: React.FC = () => (
@@ -153,6 +156,11 @@ function App() {
             } />
           </Routes>
           <Toaster />
+          
+          {/* PWA Components */}
+          <InstallPrompt />
+          <UpdatePrompt />
+          <OfflineBanner />
         </div>
       </Router>
     </AuthProvider>
