@@ -149,6 +149,7 @@ export interface Plan {
   mercadopago_plan_id: string | null;
   is_active: boolean;
   is_popular: boolean;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
 }

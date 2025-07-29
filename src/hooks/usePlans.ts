@@ -118,7 +118,12 @@ export const usePlans = () => {
   };
 
   const getActivePlans = (): Plan[] => {
-    return plans.filter(plan => plan.is_active);
+    return plans.filter(plan => 
+      plan.is_active && 
+      plan.name !== 'Restrito' && 
+      plan.name !== 'Elite Admin' &&
+      plan.price_monthly > 0
+    );
   };
 
   const getPlanById = (planId: string): Plan | undefined => {
