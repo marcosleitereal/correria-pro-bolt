@@ -521,42 +521,32 @@ async function callAIForTraining(prompt: string, activeProvider: any): Promise<a
   console.log('📏 [callAIForTraining] - Tamanho do prompt:', prompt.length, 'caracteres');
   console.log('⚙️ [callAIForTraining] - Provedor ativo recebido:', activeProvider?.name || 'Nenhum');
 
+  // CORREÇÃO CRÍTICA: Verificar se o activeProvider foi passado corretamente
+  if (!activeProvider) {
+    console.warn('⚠️ [callAIForTraining] - activeProvider é null/undefined, usando função MOCK');
+    return await mockAIGeneration(prompt);
+  }
+
+  if (!activeProvider.name) {
+    console.warn('⚠️ [callAIForTraining] - activeProvider.name não encontrado, usando função MOCK');
+    return await mockAIGeneration(prompt);
+  }
+
+  if (!activeProvider.api_key_encrypted) {
+    console.warn('⚠️ [callAIForTraining] - activeProvider.api_key_encrypted não encontrado, usando função MOCK');
+    return await mockAIGeneration(prompt);
+  }
+
+  console.log('✅ [callAIForTraining] - Provedor válido encontrado:', {
+    name: activeProvider.name,
+    hasApiKey: !!activeProvider.api_key_encrypted,
+    model: activeProvider.selected_model
+  });
 
   try {
-    // CRÍTICO: Verificar se há provedor de IA configurado
-    const { data: aiSettings, error: settingsError } = await supabase
-      .from('ai_settings')
-      .select('setting_value')
-      .eq('setting_name', 'global_ai_provider')
-      .maybeSingle();
-    
-    const globalProviderName = aiSettings?.setting_value;
-
-    if (settingsError || !globalProviderName || !activeProvider || activeProvider.name !== globalProviderName) {
-      console.warn('⚠️ [callAIForTraining] - Nenhum provedor configurado ou ativo globalmente, usando função MOCK');
-      return await mockAIGeneration(prompt);
-    }
-
-    console.log('🤖 [callAIForTraining] - Usando provedor configurado:', activeProvider.name);
-
-    if (!activeProvider.api_key_encrypted) {
-      console.warn('⚠️ [callAIForTraining] - Chave de API do provedor não configurada, usando MOCK');
-      return await mockAIGeneration(prompt);
-    }
-
-    // Log the provider config being used (excluding sensitive keys)
-    console.log('✅ [callAIForTraining] - Provedor configurado encontrado:', {
-      name: activeProvider.name,
-      selected_model: activeProvider.selected_model,
-      is_active: activeProvider.is_active,
-      is_global_default: activeProvider.is_global_default,
-      has_api_key: !!activeProvider.api_key_encrypted
-    });
-
-    const providerConfig = activeProvider; // Use the activeProvider passed directly
-    
     // CHAMADA REAL DA IA
-    const aiResponse = await callRealAI(globalProviderName, providerConfig, prompt);
+    console.log('🚀 [callAIForTraining] - Iniciando chamada para IA real:', activeProvider.name);
+    const aiResponse = await callRealAI(activeProvider.name, activeProvider, prompt);
     
     if (aiResponse) {
       console.log('✅ IA: Resposta recebida da IA real');
@@ -567,8 +557,8 @@ async function callAIForTraining(prompt: string, activeProvider: any): Promise<a
     }
     
   } catch (error) {
-    console.error('❌ IA: Erro na chamada da IA real:', error);
-    console.log('🔄 IA: Usando fallback MOCK devido ao erro');
+    console.error('❌ [callAIForTraining] - Erro na chamada da IA real:', error);
+    console.log('🔄 [callAIForTraining] - Usando fallback MOCK devido ao erro');
     return await mockAIGeneration(prompt);
   }
 }
