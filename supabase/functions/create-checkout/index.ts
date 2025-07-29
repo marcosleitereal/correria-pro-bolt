@@ -212,6 +212,8 @@ async function handleStripeCheckout(
       cancel_url: cancelUrl,
       metadata: {
         userId: user.id,
+        gateway: 'stripe',
+        plan_price_id: priceId
       },
     });
 

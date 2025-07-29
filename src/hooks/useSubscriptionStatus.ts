@@ -33,7 +33,7 @@ export const useSubscriptionStatus = () => {
     console.log('🔄 SUBSCRIPTION STATUS: Iniciando busca (independente das configurações)...');
     
     fetchSubscriptionStatus();
-  }, [user]); // Removido dependência de appSettings
+    }, [user]);
 
   const fetchSubscriptionStatus = async () => {
     try {
@@ -60,6 +60,15 @@ export const useSubscriptionStatus = () => {
         });
         setLoading(false);
         return;
+      }
+
+      // FORÇAR REFRESH DOS DADOS APÓS PAGAMENTO
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      if (sessionId) {
+        console.log('💳 SUBSCRIPTION STATUS: Session ID detectado, aguardando processamento...');
+        // Aguardar um pouco para o webhook processar
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
 
       // CORREÇÃO CRÍTICA: Sempre usar valores fixos baseados no admin (35 dias)

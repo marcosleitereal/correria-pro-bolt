@@ -9,6 +9,11 @@ const CheckoutSuccessPage: React.FC = () => {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
+    // Forçar refresh da página após 3 segundos para garantir que os dados sejam atualizados
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+    
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {

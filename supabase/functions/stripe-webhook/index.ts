@@ -7,15 +7,37 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
+// Helper function para respostas com CORS
+function corsResponse(body: string | object | null, status = 200) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': '*',
+  };
+
+  if (status === 204) {
+    return new Response(null, { status, headers });
+  }
+
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
 Deno.serve(async (req) => {
   try {
-    // Handle OPTIONS request for CORS preflight
+    console.log('🎯 WEBHOOK: Stripe webhook recebido');
+    
     if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204 });
+      return corsResponse(null, 204);
     }
 
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      return corsResponse({ error: 'Método não permitido' }, 405);
     }
 
     // Buscar configuração do Stripe
@@ -26,8 +48,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (configError || !stripeConfig) {
-      return new Response('Stripe não configurado', { status: 500 });
+      console.error('❌ WEBHOOK: Stripe não configurado:', configError);
+      return corsResponse({ error: 'Stripe não configurado' }, 500);
     }
+
+    console.log('✅ WEBHOOK: Configuração do Stripe encontrada');
 
     const stripe = new Stripe(stripeConfig.secret_key_encrypted, {
       appInfo: {
@@ -36,186 +61,283 @@ Deno.serve(async (req) => {
       },
     });
 
-    // get the signature from the header
+    // Get the signature from the header
     const signature = req.headers.get('stripe-signature');
-
     if (!signature) {
-      return new Response('No signature found', { status: 400 });
+      console.error('❌ WEBHOOK: Assinatura não encontrada');
+      return corsResponse({ error: 'Assinatura não encontrada' }, 400);
     }
 
-    // get the raw body
+    // Get the raw body
     const body = await req.text();
+    console.log('📥 WEBHOOK: Body recebido, tamanho:', body.length);
 
-    // verify the webhook signature
+    // Verify the webhook signature
     let event: Stripe.Event;
-
     try {
       event = await stripe.webhooks.constructEventAsync(
         body, 
         signature, 
         stripeConfig.webhook_secret || Deno.env.get('STRIPE_WEBHOOK_SECRET')!
       );
+      console.log('✅ WEBHOOK: Assinatura verificada com sucesso');
     } catch (error: any) {
-      console.error(`Webhook signature verification failed: ${error.message}`);
-      return new Response(`Webhook signature verification failed: ${error.message}`, { status: 400 });
+      console.error('❌ WEBHOOK: Falha na verificação da assinatura:', error.message);
+      return corsResponse({ error: `Falha na verificação: ${error.message}` }, 400);
     }
 
+    console.log('🎯 WEBHOOK: Processando evento:', event.type);
+
+    // Process the event
     EdgeRuntime.waitUntil(handleEvent(event));
 
-    return Response.json({ received: true });
+    return corsResponse({ received: true });
   } catch (error: any) {
-    console.error('Error processing webhook:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('❌ WEBHOOK: Erro crítico:', error);
+    return corsResponse({ error: error.message }, 500);
   }
 });
 
 async function handleEvent(event: Stripe.Event) {
   try {
-    console.log(`Processando evento: ${event.type}`);
+    console.log(`🔄 WEBHOOK: Processando evento: ${event.type}`);
 
     if (event.type === 'checkout.session.completed') {
       await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+    } else if (event.type === 'customer.subscription.created') {
+      await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
     } else if (event.type === 'customer.subscription.updated') {
       await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
     } else if (event.type === 'customer.subscription.deleted') {
       await handleSubscriptionCanceled(event.data.object as Stripe.Subscription);
+    } else if (event.type === 'invoice.payment_succeeded') {
+      await handlePaymentSucceeded(event.data.object as Stripe.Invoice);
     } else if (event.type === 'invoice.payment_failed') {
       await handlePaymentFailed(event.data.object as Stripe.Invoice);
+    } else {
+      console.log(`⚠️ WEBHOOK: Evento não tratado: ${event.type}`);
     }
   } catch (error) {
-    console.error('Erro ao processar evento do webhook:', error);
+    console.error('❌ WEBHOOK: Erro ao processar evento:', error);
     throw error;
   }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  const userId = session.metadata?.userId;
+  console.log('💳 WEBHOOK: Processando checkout completado:', session.id);
+  
   const customerId = session.customer as string;
+  const subscriptionId = session.subscription as string;
   
-  if (!userId) {
-    console.error('User ID não encontrado nos metadados da sessão');
-    return;
-  }
-
-  // Buscar dados da assinatura
-  const { data: stripeConfig } = await supabase
-    .from('payment_gateways')
-    .select('secret_key_encrypted')
-    .eq('gateway_name', 'stripe')
-    .single();
-
-  if (!stripeConfig) {
-    console.error('Configuração do Stripe não encontrada');
-    return;
-  }
-
-  const stripe = new Stripe(stripeConfig.secret_key_encrypted);
-  
-  // Buscar assinatura do Stripe
-  const subscriptions = await stripe.subscriptions.list({
-    customer: customerId,
-    status: 'active',
-    limit: 1,
+  console.log('📊 WEBHOOK: Dados do checkout:', {
+    customer_id: customerId,
+    subscription_id: subscriptionId,
+    payment_status: session.payment_status
   });
 
-  if (subscriptions.data.length === 0) {
-    console.error('Assinatura ativa não encontrada');
+  if (!customerId) {
+    console.error('❌ WEBHOOK: Customer ID não encontrado');
     return;
   }
 
-  const subscription = subscriptions.data[0];
-  
-  // Buscar plano baseado no price_id
-  const { data: plan } = await supabase
-    .from('plans')
-    .select('name')
-    .eq('stripe_price_id', subscription.items.data[0].price.id)
+  // Buscar usuário pelo customer_id
+  const { data: customerData, error: customerError } = await supabase
+    .from('stripe_customers')
+    .select('user_id')
+    .eq('customer_id', customerId)
     .single();
 
-  // Atualizar assinatura do usuário
-  const { error: updateError } = await supabase
-    .from('subscriptions')
-    .update({
-      status: 'active',
-      plan_name: plan?.name || 'unknown',
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      trial_ends_at: null, // Limpar trial ao ativar
-    })
-    .eq('user_id', userId);
-
-  if (updateError) {
-    console.error('Erro ao atualizar assinatura:', updateError);
-    throw updateError;
+  if (customerError || !customerData) {
+    console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId, customerError);
+    return;
   }
 
-  console.log(`Assinatura ativada para usuário ${userId}`);
+  const userId = customerData.user_id;
+  console.log('👤 WEBHOOK: Usuário encontrado:', userId);
+
+  // Se há subscription, buscar dados da subscription
+  if (subscriptionId) {
+    console.log('🔍 WEBHOOK: Buscando dados da subscription:', subscriptionId);
+    
+    const { data: stripeConfig } = await supabase
+      .from('payment_gateways')
+      .select('secret_key_encrypted')
+      .eq('gateway_name', 'stripe')
+      .single();
+
+    if (!stripeConfig) {
+      console.error('❌ WEBHOOK: Configuração do Stripe não encontrada');
+      return;
+    }
+
+    const stripe = new Stripe(stripeConfig.secret_key_encrypted);
+    
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      console.log('📋 WEBHOOK: Subscription encontrada:', {
+        id: subscription.id,
+        status: subscription.status,
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end
+      });
+
+      // Buscar plano baseado no price_id
+      const priceId = subscription.items.data[0]?.price?.id;
+      console.log('💰 WEBHOOK: Price ID:', priceId);
+
+      const { data: plan } = await supabase
+        .from('plans')
+        .select('id, name')
+        .eq('stripe_price_id_monthly', priceId)
+        .single();
+
+      console.log('📦 WEBHOOK: Plano encontrado:', plan);
+
+      // CRÍTICO: Atualizar assinatura do usuário
+      const subscriptionData = {
+        user_id: userId,
+        plan_id: plan?.id || null,
+        status: 'active' as const,
+        trial_ends_at: null, // Limpar trial
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('💾 WEBHOOK: Atualizando assinatura:', subscriptionData);
+
+      const { data: updatedSub, error: updateError } = await supabase
+        .from('subscriptions')
+        .upsert(subscriptionData, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ WEBHOOK: Erro ao atualizar assinatura:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ WEBHOOK: Assinatura atualizada com sucesso:', updatedSub);
+
+      // Criar log de auditoria
+      await supabase.from('audit_logs').insert({
+        actor_id: null,
+        actor_email: 'stripe_webhook',
+        action: 'SUBSCRIPTION_ACTIVATED',
+        details: {
+          user_id: userId,
+          customer_id: customerId,
+          subscription_id: subscriptionId,
+          plan_name: plan?.name || 'Desconhecido',
+          activated_at: new Date().toISOString()
+        }
+      });
+
+      console.log('✅ WEBHOOK: Usuário liberado com sucesso!');
+
+    } catch (stripeError) {
+      console.error('❌ WEBHOOK: Erro ao buscar subscription no Stripe:', stripeError);
+    }
+  }
+}
+
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  console.log('🆕 WEBHOOK: Nova subscription criada:', subscription.id);
+  // Processar como checkout completed
+  await handleSubscriptionUpdated(subscription);
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  // Buscar usuário pelo customer_id
-  const { data: userSub } = await supabase
-    .from('subscriptions')
+  console.log('🔄 WEBHOOK: Subscription atualizada:', subscription.id);
+  
+  const customerId = subscription.customer as string;
+  
+  // Buscar usuário
+  const { data: customerData } = await supabase
+    .from('stripe_customers')
     .select('user_id')
-    .eq('stripe_customer_id', subscription.customer)
+    .eq('customer_id', customerId)
     .single();
 
-  if (!userSub) {
-    console.error('Usuário não encontrado para customer:', subscription.customer);
+  if (!customerData) {
+    console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId);
     return;
   }
 
-  // Atualizar dados da assinatura
+  // Buscar plano
+  const priceId = subscription.items.data[0]?.price?.id;
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('id, name')
+    .eq('stripe_price_id_monthly', priceId)
+    .single();
+
+  // Atualizar assinatura
+  const subscriptionData = {
+    user_id: customerData.user_id,
+    plan_id: plan?.id || null,
+    status: subscription.status === 'active' ? 'active' as const : 'canceled' as const,
+    trial_ends_at: null,
+    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
   const { error: updateError } = await supabase
     .from('subscriptions')
-    .update({
-      status: subscription.status === 'active' ? 'active' : 'canceled',
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    })
-    .eq('user_id', userSub.user_id);
+    .upsert(subscriptionData, { onConflict: 'user_id' });
 
   if (updateError) {
-    console.error('Erro ao atualizar assinatura:', updateError);
-    throw updateError;
+    console.error('❌ WEBHOOK: Erro ao atualizar subscription:', updateError);
+  } else {
+    console.log('✅ WEBHOOK: Subscription atualizada:', subscription.status);
   }
-
-  console.log(`Assinatura atualizada para usuário ${userSub.user_id}`);
 }
 
 async function handleSubscriptionCanceled(subscription: Stripe.Subscription) {
-  // Buscar usuário pelo customer_id
-  const { data: userSub } = await supabase
-    .from('subscriptions')
+  console.log('❌ WEBHOOK: Subscription cancelada:', subscription.id);
+  
+  const customerId = subscription.customer as string;
+  
+  const { data: customerData } = await supabase
+    .from('stripe_customers')
     .select('user_id')
-    .eq('stripe_customer_id', subscription.customer)
+    .eq('customer_id', customerId)
     .single();
 
-  if (!userSub) {
-    console.error('Usuário não encontrado para customer:', subscription.customer);
-    return;
-  }
+  if (!customerData) return;
 
-  // Cancelar assinatura
-  const { error: updateError } = await supabase
+  await supabase
     .from('subscriptions')
-    .update({
+    .update({ 
       status: 'canceled',
+      updated_at: new Date().toISOString()
     })
-    .eq('user_id', userSub.user_id);
+    .eq('user_id', customerData.user_id);
 
-  if (updateError) {
-    console.error('Erro ao cancelar assinatura:', updateError);
-    throw updateError;
+  console.log('✅ WEBHOOK: Subscription cancelada para usuário:', customerData.user_id);
+}
+
+async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
+  console.log('💰 WEBHOOK: Pagamento bem-sucedido:', invoice.id);
+  
+  if (invoice.subscription) {
+    // Buscar subscription e atualizar status
+    const { data: stripeConfig } = await supabase
+      .from('payment_gateways')
+      .select('secret_key_encrypted')
+      .eq('gateway_name', 'stripe')
+      .single();
+
+    if (stripeConfig) {
+      const stripe = new Stripe(stripeConfig.secret_key_encrypted);
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+      await handleSubscriptionUpdated(subscription);
+    }
   }
-
-  console.log(`Assinatura cancelada para usuário ${userSub.user_id}`);
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  // Lógica para lidar com falha de pagamento
-  // Por enquanto, apenas log
-  console.log(`Pagamento falhou para customer: ${invoice.customer}`);
+  console.log('💸 WEBHOOK: Pagamento falhou:', invoice.id);
+  // Implementar lógica de falha de pagamento se necessário
 }
