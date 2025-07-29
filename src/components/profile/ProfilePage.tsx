@@ -543,11 +543,15 @@ const ProfilePage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Acesso:</span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      subscriptionStatus.has_access 
+                      subscriptionStatus.current_plan_name === 'Restrito'
+                        ? 'bg-red-100 text-red-700'
+                        : subscriptionStatus.has_access 
                         ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                     }`}>
-                      {subscriptionStatus.has_access ? '✅ Liberado' : '❌ Restrito'}
+                      {subscriptionStatus.current_plan_name === 'Restrito' 
+                        ? '🚫 BLOQUEADO' 
+                        : subscriptionStatus.has_access ? '✅ Liberado' : '❌ Restrito'}
                     </span>
                   </div>
                   
@@ -561,19 +565,19 @@ const ProfilePage: React.FC = () => {
                   )}
                   
                   {(!subscriptionStatus.has_access || subscriptionStatus.current_plan_name === 'Restrito') && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-3">
-                      <p className="text-orange-800 text-sm">
-                        <strong>🚫 Acesso Restrito</strong><br />
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                      <p className="text-red-800 text-sm">
+                        <strong>🚫 CONTA BLOQUEADA</strong><br />
                         {subscriptionStatus.current_plan_name === 'Restrito' 
-                          ? 'Sua conta está em modo restrito. Faça upgrade para um plano pago para continuar usando a plataforma.'
+                          ? 'Sua conta está BLOQUEADA no plano restrito. Você pode navegar mas não pode usar as funcionalidades. Faça upgrade para um plano pago.'
                           : 'Seu período de teste expirou. Assine um plano para continuar usando a plataforma.'
                         }
                       </p>
                       <button
                         onClick={() => window.location.href = '/pricing'}
-                        className="mt-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:scale-105 transition-transform duration-300"
+                        className="mt-2 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:scale-105 transition-transform duration-300"
                       >
-                        Ver Planos
+                        🚀 FAZER UPGRADE AGORA
                       </button>
                     </div>
                   )}

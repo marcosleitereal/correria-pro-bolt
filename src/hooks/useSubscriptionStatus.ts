@@ -384,6 +384,16 @@ export const useSubscriptionStatus = () => {
       let hasAccess = false;
       let calculationDetails = '';
 
+      // VERIFICAÇÃO CRÍTICA: Se está no plano restrito, SEMPRE bloquear acesso
+      const isRestrictedPlan = planName === 'Restrito' || 
+                              planName === 'restrito' ||
+                              planName?.toLowerCase().includes('restrito');
+      
+      if (isRestrictedPlan) {
+        console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
+        hasAccess = false;
+        calculationDetails = 'Plano Restrito - Acesso bloqueado';
+      } else if (subscriptionData) {
       if (subscriptionData) {
         console.log('🎯 TRIAL DEBUG: Dados da assinatura encontrados:', {
           status: subscriptionData.status,
@@ -425,8 +435,10 @@ export const useSubscriptionStatus = () => {
       console.log('🎯 TRIAL DEBUG: Cálculo de acesso:', {
         status: subscriptionData?.status,
         trial_ends_at: subscriptionData?.trial_ends_at,
+        plan_name: planName,
+        is_restricted_plan: isRestrictedPlan,
         has_access: hasAccess,
-        blockingReason: 'Sua conta está em modo restrito. Faça upgrade para um plano pago para continuar usando a plataforma.',
+        calculation_details: calculationDetails
       });
 
       // 5. MONTAR OBJETO FINAL

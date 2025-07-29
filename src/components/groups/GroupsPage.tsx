@@ -3,15 +3,18 @@ import { motion } from 'framer-motion';
 import { Plus, Search, Users, Edit, Trash2, UserPlus } from 'lucide-react';
 import { useTrainingGroups } from '../../hooks/useTrainingGroups';
 import { useGroupMemberships } from '../../hooks/useGroupMemberships';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import EmptyState from '../ui/EmptyState';
 import GroupModal from './GroupModal';
 import MemberManagementModal from './MemberManagementModal';
 import { TrainingGroup } from '../../types/database';
 import Skeleton from '../ui/Skeleton';
+import SubscriptionGuard from '../ui/SubscriptionGuard';
 
 const GroupsPage: React.FC = () => {
   const { groups, loading, error, createGroup, updateGroup, deleteGroup } = useTrainingGroups();
   const { getMemberCount } = useGroupMemberships();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -79,6 +82,17 @@ const GroupsPage: React.FC = () => {
     };
     return colors[level as keyof typeof colors] || 'bg-slate-100 text-slate-700';
   };
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="p-6 lg:p-8">
+        <SubscriptionGuard feature="general">
+          <div></div>
+        </SubscriptionGuard>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

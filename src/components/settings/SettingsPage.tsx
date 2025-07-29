@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, MessageSquare, AlertCircle, Check } from 'lucide-react';
 import { useObservationTemplates } from '../../hooks/useObservationTemplates';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import TemplateModal from './TemplateModal';
 import { ObservationTemplate } from '../../types/database';
+import SubscriptionGuard from '../ui/SubscriptionGuard';
 
 const SettingsPage: React.FC = () => {
   const { 
@@ -14,6 +16,7 @@ const SettingsPage: React.FC = () => {
     updateTemplate, 
     deleteTemplate 
   } = useObservationTemplates();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ObservationTemplate | null>(null);
@@ -47,6 +50,17 @@ const SettingsPage: React.FC = () => {
   };
 
   const isAtLimit = templates.length >= 5;
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="p-6 lg:p-8">
+        <SubscriptionGuard feature="general">
+          <div></div>
+        </SubscriptionGuard>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8">

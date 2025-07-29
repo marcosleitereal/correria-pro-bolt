@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Star, Edit, Trash2, Heart, Target, Zap } from 'lucide-react';
 import { useTrainingStyles } from '../../hooks/useTrainingStyles';
+import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import EmptyState from '../ui/EmptyState';
 import TrainingStyleModal from './TrainingStyleModal';
 import { TrainingStyle } from '../../types/database';
 import Skeleton from '../ui/Skeleton';
+import SubscriptionGuard from '../ui/SubscriptionGuard';
 
 const TrainingStylesPage: React.FC = () => {
   const { 
@@ -17,6 +19,7 @@ const TrainingStylesPage: React.FC = () => {
     updateStyle, 
     toggleFavorite 
   } = useTrainingStyles();
+  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,6 +90,17 @@ const TrainingStylesPage: React.FC = () => {
   const isFavorite = (styleId: string) => {
     return favoriteStyles.some(fav => fav.id === styleId);
   };
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO
+  if (!canAccessFeature && blockingReason) {
+    return (
+      <div className="p-6 lg:p-8">
+        <SubscriptionGuard feature="general">
+          <div></div>
+        </SubscriptionGuard>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
