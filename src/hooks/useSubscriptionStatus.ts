@@ -40,12 +40,12 @@ export const useSubscriptionStatus = () => {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 TRIAL DEBUG: Buscando status da assinatura para usuário:', user?.id);
-      console.log('🔍 TRIAL DEBUG: Email do usuário:', user?.email);
+      console.log('🔍 SUBSCRIPTION DEBUG: Buscando status da assinatura para usuário:', user?.id);
+      console.log('🔍 SUBSCRIPTION DEBUG: Email do usuário:', user?.email);
 
       // ACESSO TOTAL PARA DEV
       if (user?.email === 'dev@sonnik.com.br') {
-        console.log('👑 TRIAL DEBUG: Usuário dev detectado - acesso total');
+        console.log('👑 SUBSCRIPTION DEBUG: Usuário dev detectado - acesso total');
         setSubscriptionStatus({
           user_id: user.id,
           email: user.email || null,
@@ -62,357 +62,196 @@ export const useSubscriptionStatus = () => {
         return;
       }
 
-      // FORÇAR REFRESH DOS DADOS APÓS PAGAMENTO
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session_id');
-      if (sessionId) {
-        console.log('💳 SUBSCRIPTION STATUS: Session ID detectado, aguardando processamento...');
-        // Aguardar um pouco para o webhook processar
-        await new Promise(resolve => setTimeout(resolve, 3000));
+      // 1. BUSCAR DADOS COMPLETOS DA VIEW user_subscription_details
+      console.log('📊 SUBSCRIPTION DEBUG: Buscando dados completos da view...');
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('user_subscription_details')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('❌ SUBSCRIPTION DEBUG: Erro ao buscar dados da view:', subscriptionError);
+        throw subscriptionError;
       }
 
-      // CORREÇÃO CRÍTICA: Sempre usar valores fixos baseados no admin (35 dias)
-      // BUSCAR CONFIGURAÇÕES DINÂMICAS DO BANCO
-      const { data: dynamicSettings, error: settingsError } = await supabase
+      console.log('📊 SUBSCRIPTION DEBUG: Dados da view recebidos:', subscriptionData);
+
+      // Se não há dados na view, o usuário não tem perfil ou assinatura
+      if (!subscriptionData) {
+        console.log('⚠️ SUBSCRIPTION DEBUG: Nenhum dado encontrado na view - usuário sem perfil/assinatura');
+        await createUserProfileAndTrial();
+        return;
+      }
+
+      // 2. CALCULAR HAS_ACCESS baseado nos dados da view
+      let hasAccess = false;
+      const isRestrictedPlan = subscriptionData.current_plan_name === 'Restrito' || 
+                              subscriptionData.current_plan_name === 'restrito' ||
+                              subscriptionData.current_plan_name?.toLowerCase().includes('restrito');
+      
+      if (isRestrictedPlan) {
+        console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
+        hasAccess = false;
+      } else {
+        // Usar o campo has_access da view que já calcula tudo
+        hasAccess = subscriptionData.has_access === true;
+        console.log('✅ SUBSCRIPTION DEBUG: has_access da view:', hasAccess);
+      }
+
+      // 3. MONTAR OBJETO FINAL usando dados da view
+      const finalStatus: SubscriptionStatus = {
+        user_id: user.id,
+        email: subscriptionData.email,
+        full_name: subscriptionData.full_name,
+        role: subscriptionData.role,
+        subscription_status: subscriptionData.subscription_status,
+        current_plan_name: subscriptionData.current_plan_name,
+        plan_id: subscriptionData.plan_id,
+        trial_ends_at: subscriptionData.trial_ends_at,
+        current_period_end: subscriptionData.current_period_end,
+        has_access: hasAccess
+      };
+
+      console.log('✅ SUBSCRIPTION DEBUG: Status final calculado:', finalStatus);
+      setSubscriptionStatus(finalStatus);
+    } catch (err: any) {
+      console.error('❌ SUBSCRIPTION DEBUG: Erro geral:', err);
+      setError(err.message || 'Erro ao carregar status da assinatura');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createUserProfileAndTrial = async () => {
+    try {
+      // Buscar configurações do app
+      const { data: dynamicSettings } = await supabase
         .from('app_settings')
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       
-      let trialDurationDays = 70; // Fallback
-      let trialAthleteLimit = 70;
-      let trialTrainingLimit = 70;
+      const trialDurationDays = dynamicSettings?.trial_duration_days || 35;
       
-      if (!settingsError && dynamicSettings) {
-        trialDurationDays = dynamicSettings.trial_duration_days;
-        trialAthleteLimit = dynamicSettings.trial_athlete_limit;
-        trialTrainingLimit = dynamicSettings.trial_training_limit;
-        console.log('✅ SUBSCRIPTION STATUS: Usando configurações dinâmicas do banco:', {
-          trial_duration_days: trialDurationDays,
-          trial_athlete_limit: trialAthleteLimit,
-          trial_training_limit: trialTrainingLimit,
-          fonte: 'app_settings dinâmico'
-        });
-      } else {
-        console.warn('⚠️ SUBSCRIPTION STATUS: Usando valores fallback:', {
-          trial_duration_days: trialDurationDays,
-          trial_athlete_limit: trialAthleteLimit,
-          trial_training_limit: trialTrainingLimit,
-          erro: settingsError?.message
-        });
-      }
-      
-
-
-      // 1. BUSCAR PERFIL DO USUÁRIO
-      console.log('📊 TRIAL DEBUG: Buscando perfil do usuário...');
-      const { data: profileData, error: profileError } = await supabase
+      // Criar perfil se não existir
+      const { data: newProfile, error: createProfileError } = await supabase
         .from('profiles')
-        .select('full_name, email, role')
-        .eq('id', user?.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('❌ TRIAL DEBUG: Erro ao buscar perfil:', profileError);
-        throw profileError;
-      }
-
-      // Se não há perfil, retornar estado padrão sem acesso
-      if (!profileData) {
-        console.log('⚠️ TRIAL DEBUG: Nenhum perfil encontrado para o usuário - definindo acesso como false');
-        console.log('🔧 TRIAL DEBUG: Tentando criar perfil automaticamente...');
-        
-        // Tentar criar perfil automaticamente
-        const { data: newProfile, error: createProfileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: user.id,
-            full_name: user.user_metadata?.full_name || null,
-            email: user.email,
-            role: 'coach'
-          }, {
-            onConflict: 'id'
-          })
-          .select('full_name, email, role')
-          .single();
-        
-        if (createProfileError) {
-          console.error('❌ TRIAL DEBUG: Erro ao criar perfil automaticamente:', createProfileError);
-          setSubscriptionStatus({
-            user_id: user.id,
-            email: user.email || null,
-            full_name: null,
-            role: null,
-            subscription_status: null,
-            current_plan_name: null,
-            plan_id: null,
-            trial_ends_at: null,
-            current_period_end: null,
-            has_access: false
-          });
-          setLoading(false);
-          return;
-        }
-        
-        console.log('✅ TRIAL DEBUG: Perfil criado automaticamente, usando dados do novo perfil');
-        // Usar dados do perfil recém-criado
-        const profileToUse = newProfile;
-        
-        // Continuar com a lógica usando o novo perfil
-        console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileToUse);
-        
-        // 2. BUSCAR ASSINATURA DO USUÁRIO
-        console.log('📊 TRIAL DEBUG: Buscando assinatura do usuário...');
-        const { data: subscriptionData, error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user?.id)
-          .maybeSingle();
-            console.log('🔧 TRIAL DEBUG: 🔄 Tentando inserção direta...');
-        if (subscriptionError) {
-          console.error('❌ TRIAL DEBUG: Erro ao buscar assinatura:', subscriptionError);
-          throw subscriptionError;
-        }
-        
-        console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
-        
-        // Se não há assinatura, criar uma de trial automaticamente
-        if (!subscriptionData) {
-          console.log('🔧 TRIAL DEBUG: ⚡ CRIANDO TRIAL AUTOMÁTICO FORÇADO com duração de', trialDurationDays, 'dias...');
-          
-          const trialEndsAt = new Date();
-          trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
-          
-          console.log('🔧 TRIAL DEBUG: 🚀 EXECUTANDO UPSERT...');
-          const { data: newSubscription, error: createSubError } = await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: user.id,
-              plan_id: null,
-              status: 'trialing',
-              trial_ends_at: trialEndsAt.toISOString(),
-              current_period_start: new Date().toISOString(),
-              current_period_end: trialEndsAt.toISOString()
-            }, {
-              onConflict: 'user_id'
-            })
-            .select()
-            .single();
-          
-          if (createSubError) {
-            console.error('❌ TRIAL DEBUG: Erro ao criar assinatura de trial:', createSubError);
-            
-            // ÚLTIMO RECURSO: Definir status local mesmo sem salvar no banco
-            console.log('🆘 TRIAL DEBUG: ÚLTIMO RECURSO - Definindo trial local');
-            const emergencyStatus: SubscriptionStatus = {
-              user_id: user.id,
-              email: profileData.email,
-              full_name: profileData.full_name,
-              role: profileData.role,
-              subscription_status: 'trialing',
-              current_plan_name: null,
-              plan_id: null,
-              trial_ends_at: trialEndsAt.toISOString(),
-              current_period_end: trialEndsAt.toISOString(),
-              has_access: true
-            };
-            
-            console.log('🆘 TRIAL DEBUG: Status de emergência definido:', emergencyStatus);
-            setSubscriptionStatus(emergencyStatus);
-            setLoading(false);
-            return;
-          } else {
-            console.log('✅ TRIAL DEBUG: 🎉 Trial automático criado com SUCESSO:', newSubscription);
-            console.log('✅ TRIAL DEBUG: Assinatura de trial criada automaticamente com', trialDurationDays, 'dias');
-            
-            // Usar a nova assinatura
-            const finalStatus: SubscriptionStatus = {
-              user_id: user.id,
-              email: profileToUse.email,
-              full_name: profileToUse.full_name,
-              role: profileToUse.role,
-              subscription_status: 'trialing',
-              current_plan_name: null,
-              plan_id: null,
-              trial_ends_at: trialEndsAt.toISOString(),
-              current_period_end: trialEndsAt.toISOString(),
-              has_access: true
-            };
-            
-            console.log('✅ TRIAL DEBUG: Status final com trial automático:', finalStatus);
-            setSubscriptionStatus(finalStatus);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        setSubscriptionStatus({
-          user_id: user.id,
-          email: user.email || null,
-          full_name: profileToUse.full_name,
-          role: profileToUse.role,
-          subscription_status: null,
-          current_plan_name: null,
-          plan_id: null,
-          trial_ends_at: null,
-          current_period_end: null,
-          has_access: false
-        });
-        setLoading(false);
+        .upsert({
+          id: user!.id,
+          full_name: user!.user_metadata?.full_name || null,
+          email: user!.email,
+          role: 'coach'
+        }, {
+          onConflict: 'id'
+        })
+        .select()
+        .single();
+      
+      if (createProfileError) {
+        console.error('❌ Erro ao criar perfil:', createProfileError);
         return;
       }
-
-      console.log('✅ TRIAL DEBUG: Perfil encontrado:', profileData);
-
-      // 2. BUSCAR ASSINATURA DO USUÁRIO
-      console.log('📊 TRIAL DEBUG: Buscando assinatura do usuário...');
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (subscriptionError) {
-        console.error('❌ TRIAL DEBUG: Erro ao buscar assinatura:', subscriptionError);
-        throw subscriptionError;
-      }
-
-      console.log('📊 TRIAL DEBUG: Dados da assinatura encontrados:', subscriptionData);
       
-      // Se não há assinatura, criar uma de trial automaticamente
-      if (!subscriptionData) {
-        console.log('🔧 TRIAL DEBUG: CRIANDO TRIAL AUTOMÁTICO FORÇADO com duração de', trialDurationDays, 'dias...');
-        console.log('🔧 TRIAL DEBUG: User ID:', user.id);
-        console.log('🔧 TRIAL DEBUG: Data atual:', new Date().toISOString());
-        
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
-        
-        console.log('🔧 TRIAL DEBUG: Data de fim calculada:', trialEndsAt.toISOString());
-        console.log('🔧 TRIAL DEBUG: Dias até o fim:', Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-        
-        const subscriptionToCreate = {
-          user_id: user.id,
+      // Criar trial
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
+      
+      const { data: newSubscription, error: createSubError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: user!.id,
           plan_id: null,
-          status: 'trialing' as const,
+          status: 'trialing',
           trial_ends_at: trialEndsAt.toISOString(),
           current_period_start: new Date().toISOString(),
           current_period_end: trialEndsAt.toISOString()
-        };
-        
-        console.log('🔧 TRIAL DEBUG: Dados da assinatura a ser criada:', subscriptionToCreate);
-        
-        const { data: newSubscription, error: createSubError } = await supabase
-          .from('subscriptions')
-          .upsert(subscriptionToCreate, { onConflict: 'user_id' })
-          .select()
-          .single();
-        
-        if (createSubError) {
-          console.error('❌ TRIAL DEBUG: ERRO CRÍTICO ao criar trial automático:', createSubError);
-          console.error('❌ TRIAL DEBUG: Código do erro:', createSubError.code);
-          console.error('❌ TRIAL DEBUG: Mensagem do erro:', createSubError.message);
-          console.error('❌ TRIAL DEBUG: Detalhes do erro:', createSubError.details);
-          
-          // Tentar inserção direta se upsert falhar
-          console.log('🔧 TRIAL DEBUG: Tentando inserção direta...');
-          const { data: directInsert, error: directError } = await supabase
-            .from('subscriptions')
-            .insert(subscriptionToCreate)
-            .select()
-            .single();
-            
-          if (directError) {
-            console.error('❌ TRIAL DEBUG: Inserção direta também falhou:', directError);
-          } else {
-            console.log('✅ TRIAL DEBUG: Inserção direta bem-sucedida:', directInsert);
-            // Usar resultado da inserção direta
-            const finalStatus: SubscriptionStatus = {
-              user_id: user.id,
-              email: profileData.email,
-              full_name: profileData.full_name,
-              role: profileData.role,
-              subscription_status: 'trialing',
-              current_plan_name: null,
-              plan_id: null,
-              trial_ends_at: trialEndsAt.toISOString(),
-              current_period_end: trialEndsAt.toISOString(),
-              has_access: true
-            };
-            
-            console.log('✅ TRIAL DEBUG: Status final com inserção direta:', finalStatus);
-            setSubscriptionStatus(finalStatus);
-            setLoading(false);
-            return;
-          }
-        } else {
-          console.log('✅ TRIAL DEBUG: Trial automático criado com SUCESSO:', newSubscription);
-          console.log('✅ TRIAL DEBUG: Duração aplicada:', trialDurationDays, 'dias');
-          console.log('✅ TRIAL DEBUG: Status da assinatura:', newSubscription.status);
-          console.log('✅ TRIAL DEBUG: Trial termina em:', newSubscription.trial_ends_at);
-          
-          // Usar a nova assinatura
-          const finalStatus: SubscriptionStatus = {
-            user_id: user.id,
-            email: profileData.email,
-            full_name: profileData.full_name,
-            role: profileData.role,
-            subscription_status: 'trialing',
-            current_plan_name: null,
-            plan_id: null,
-            trial_ends_at: trialEndsAt.toISOString(),
-            current_period_end: trialEndsAt.toISOString(),
-            has_access: true
-          };
-          
-          console.log('✅ TRIAL DEBUG: Status final CONFIRMADO:', finalStatus);
-          setSubscriptionStatus(finalStatus);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 3. BUSCAR NOME DO PLANO SE HOUVER
-      let planName = null;
-      if (subscriptionData?.plan_id) {
-        console.log('📊 TRIAL DEBUG: Buscando nome do plano:', subscriptionData.plan_id);
-        const { data: planData, error: planError } = await supabase
-          .from('plans')
-          .select('name')
-          .eq('id', subscriptionData.plan_id)
-          .maybeSingle();
-
-        if (!planError && planData) {
-          planName = planData.name;
-          console.log('✅ TRIAL DEBUG: Nome do plano encontrado:', planName);
-        }
-      }
-
-      // 4. CALCULAR HAS_ACCESS
-      let hasAccess = false;
-      let calculationDetails = '';
-
-      // VERIFICAÇÃO CRÍTICA: Se está no plano restrito, SEMPRE bloquear acesso
-      const isRestrictedPlan = planName === 'Restrito' || 
-                              planName === 'restrito' ||
-                              planName?.toLowerCase().includes('restrito');
+        }, {
+          onConflict: 'user_id'
+        })
+        .select()
+        .single();
       
-      if (isRestrictedPlan) {
-        console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
-        hasAccess = false;
-        calculationDetails = 'Plano Restrito - Acesso bloqueado';
-      } else if (subscriptionData) {
+      if (createSubError) {
+        console.error('❌ Erro ao criar trial:', createSubError);
+        return;
       }
-      if (subscriptionData) {
-        console.log('🎯 TRIAL DEBUG: Dados da assinatura encontrados:', {
-          status: subscriptionData.status,
-          trial_ends_at: subscriptionData.trial_ends_at,
-          current_period_end: subscriptionData.current_period_end,
-          plan_id: subscriptionData.plan_id
-        });
-        
-        if (subscriptionData.status === 'active') {
+      
+      // Definir status final
+      const finalStatus: SubscriptionStatus = {
+        user_id: user!.id,
+        email: newProfile.email,
+        full_name: newProfile.full_name,
+        role: newProfile.role,
+        subscription_status: 'trialing',
+        current_plan_name: null,
+        plan_id: null,
+        trial_ends_at: trialEndsAt.toISOString(),
+        current_period_end: trialEndsAt.toISOString(),
+        has_access: true
+      };
+      
+      setSubscriptionStatus(finalStatus);
+    } catch (error) {
+      console.error('❌ Erro ao criar perfil e trial:', error);
+    }
+  };
+
+  // Função para forçar refresh dos dados após pagamento
+  const refreshAfterPayment = async () => {
+    console.log('🔄 SUBSCRIPTION DEBUG: Forçando refresh após pagamento...');
+    await fetchSubscriptionStatus();
+  };
+
+  // Detectar se voltou de um checkout bem-sucedido
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    
+    if (sessionId && user) {
+      console.log('💳 SUBSCRIPTION DEBUG: Session ID detectado, aguardando processamento do webhook...');
+      // Aguardar webhook processar e depois fazer refresh
+      setTimeout(() => {
+        refreshAfterPayment();
+      }, 5000); // 5 segundos para webhook processar
+    }
+  }, [user]);
+
+  const isTrialing = subscriptionStatus?.subscription_status === 'trialing';
+  const isActive = subscriptionStatus?.subscription_status === 'active';
+  const isCanceled = subscriptionStatus?.subscription_status === 'canceled';
+  const hasAccess = subscriptionStatus?.has_access === true;
+
+  const daysUntilTrialEnd = subscriptionStatus?.trial_ends_at 
+    ? Math.ceil((new Date(subscriptionStatus.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // LOGS FINAIS PARA DEBUG
+  console.log('🎯 SUBSCRIPTION DEBUG: Valores finais do hook:', {
+    isTrialing,
+    isActive,
+    hasAccess,
+    daysUntilTrialEnd,
+    subscription_status: subscriptionStatus?.subscription_status,
+    current_plan_name: subscriptionStatus?.current_plan_name,
+    plan_id: subscriptionStatus?.plan_id
+  });
+
+  return {
+    subscriptionStatus,
+    loading,
+    error,
+    isTrialing,
+    isActive,
+    isCanceled,
+    hasAccess,
+    daysUntilTrialEnd,
+    refetch: fetchSubscriptionStatus,
+    refreshAfterPayment,
+  };
+};
+
           hasAccess = true;
           calculationDetails = 'Status ativo';
         } else if (subscriptionData.status === 'trialing' && subscriptionData.trial_ends_at) {

@@ -564,6 +564,15 @@ const ProfilePage: React.FC = () => {
                     </div>
                   )}
                   
+                  {subscriptionStatus.subscription_status === 'active' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                      <p className="text-green-800 text-sm">
+                        <strong>✅ Plano Ativo!</strong><br />
+                        Sua assinatura está ativa e você tem acesso completo a todas as funcionalidades da plataforma.
+                      </p>
+                    </div>
+                  )}
+                  
                   {(!subscriptionStatus.has_access || subscriptionStatus.current_plan_name === 'Restrito') && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
                       <p className="text-red-800 text-sm">
