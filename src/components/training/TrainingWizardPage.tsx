@@ -5,8 +5,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRunners } from '../../hooks/useRunners';
 import { useTrainingGroups } from '../../hooks/useTrainingGroups';
 import { useTrainingStyles } from '../../hooks/useTrainingStyles';
-import { useAIProviders } from '../../hooks/useAIProviders';
 import { useTrainings } from '../../hooks/useTrainings';
+import { useAIProviders } from '../../hooks/useAIProviders';
 import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import SubscriptionGuard from '../ui/SubscriptionGuard';
 import { Runner, TrainingGroup, TrainingStyle } from '../../types/database';
@@ -29,7 +29,7 @@ const TrainingWizardPage: React.FC = () => {
   const { groups } = useTrainingGroups();
   const { styles, favoriteStyles } = useTrainingStyles();
   const { createTraining, generating } = useTrainings();
-  const { activeProvider, loading: aiProvidersLoading } = useAIProviders();
+  const { activeProvider, loading: aiProvidersLoading, globalProvider } = useAIProviders();
   const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
 
   // Filtrar apenas corredores ativos (não arquivados)
@@ -137,8 +137,21 @@ const TrainingWizardPage: React.FC = () => {
     setWizardState(prev => ({ ...prev, selectedStyle: style }));
   };
 
+  console.log('🔍 [TrainingWizardPage] - Estado do provedor de IA:', {
+    aiProvidersLoading,
+    hasActiveProvider: !!activeProvider,
+    globalProvider,
+    activeProviderName: activeProvider?.name,
+    canGenerate: !generating && !aiProvidersLoading && !!activeProvider
+  });
+
   const generateTraining = async () => {
     if (!canProceed()) return;
+    
+    if (!activeProvider) {
+      toast.error('Provedor de IA não está configurado. Verifique as configurações no painel admin.');
+      return;
+    }
 
     const { selectedTarget, duration, selectedStyle, targetType } = wizardState;
 
@@ -290,12 +303,12 @@ const TrainingWizardPage: React.FC = () => {
               ) : (
                 <button
                   onClick={generateTraining} // Call the function to generate training
-                  disabled={!canProceed() || generating || aiProvidersLoading || !activeProvider} // Disable if not ready
+                  disabled={!canProceed() || generating || aiProvidersLoading || !activeProvider}
                   className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {generating && <Loader2 className="w-5 h-5 animate-spin" />}
                   <Sparkles className="w-5 h-5" />
-                  Gerar Rascunho do Treino
+                  {aiProvidersLoading ? 'Carregando IA...' : !activeProvider ? 'IA não configurada' : 'Gerar Rascunho do Treino'}
                 </button>
               )}
             </motion.div>

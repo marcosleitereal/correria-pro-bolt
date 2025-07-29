@@ -57,6 +57,7 @@ export const useTrainings = () => {
 
   const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
     const { user } = useAuthContext(); // Get user inside the function to ensure it's fresh
+  }
   const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
     if (!user) {
       setError('Usuário não autenticado');
