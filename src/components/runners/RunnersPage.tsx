@@ -169,6 +169,7 @@ const RunnersPage: React.FC = () => {
     return colors[level as keyof typeof colors] || 'bg-slate-100 text-slate-700';
   };
 
+  // VERIFICAÇÃO DE LOADING
   if (loading) {
     return (
       <div className="p-6 lg:p-8">
@@ -188,8 +189,8 @@ const RunnersPage: React.FC = () => {
     );
   }
 
-  // BLOQUEIO TOTAL PARA PLANO RESTRITO
-  if (!canAccessFeature && blockingReason) {
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
+  if (!canAccessFeature) {
     return (
       <div className="p-6 lg:p-8">
         <SubscriptionGuard feature="general">

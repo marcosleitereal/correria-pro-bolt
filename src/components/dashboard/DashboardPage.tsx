@@ -35,8 +35,8 @@ const DashboardPage: React.FC = () => {
     setIsViewModalOpen(true);
   };
 
-  // BLOQUEIO TOTAL PARA PLANO RESTRITO
-  if (!canAccessFeature && blockingReason) {
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
+  if (!canAccessFeature) {
     return (
       <div className="h-full bg-slate-50">
         <div className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 h-full">

@@ -31,40 +31,26 @@ export const useSubscriptionGuard = () => {
   });
 
   useEffect(() => {
-    // AGUARDAR configurações carregarem antes de calcular
-    if (settingsLoading) {
-      console.log('🛡️ GUARD DEBUG: Aguardando configurações do Painel Admin carregarem...');
-      return;
-    }
-
-    if (!appSettings) {
-      console.error('❌ GUARD DEBUG: Configurações do Painel Admin não encontradas!');
-      console.error('❌ Isso significa que a tabela app_settings está vazia ou não foi configurada');
-      return;
-    }
-
-    console.log('🛡️ GUARD DEBUG: Configurações do Painel Admin carregadas:', {
-      trial_duration_days: appSettings.trial_duration_days,
-      trial_athlete_limit: appSettings.trial_athlete_limit,
-      trial_training_limit: appSettings.trial_training_limit,
-      fonte: 'app_settings via useAppSettings hook'
+    console.log('🛡️ GUARD DEBUG: Recalculando guard com dados:', {
+      subscriptionStatus: subscriptionStatus?.current_plan_name,
+      hasAccess,
+      isTrialing,
+      isActive,
+      userEmail: subscriptionStatus?.email
     });
 
     calculateGuardStatus();
-  }, [subscriptionStatus, runners, appSettings, settingsLoading]);
+  }, [subscriptionStatus, runners, appSettings, settingsLoading, hasAccess, isTrialing, isActive]);
 
   const calculateGuardStatus = () => {
     const currentAthleteCount = runners.filter(r => !r.is_archived).length;
     
-    console.log('🛡️ GUARD DEBUG: Calculando status de acesso:', {
+    console.log('🛡️ GUARD DEBUG: Iniciando cálculo de status:', {
       userEmail: subscriptionStatus?.email,
-      isTrialing,
-      daysUntilTrialEnd,
-      hasAccess,
-      isActive,
-      subscription_status: subscriptionStatus?.subscription_status,
       current_plan_name: subscriptionStatus?.current_plan_name,
-      plan_id: subscriptionStatus?.plan_id
+      hasAccess,
+      isTrialing,
+      isActive
     });
 
     // ACESSO TOTAL PARA DEV
@@ -83,13 +69,19 @@ export const useSubscriptionGuard = () => {
       return;
     }
 
-    // VERIFICAR SE ESTÁ NO PLANO RESTRITO (múltiplas verificações)
+    // VERIFICAÇÃO CRÍTICA: PLANO RESTRITO - BLOQUEIO TOTAL
     const isRestrictedPlan = subscriptionStatus?.current_plan_name === 'Restrito' || 
                             subscriptionStatus?.current_plan_name === 'restrito' ||
                             subscriptionStatus?.current_plan_name?.toLowerCase().includes('restrito');
     
+    console.log('🚫 GUARD DEBUG: Verificação de plano restrito:', {
+      current_plan_name: subscriptionStatus?.current_plan_name,
+      isRestrictedPlan,
+      hasAccess
+    });
+    
     if (isRestrictedPlan) {
-      console.log('🚫 GUARD DEBUG: Usuário no plano RESTRITO - acesso bloqueado');
+      console.log('🚫 GUARD DEBUG: PLANO RESTRITO DETECTADO - BLOQUEIO TOTAL APLICADO');
       setGuard({
         canCreateRunner: false,
         canGenerateTraining: false,
@@ -98,101 +90,52 @@ export const useSubscriptionGuard = () => {
         athleteLimitReached: false,
         currentAthleteCount,
         athleteLimit: 0,
-        blockingReason: 'Sua conta está em modo restrito. Entre em contato com o suporte ou faça upgrade para um plano pago para continuar usando a plataforma.',
+        blockingReason: 'Sua conta está BLOQUEADA no plano restrito. Você pode navegar mas não pode usar as funcionalidades. Faça upgrade para um plano pago para reativar todas as funcionalidades.',
       });
       return;
     }
 
-    // VERIFICAR SE ESTÁ EM TRIAL VÁLIDO
-    const isValidTrial = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd > 0;
-    
-    console.log('🎯 GUARD DEBUG: Verificação de trial válido:', {
-      isTrialing,
-      daysUntilTrialEnd,
-      isValidTrial,
-      hasAccess
-    });
-    
-    // LIBERAR ACESSO PARA TRIAL VÁLIDO OU ASSINATURA ATIVA
-    if (isValidTrial || isActive || hasAccess) {
-      console.log('✅ GUARD DEBUG: Acesso liberado:', {
-        isValidTrial,
-        isActive,
-        hasAccess,
-        reason: isValidTrial ? 'Trial válido' : isActive ? 'Assinatura ativa' : 'Has access true',
-        trialSettings: {
-          trial_duration_days: appSettings?.trial_duration_days,
-          trial_athlete_limit: appSettings?.trial_athlete_limit,
-          trial_training_limit: appSettings?.trial_training_limit
-        }
-      });
+    // VERIFICAÇÃO DE ACESSO GERAL
+    if (!hasAccess) {
+      console.log('❌ GUARD DEBUG: Sem acesso - verificando motivos...');
       
-      // CRÍTICO: USAR SEMPRE as configurações do Painel Admin para trial
-      const athleteLimit = isValidTrial && appSettings ? appSettings.trial_athlete_limit : Infinity;
+      const trialExpired = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0;
       
-      console.log('🎯 GUARD: Limite de atletas aplicado (VALORES DO PAINEL ADMIN):', {
-        athleteLimit,
-        isValidTrial,
-        configSource: 'Painel Admin app_settings',
-        configValues: appSettings ? {
-          duration: appSettings.trial_duration_days,
-          athletes: appSettings.trial_athlete_limit,
-          trainings: appSettings.trial_training_limit
-        } : 'Configurações não carregadas'
-      });
+      let blockingReason: string | null = null;
       
+      if (trialExpired) {
+        blockingReason = 'Seu período de teste expirou. Faça upgrade para um plano pago para continuar usando a plataforma.';
+      } else {
+        blockingReason = 'Você não possui acesso ativo à plataforma. Verifique sua assinatura ou faça upgrade.';
+      }
+
       setGuard({
-        canCreateRunner: true,
-        canGenerateTraining: true,
-        canAccessFeature: true,
-        trialExpired: false,
+        canCreateRunner: false,
+        canGenerateTraining: false,
+        canAccessFeature: false,
+        trialExpired,
         athleteLimitReached: false,
         currentAthleteCount,
-        athleteLimit,
-        blockingReason: null,
+        athleteLimit: 0,
+        blockingReason,
       });
       return;
     }
-    
-    console.log('❌ GUARD DEBUG: Acesso negado - verificando motivos...');
-    
-    // VERIFICAR SE TRIAL EXPIROU
-    const trialExpired = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0;
-    
-    console.log('🕐 GUARD DEBUG: Trial expirado?', {
-      trialExpired,
-      isTrialing,
-      daysUntilTrialEnd
-    });
-    
-    // DETERMINAR MOTIVO DO BLOQUEIO
-    let blockingReason: string | null = null;
-    
-    if (trialExpired) {
-      blockingReason = 'Seu período de teste expirou. Faça upgrade para um plano pago para continuar usando a plataforma.';
-    } else if (!hasAccess && !isTrialing && !isActive) {
-      blockingReason = 'Você não possui acesso ativo à plataforma. Verifique sua assinatura.';
-    } else {
-      blockingReason = 'Status de acesso não reconhecido. Entre em contato com o suporte.';
-    }
 
-    console.log('🎯 GUARD DEBUG: Status final do guard:', {
-      canAccessFeature: false,
-      canCreateRunner: false,
-      canGenerateTraining: false,
-      trialExpired,
-      blockingReason
-    });
-
+    // ACESSO LIBERADO (TRIAL VÁLIDO OU ASSINATURA ATIVA)
+    console.log('✅ GUARD DEBUG: Acesso liberado');
+    
+    const athleteLimit = isTrialing && appSettings ? appSettings.trial_athlete_limit : Infinity;
+    
     setGuard({
-      canCreateRunner: false,
-      canGenerateTraining: false,
-      canAccessFeature: false,
-      trialExpired,
+      canCreateRunner: true,
+      canGenerateTraining: true,
+      canAccessFeature: true,
+      trialExpired: false,
       athleteLimitReached: false,
       currentAthleteCount,
-      athleteLimit: 0,
-      blockingReason,
+      athleteLimit,
+      blockingReason: null,
     });
   };
 
@@ -206,6 +149,13 @@ export const useSubscriptionGuard = () => {
     }
     return `${guard.currentAthleteCount}/${guard.athleteLimit} atletas`;
   };
+
+  console.log('🛡️ GUARD DEBUG: Estado final do guard:', {
+    canAccessFeature: guard.canAccessFeature,
+    canCreateRunner: guard.canCreateRunner,
+    canGenerateTraining: guard.canGenerateTraining,
+    blockingReason: guard.blockingReason
+  });
 
   return {
     ...guard,

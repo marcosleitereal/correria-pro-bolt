@@ -173,8 +173,8 @@ const TrainingWizardPage: React.FC = () => {
     }
   };
 
-  // BLOQUEIO TOTAL PARA PLANO RESTRITO
-  if (!canAccessFeature && blockingReason) {
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
+  if (!canAccessFeature) {
     return (
       <div className="min-h-screen bg-slate-50 p-6">
         <div className="max-w-4xl mx-auto">

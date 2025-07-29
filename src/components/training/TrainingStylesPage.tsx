@@ -91,17 +91,7 @@ const TrainingStylesPage: React.FC = () => {
     return favoriteStyles.some(fav => fav.id === styleId);
   };
 
-  // BLOQUEIO TOTAL PARA PLANO RESTRITO
-  if (!canAccessFeature && blockingReason) {
-    return (
-      <div className="p-6 lg:p-8">
-        <SubscriptionGuard feature="general">
-          <div></div>
-        </SubscriptionGuard>
-      </div>
-    );
-  }
-
+  // VERIFICAÇÃO DE LOADING
   if (loading) {
     return (
       <div className="p-6 lg:p-8">
@@ -117,6 +107,17 @@ const TrainingStylesPage: React.FC = () => {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
+  if (!canAccessFeature) {
+    return (
+      <div className="p-6 lg:p-8">
+        <SubscriptionGuard feature="general">
+          <div></div>
+        </SubscriptionGuard>
       </div>
     );
   }

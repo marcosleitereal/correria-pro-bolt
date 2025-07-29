@@ -51,8 +51,8 @@ const SettingsPage: React.FC = () => {
 
   const isAtLimit = templates.length >= 5;
 
-  // BLOQUEIO TOTAL PARA PLANO RESTRITO
-  if (!canAccessFeature && blockingReason) {
+  // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
+  if (!canAccessFeature) {
     return (
       <div className="p-6 lg:p-8">
         <SubscriptionGuard feature="general">
