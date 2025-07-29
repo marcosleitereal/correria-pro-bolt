@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Star, Users, Zap, Shield, Clock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Plan } from '../types/database';
 import PlanCard from './PlanCard';
@@ -26,6 +27,8 @@ const PricingPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      console.log('🔍 Buscando planos públicos...');
+      
       const { data, error: fetchError } = await supabase
         .from('plans')
         .select('*')
@@ -33,10 +36,11 @@ const PricingPage: React.FC = () => {
         .order('price_monthly', { ascending: true });
 
       if (fetchError) {
+        console.error('❌ Erro ao buscar planos:', fetchError);
         throw fetchError;
       }
 
-      // Filter out admin-only plans on the client side
+      console.log('✅ Planos carregados:', data?.length || 0);
       setPlans(data || []);
     } catch (err: any) {
       console.error('Erro ao carregar planos:', err);
