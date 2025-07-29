@@ -105,17 +105,32 @@ export const useNotifications = () => {
 
   const markAsRead = async (notificationId: string): Promise<boolean> => {
     try {
+      // Verificar conectividade básica primeiro
+      if (!navigator.onLine) {
+        console.warn('⚠️ Usuário está offline, não é possível marcar notificação como lida');
+        toast.error('Você está offline. Conecte-se à internet para marcar notificações como lidas.');
+        return false;
+      }
+
       // Verificar se o Supabase está configurado
       if (!supabase || typeof supabase.from !== 'function') {
         console.error('❌ Supabase não está configurado corretamente');
+        toast.error('Erro de configuração do sistema');
         return false;
       }
 
       // Verificar se o usuário está autenticado
       if (!user?.id) {
         console.error('❌ Usuário não autenticado para marcar notificação como lida');
+        toast.error('Usuário não autenticado');
         return false;
       }
+
+      console.log('🔄 Tentando marcar notificação como lida:', {
+        notificationId,
+        userId: user.id,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...'
+      });
 
       const { error } = await supabase
         .from('notifications')
@@ -124,8 +139,11 @@ export const useNotifications = () => {
         .eq('recipient_id', user?.id);
 
       if (error) {
+        console.error('❌ Erro específico do Supabase:', error);
         throw error;
       }
+
+      console.log('✅ Notificação marcada como lida com sucesso');
 
       // Atualizar estado local
       setNotifications(prev => 
@@ -144,14 +162,25 @@ export const useNotifications = () => {
       console.error('Erro ao marcar notificação como lida:', err);
       
       // Tratamento específico para diferentes tipos de erro
-      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+      if (err.message && (
+        err.message.includes('Failed to fetch') || 
+        err.message.includes('NetworkError') ||
+        err.message.includes('fetch') ||
+        err.name === 'TypeError'
+      )) {
         console.warn('⚠️ Erro de conectividade detectado ao marcar notificação como lida');
-        toast.error('Erro de conexão. Verifique sua internet ou configurações do Supabase.');
+        toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+      } else if (err.code === 'PGRST301') {
+        console.warn('⚠️ Erro de RLS - usuário sem permissão');
+        toast.error('Sem permissão para marcar esta notificação como lida');
+      } else if (err.code && err.code.startsWith('PGRST')) {
+        console.warn('⚠️ Erro do PostgREST:', err.code);
+        toast.error('Erro no servidor. Tente novamente em alguns segundos.');
       } else if (err.message && err.message.includes('Supabase não está configurado')) {
         console.warn('⚠️ Erro de configuração detectado ao marcar notificação como lida');
         toast.error('Erro de configuração do sistema');
       } else {
-        toast.error('Erro ao marcar notificação como lida');
+        toast.error('Erro inesperado. Tente recarregar a página.');
       }
       
       return false;
@@ -160,6 +189,13 @@ export const useNotifications = () => {
 
   const markAllAsRead = async (): Promise<boolean> => {
     try {
+      // Verificar conectividade básica primeiro
+      if (!navigator.onLine) {
+        console.warn('⚠️ Usuário está offline, não é possível marcar notificações como lidas');
+        toast.error('Você está offline. Conecte-se à internet para marcar notificações como lidas.');
+        return false;
+      }
+
       // Verificar se o Supabase está configurado
       if (!supabase || typeof supabase.from !== 'function') {
         console.error('❌ Supabase não está configurado corretamente');
@@ -174,6 +210,8 @@ export const useNotifications = () => {
         return false;
       }
 
+      console.log('🔄 Tentando marcar todas as notificações como lidas para usuário:', user.id);
+
       const { data, error } = await supabase
         .from('notifications')
         .update({ is_read: true })
@@ -182,8 +220,11 @@ export const useNotifications = () => {
         .select('id');
 
       if (error) {
+        console.error('❌ Erro específico do Supabase ao marcar todas como lidas:', error);
         throw error;
       }
+
+      console.log('✅ Todas as notificações marcadas como lidas:', data?.length || 0);
 
       // Atualizar estado local
       setNotifications(prev => 
@@ -195,14 +236,31 @@ export const useNotifications = () => {
       toast.success(`${data?.length || 0} notificações marcadas como lidas`);
       return true;
     } catch (err: any) {
-      console.error('Erro ao marcar todas as notificações como lidas:', err);
+      console.error('❌ Erro completo ao marcar todas as notificações como lidas:', {
+        error: err,
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint
+      });
       
       // Tratamento específico para erro de conectividade
-      if (err.message && err.message.includes('Failed to fetch')) {
+      if (err.message && (
+        err.message.includes('Failed to fetch') || 
+        err.message.includes('NetworkError') ||
+        err.message.includes('fetch') ||
+        err.name === 'TypeError'
+      )) {
         console.warn('⚠️ Erro de conectividade detectado ao marcar todas as notificações como lidas');
-        toast.error('Erro de conexão. Verifique sua internet ou configurações do Supabase.');
+        toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+      } else if (err.code === 'PGRST301') {
+        console.warn('⚠️ Erro de RLS - usuário sem permissão');
+        toast.error('Sem permissão para marcar notificações como lidas');
+      } else if (err.code && err.code.startsWith('PGRST')) {
+        console.warn('⚠️ Erro do PostgREST:', err.code);
+        toast.error('Erro no servidor. Tente novamente em alguns segundos.');
       } else {
-        toast.error('Erro ao marcar notificações como lidas');
+        toast.error('Erro inesperado. Tente recarregar a página.');
       }
       
       return false;
