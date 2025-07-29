@@ -33,7 +33,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-slate-400">
               <li><a href="#features" className="hover:text-white transition-colors">Recursos</a></li>
               <li><a href="/pricing" className="hover:text-white transition-colors">Preços</a></li>
-              <li><a href="/#testimonials" className="hover:text-white transition-colors">Depoimentos</a></li>
+              <li><a href="#testimonials" className="hover:text-white transition-colors">Depoimentos</a></li>
               <li><a href="/politica-de-cancelamento" className="hover:text-white transition-colors">Política de Cancelamento</a></li>
             </ul>
           </motion.div>
