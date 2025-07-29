@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthContext } from '../contexts/AuthContext';
 import { Training } from '../types/database';
 import { useAISettings } from './useAISettings';
+import { AIProvider } from '../types/database';
 import { toast } from 'sonner';
 
 interface CreateTrainingData {
@@ -19,7 +20,6 @@ export const useTrainings = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuthContext();
   const { getSetting } = useAISettings();
 
   useEffect(() => {
@@ -56,10 +56,17 @@ export const useTrainings = () => {
     }
   };
 
-  const createTraining = async (trainingData: CreateTrainingData): Promise<Training | null> => {
+  const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
+    const { user } = useAuthContext(); // Get user inside the function to ensure it's fresh
+
     if (!user) {
       setError('Usuário não autenticado');
       toast.error('Usuário não autenticado');
+      return null;
+    }
+    if (!activeProvider) {
+      setError('Provedor de IA não configurado ou não carregado. Verifique as configurações de IA.');
+      toast.error('Provedor de IA não disponível.');
       return null;
     }
 
@@ -100,8 +107,8 @@ export const useTrainings = () => {
         getSetting
       );
 
-      // Call AI to generate training content
-      const aiContent = await callAIForTraining(aiPrompt);
+      // Call AI to generate training content, passing the activeProvider
+      const aiContent = await callAIForTraining(aiPrompt, activeProvider);
 
       // Save to Supabase
       const dbData = {

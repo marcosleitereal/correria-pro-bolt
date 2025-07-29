@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRunners } from '../../hooks/useRunners';
 import { useTrainingGroups } from '../../hooks/useTrainingGroups';
 import { useTrainingStyles } from '../../hooks/useTrainingStyles';
+import { useAIProviders } from '../../hooks/useAIProviders';
 import { useTrainings } from '../../hooks/useTrainings';
 import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
 import SubscriptionGuard from '../ui/SubscriptionGuard';
@@ -28,6 +29,7 @@ const TrainingWizardPage: React.FC = () => {
   const { groups } = useTrainingGroups();
   const { styles, favoriteStyles } = useTrainingStyles();
   const { createTraining, generating } = useTrainings();
+  const { activeProvider, loading: aiProvidersLoading } = useAIProviders();
   const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
 
   // Filtrar apenas corredores ativos (não arquivados)
@@ -150,7 +152,7 @@ const TrainingWizardPage: React.FC = () => {
         status: 'rascunho' as const
       };
 
-      const newTraining = await createTraining(trainingData);
+      const newTraining = await createTraining(trainingData, activeProvider);
       
       if (newTraining) {
         navigate(`/dashboard/training/${newTraining.id}/edit`);
@@ -174,7 +176,7 @@ const TrainingWizardPage: React.FC = () => {
   };
 
   // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
-  if (guardLoading && !canAccessFeature && blockingReason) {
+  if (guardLoading || aiProvidersLoading) {
     return (
       <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center">
         <div className="text-center">
@@ -287,8 +289,8 @@ const TrainingWizardPage: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={generateTraining}
-                  disabled={!canProceed() || generating}
+                  onClick={generateTraining} // Call the function to generate training
+                  disabled={!canProceed() || generating || aiProvidersLoading || !activeProvider} // Disable if not ready
                   className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {generating && <Loader2 className="w-5 h-5 animate-spin" />}
