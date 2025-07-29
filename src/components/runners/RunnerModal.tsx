@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2, Heart, Bone, BookOpen, Utensils, Body } from 'lucide-react';
+import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2, Heart, Bone, BookOpen, Utensils, Bot as Body } from 'lucide-react';
 import { Runner } from '../../types/database';
 
 interface RunnerModalProps {
