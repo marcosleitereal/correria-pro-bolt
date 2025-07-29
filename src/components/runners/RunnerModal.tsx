@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2, Heart, Bone, BookOpen, Utensils, Bot as Body } from 'lucide-react';
+import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2, Heart, Bone, BookOpen, Utensils, Bot as Body, Plus, Trash2 } from 'lucide-react';
 import { Runner } from '../../types/database';
 
 interface RunnerModalProps {
@@ -9,6 +9,18 @@ interface RunnerModalProps {
   onSave: (runnerData: Partial<Runner>) => Promise<void>;
   runner?: Runner | null;
   loading: boolean;
+}
+
+interface Injury {
+  nome: string;
+  lado?: string;
+  status?: string;
+  observacoes?: string;
+}
+
+interface HealthCondition {
+  nome: string;
+  observacoes?: string;
 }
 
 const RunnerModal: React.FC<RunnerModalProps> = ({
@@ -29,13 +41,15 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
     resting_heart_rate: '',
     max_heart_rate: '',
     notes: '',
-    injuries: '', // JSON string
-    health_conditions: '', // JSON string
     past_training_experience: '',
-    physical_characteristics: '', // JSON string
-    dietary_preferences: ''
+    dietary_preferences: '',
+    pisada: '',
+    biotipo: '',
+    outras_caracteristicas: ''
   });
 
+  const [injuries, setInjuries] = useState<Injury[]>([]);
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,12 +68,41 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
           resting_heart_rate: runner.resting_heart_rate?.toString() || '',
           max_heart_rate: runner.max_heart_rate?.toString() || '',
           notes: runner.notes || '',
-          injuries: JSON.stringify(runner.injuries || [], null, 2),
-          health_conditions: JSON.stringify(runner.health_conditions || [], null, 2),
           past_training_experience: runner.past_training_experience || '',
-          physical_characteristics: JSON.stringify(runner.physical_characteristics || {}, null, 2),
-          dietary_preferences: runner.dietary_preferences || ''
+          dietary_preferences: runner.dietary_preferences || '',
+          pisada: '',
+          biotipo: '',
+          outras_caracteristicas: ''
         });
+
+        // Parse existing injuries
+        try {
+          const existingInjuries = runner.injuries ? (Array.isArray(runner.injuries) ? runner.injuries : JSON.parse(runner.injuries)) : [];
+          setInjuries(existingInjuries);
+        } catch {
+          setInjuries([]);
+        }
+
+        // Parse existing health conditions
+        try {
+          const existingConditions = runner.health_conditions ? (Array.isArray(runner.health_conditions) ? runner.health_conditions : JSON.parse(runner.health_conditions)) : [];
+          setHealthConditions(existingConditions);
+        } catch {
+          setHealthConditions([]);
+        }
+
+        // Parse existing physical characteristics
+        try {
+          const existingCharacteristics = runner.physical_characteristics ? (typeof runner.physical_characteristics === 'object' ? runner.physical_characteristics : JSON.parse(runner.physical_characteristics)) : {};
+          setFormData(prev => ({
+            ...prev,
+            pisada: existingCharacteristics.pisada || '',
+            biotipo: existingCharacteristics.biotipo || '',
+            outras_caracteristicas: existingCharacteristics.outras || ''
+          }));
+        } catch {
+          // Keep defaults
+        }
       } else {
         setFormData({
           name: '',
@@ -72,12 +115,14 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
           resting_heart_rate: '',
           max_heart_rate: '',
           notes: '',
-          injuries: '',
-          health_conditions: '',
           past_training_experience: '',
-          physical_characteristics: '',
-          dietary_preferences: ''
+          dietary_preferences: '',
+          pisada: '',
+          biotipo: '',
+          outras_caracteristicas: ''
         });
+        setInjuries([]);
+        setHealthConditions([]);
       }
       setErrors({});
     }
@@ -93,31 +138,41 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
     }
   };
 
+  // Injury management functions
+  const addInjury = () => {
+    setInjuries(prev => [...prev, { nome: '', lado: '', status: '', observacoes: '' }]);
+  };
+
+  const updateInjury = (index: number, field: keyof Injury, value: string) => {
+    setInjuries(prev => prev.map((injury, i) => 
+      i === index ? { ...injury, [field]: value } : injury
+    ));
+  };
+
+  const removeInjury = (index: number) => {
+    setInjuries(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Health condition management functions
+  const addHealthCondition = () => {
+    setHealthConditions(prev => [...prev, { nome: '', observacoes: '' }]);
+  };
+
+  const updateHealthCondition = (index: number, field: keyof HealthCondition, value: string) => {
+    setHealthConditions(prev => prev.map((condition, i) => 
+      i === index ? { ...condition, [field]: value } : condition
+    ));
+  };
+
+  const removeHealthCondition = (index: number) => {
+    setHealthConditions(prev => prev.filter((_, i) => i !== index));
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
-    }
-    
-    // Validate JSON fields
-    const jsonFields = ['injuries', 'health_conditions', 'physical_characteristics'];
-    jsonFields.forEach(field => {
-      if (formData[field as keyof typeof formData]) {
-        try {
-          JSON.parse(formData[field as keyof typeof formData]);
-        } catch {
-          newErrors[field] = `Formato JSON inválido para ${field.replace('_', ' ')}`;
-        }
-      }
-    });
-
-    // Validate required fields for JSON if they are not empty
-    if (newErrors.injuries && formData.injuries.trim()) {
-      newErrors.injuries = 'Formato JSON inválido para lesões. Ex: [{"nome": "joelho", "lado": "direito"}]';
-    }
-    if (newErrors.health_conditions && formData.health_conditions.trim()) {
-      newErrors.health_conditions = 'Formato JSON inválido para condições de saúde. Ex: [{"nome": "asma"}]';
     }
 
     if (!formData.birth_date) {
@@ -154,6 +209,16 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
     setSaving(true);
 
     try {
+      // Build physical characteristics object
+      const physicalCharacteristics: any = {};
+      if (formData.pisada) physicalCharacteristics.pisada = formData.pisada;
+      if (formData.biotipo) physicalCharacteristics.biotipo = formData.biotipo;
+      if (formData.outras_caracteristicas) physicalCharacteristics.outras = formData.outras_caracteristicas;
+
+      // Filter out empty injuries and health conditions
+      const validInjuries = injuries.filter(injury => injury.nome.trim());
+      const validHealthConditions = healthConditions.filter(condition => condition.nome.trim());
+
       const runnerData: Partial<Runner> = {
         name: formData.name.trim(),
         birth_date: formData.birth_date || null,
@@ -165,10 +230,10 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
         resting_heart_rate: formData.resting_heart_rate ? Number(formData.resting_heart_rate) : null,
         max_heart_rate: formData.max_heart_rate ? Number(formData.max_heart_rate) : null,
         notes: formData.notes.trim() || null,
-        injuries: formData.injuries ? JSON.parse(formData.injuries) : null,
-        health_conditions: formData.health_conditions ? JSON.parse(formData.health_conditions) : null,
+        injuries: validInjuries.length > 0 ? validInjuries : null,
+        health_conditions: validHealthConditions.length > 0 ? validHealthConditions : null,
         past_training_experience: formData.past_training_experience.trim() || null,
-        physical_characteristics: formData.physical_characteristics ? JSON.parse(formData.physical_characteristics) : null,
+        physical_characteristics: Object.keys(physicalCharacteristics).length > 0 ? physicalCharacteristics : null,
         dietary_preferences: formData.dietary_preferences.trim() || null
       };
 
@@ -419,73 +484,175 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
             {/* Observações */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Observações
+                Observações Gerais
               </label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleInputChange}
-                rows={4}
+                rows={3}
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                placeholder="Informações adicionais sobre o corredor..."
+                placeholder="Informações adicionais importantes sobre o corredor..."
               />
             </div>
 
-            {/* Novas Seções de Anamnese */}
+            {/* Anamnese Detalhada */}
             <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-4 border-t pt-6">
               Anamnese Detalhada
             </h3>
 
-            {/* Lesões */}
+            {/* Histórico de Lesões */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Histórico de Lesões (JSON)
-              </label>
-              <div className="relative">
-                <Bone className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
-                <textarea
-                  name="injuries"
-                  value={formData.injuries}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
-                    errors.injuries ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
-                  }`}
-                  placeholder='Ex: [{"nome": "joelho", "lado": "direito", "status": "recuperando"}]'
-                />
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Histórico de Lesões
+                </label>
+                <button
+                  type="button"
+                  onClick={addInjury}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar Lesão
+                </button>
               </div>
-              {errors.injuries && (
-                <p className="mt-1 text-sm text-red-600">{errors.injuries}</p>
+              
+              {injuries.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                  <Bone className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-600 text-sm">Nenhuma lesão registrada</p>
+                  <button
+                    type="button"
+                    onClick={addInjury}
+                    className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Adicionar primeira lesão
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {injuries.map((injury, index) => (
+                    <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-slate-900">Lesão {index + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeInjury(index)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <input
+                          type="text"
+                          placeholder="Nome da lesão (ex: joelho)"
+                          value={injury.nome}
+                          onChange={(e) => updateInjury(index, 'nome', e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                        />
+                        <select
+                          value={injury.lado || ''}
+                          onChange={(e) => updateInjury(index, 'lado', e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                        >
+                          <option value="">Lado (opcional)</option>
+                          <option value="direito">Direito</option>
+                          <option value="esquerdo">Esquerdo</option>
+                          <option value="bilateral">Bilateral</option>
+                        </select>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <select
+                          value={injury.status || ''}
+                          onChange={(e) => updateInjury(index, 'status', e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                        >
+                          <option value="">Status (opcional)</option>
+                          <option value="curado">Curado</option>
+                          <option value="recuperando">Recuperando</option>
+                          <option value="ativo">Ativo/Atual</option>
+                          <option value="crônico">Crônico</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Observações"
+                          value={injury.observacoes || ''}
+                          onChange={(e) => updateInjury(index, 'observacoes', e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-              <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: {`[{"nome": "joelho", "lado": "direito", "status": "recuperando"}]`}
-              </p>
             </div>
 
             {/* Condições de Saúde */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Condições de Saúde (JSON)
-              </label>
-              <div className="relative">
-                <Heart className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
-                <textarea
-                  name="health_conditions"
-                  value={formData.health_conditions}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
-                    errors.health_conditions ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
-                  }`}
-                  placeholder='Ex: [{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]'
-                />
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Condições de Saúde
+                </label>
+                <button
+                  type="button"
+                  onClick={addHealthCondition}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar Condição
+                </button>
               </div>
-              {errors.health_conditions && (
-                <p className="mt-1 text-sm text-red-600">{errors.health_conditions}</p>
+              
+              {healthConditions.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                  <Heart className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-600 text-sm">Nenhuma condição de saúde registrada</p>
+                  <button
+                    type="button"
+                    onClick={addHealthCondition}
+                    className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Adicionar primeira condição
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {healthConditions.map((condition, index) => (
+                    <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-slate-900">Condição {index + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeHealthCondition(index)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder="Nome da condição (ex: asma, diabetes)"
+                          value={condition.nome}
+                          onChange={(e) => updateHealthCondition(index, 'nome', e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                        />
+                        <textarea
+                          placeholder="Observações e cuidados especiais"
+                          value={condition.observacoes || ''}
+                          onChange={(e) => updateHealthCondition(index, 'observacoes', e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm resize-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-              <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: {`[{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]`}
-              </p>
             </div>
 
             {/* Experiência de Treino Passada */}
@@ -494,58 +661,93 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
                 Experiência de Treino Passada
               </label>
               <div className="relative">
-                <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input
-                  type="text"
+                <BookOpen className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
+                <textarea
                   name="past_training_experience"
                   value={formData.past_training_experience}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ex: Corredor de rua há 5 anos, completou 3 maratonas."
+                  rows={3}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  placeholder="Ex: Corredor de rua há 5 anos, completou 3 maratonas, treina 4x por semana..."
                 />
               </div>
             </div>
 
             {/* Características Físicas */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Características Físicas (JSON)
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                Características Físicas
               </label>
-              <div className="relative">
-                <Body className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
-                <textarea
-                  name="physical_characteristics"
-                  value={formData.physical_characteristics}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
-                    errors.physical_characteristics ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
-                  }`}
-                  placeholder='Ex: {"pisada": "pronada", "biotipo": "ectomorfo"}'
-                />
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Tipo de Pisada
+                    </label>
+                    <select
+                      name="pisada"
+                      value={formData.pisada}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="neutra">Neutra</option>
+                      <option value="pronada">Pronada</option>
+                      <option value="supinada">Supinada</option>
+                      <option value="não avaliado">Não avaliado</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Biotipo
+                    </label>
+                    <select
+                      name="biotipo"
+                      value={formData.biotipo}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="ectomorfo">Ectomorfo</option>
+                      <option value="mesomorfo">Mesomorfo</option>
+                      <option value="endomorfo">Endomorfo</option>
+                      <option value="não avaliado">Não avaliado</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Outras Características
+                  </label>
+                  <textarea
+                    name="outras_caracteristicas"
+                    value={formData.outras_caracteristicas}
+                    onChange={handleInputChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm resize-none"
+                    placeholder="Ex: flexibilidade baixa, força muscular boa, coordenação motora..."
+                  />
+                </div>
               </div>
-              {errors.physical_characteristics && (
-                <p className="mt-1 text-sm text-red-600">{errors.physical_characteristics}</p>
-              )}
-              <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: {`{"pisada": "pronada", "biotipo": "ectomorfo"}`}
-              </p>
             </div>
 
-            {/* Preferências Alimentares */}
+            {/* Preferências/Restrições Alimentares */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Preferências/Restrições Alimentares
               </label>
               <div className="relative">
-                <Utensils className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input
-                  type="text"
+                <Utensils className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
+                <textarea
                   name="dietary_preferences"
                   value={formData.dietary_preferences}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ex: Vegetariano, não consome laticínios."
+                  rows={2}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  placeholder="Ex: Vegetariano, intolerante à lactose, não consome cafeína..."
                 />
               </div>
             </div>
