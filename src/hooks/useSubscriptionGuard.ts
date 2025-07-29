@@ -32,43 +32,42 @@ export const useSubscriptionGuard = () => {
     loading: true,
   });
 
-  // CRÍTICO: Aguardar todos os dados carregarem antes de tomar decisões
-  const isLoading = subscriptionLoading || runnersLoading || settingsLoading;
-
   useEffect(() => {
-    // Se ainda está carregando, não fazer nada
-    if (isLoading) {
+    // Se ainda está carregando dados críticos, manter loading
+    if (subscriptionLoading) {
+      console.log('🛡️ GUARD: Aguardando subscription status...');
       setGuard(prev => ({ ...prev, loading: true }));
       return;
     }
 
-    console.log('🛡️ GUARD DEBUG: Recalculando guard com dados:', {
+    console.log('🛡️ GUARD: Calculando status com dados:', {
       subscriptionStatus: subscriptionStatus?.current_plan_name,
       hasAccess,
       isTrialing,
       isActive,
       userEmail: subscriptionStatus?.email,
-      isLoading
+      subscriptionLoading,
+      runnersLoading,
+      settingsLoading
     });
 
     calculateGuardStatus();
-  }, [subscriptionStatus, runners, appSettings, isLoading, hasAccess, isTrialing, isActive]);
+  }, [subscriptionStatus, hasAccess, isTrialing, isActive, subscriptionLoading, runners, appSettings]);
 
   const calculateGuardStatus = () => {
     const currentAthleteCount = runners.filter(r => !r.is_archived).length;
     
-    console.log('🛡️ GUARD DEBUG: Iniciando cálculo de status:', {
+    console.log('🛡️ GUARD: Iniciando cálculo de status:', {
       userEmail: subscriptionStatus?.email,
       current_plan_name: subscriptionStatus?.current_plan_name,
       hasAccess,
       isTrialing,
-      isActive,
-      isLoading
+      isActive
     });
 
     // ACESSO TOTAL PARA DEV
     if (subscriptionStatus?.email === 'dev@sonnik.com.br') {
-      console.log('👑 GUARD DEBUG: Usuário dev - acesso total liberado');
+      console.log('👑 GUARD: Usuário dev - acesso total liberado');
       setGuard({
         canCreateRunner: true,
         canGenerateTraining: true,
@@ -88,14 +87,14 @@ export const useSubscriptionGuard = () => {
                             subscriptionStatus?.current_plan_name === 'restrito' ||
                             subscriptionStatus?.current_plan_name?.toLowerCase().includes('restrito');
     
-    console.log('🚫 GUARD DEBUG: Verificação de plano restrito:', {
+    console.log('🚫 GUARD: Verificação de plano restrito:', {
       current_plan_name: subscriptionStatus?.current_plan_name,
       isRestrictedPlan,
       hasAccess
     });
     
     if (isRestrictedPlan) {
-      console.log('🚫 GUARD DEBUG: PLANO RESTRITO DETECTADO - BLOQUEIO TOTAL APLICADO');
+      console.log('🚫 GUARD: PLANO RESTRITO DETECTADO - BLOQUEIO TOTAL APLICADO');
       setGuard({
         canCreateRunner: false,
         canGenerateTraining: false,
@@ -112,7 +111,7 @@ export const useSubscriptionGuard = () => {
 
     // VERIFICAÇÃO DE ACESSO GERAL
     if (!hasAccess) {
-      console.log('❌ GUARD DEBUG: Sem acesso - verificando motivos...');
+      console.log('❌ GUARD: Sem acesso - verificando motivos...');
       
       const trialExpired = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0;
       
@@ -139,7 +138,7 @@ export const useSubscriptionGuard = () => {
     }
 
     // ACESSO LIBERADO (TRIAL VÁLIDO OU ASSINATURA ATIVA)
-    console.log('✅ GUARD DEBUG: Acesso liberado');
+    console.log('✅ GUARD: Acesso liberado');
     
     const athleteLimit = isTrialing && appSettings ? appSettings.trial_athlete_limit : Infinity;
     
@@ -167,7 +166,7 @@ export const useSubscriptionGuard = () => {
     return `${guard.currentAthleteCount}/${guard.athleteLimit} atletas`;
   };
 
-  console.log('🛡️ GUARD DEBUG: Estado final do guard:', {
+  console.log('🛡️ GUARD: Estado final do guard:', {
     canAccessFeature: guard.canAccessFeature,
     canCreateRunner: guard.canCreateRunner,
     canGenerateTraining: guard.canGenerateTraining,

@@ -84,7 +84,7 @@ const GroupsPage: React.FC = () => {
   };
 
   // VERIFICAÇÃO DE LOADING (dados dos grupos + guard)
-  if (loading || guardLoading) {
+  if (loading) {
     return (
       <div className="p-6 lg:p-8">
         <div>

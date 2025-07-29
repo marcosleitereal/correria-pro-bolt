@@ -52,7 +52,7 @@ const SettingsPage: React.FC = () => {
   const isAtLimit = templates.length >= 5;
 
   // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
-  if (guardLoading) {
+  if (guardLoading && !canAccessFeature && blockingReason) {
     return (
       <div className="p-6 lg:p-8">
         <div className="text-center">

@@ -174,7 +174,7 @@ const TrainingWizardPage: React.FC = () => {
   };
 
   // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
-  if (guardLoading) {
+  if (guardLoading && !canAccessFeature && blockingReason) {
     return (
       <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center">
         <div className="text-center">

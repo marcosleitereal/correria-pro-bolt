@@ -170,7 +170,7 @@ const RunnersPage: React.FC = () => {
   };
 
   // VERIFICAÇÃO DE LOADING (dados dos corredores)
-  if (loading || guardLoading) {
+  if (loading) {
     return (
       <div className="p-6 lg:p-8">
         <div>

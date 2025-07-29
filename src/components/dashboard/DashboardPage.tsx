@@ -36,7 +36,7 @@ const DashboardPage: React.FC = () => {
   };
 
   // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
-  if (guardLoading) {
+  if (guardLoading && loading) {
     return (
       <div className="h-full bg-slate-50">
         <div className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 h-full flex items-center justify-center">
