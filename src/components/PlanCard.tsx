@@ -4,6 +4,7 @@ import { Check, Star, Users, Zap, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Plan } from '../types/database';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface PlanCardProps {
   plan: Plan;
@@ -14,6 +15,7 @@ interface PlanCardProps {
 
 const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, onSelect }) => {
   const { settings } = useAppSettings();
+  const { user } = useAuthContext();
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -171,23 +173,43 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, featured = false, delay = 0, 
       </div>
 
       {/* CTA Button */}
-      <button
-        onClick={onSelect}
-        className={`w-full py-4 px-6 rounded-xl font-bold text-lg text-center transition-all duration-300 flex items-center justify-center gap-2 ${
-          featured
-            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105 shadow-lg hover:shadow-xl'
-            : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-        }`}
-      >
-        {featured ? (
-          <>
-            <Star className="w-5 h-5" />
-            Começar Agora
-          </>
-        ) : (
-          'Escolher Plano'
-        )}
-      </button>
+      {user ? (
+        <button
+          onClick={onSelect}
+          className={`w-full py-4 px-6 rounded-xl font-bold text-lg text-center transition-all duration-300 flex items-center justify-center gap-2 ${
+            featured
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105 shadow-lg hover:shadow-xl'
+              : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+          }`}
+        >
+          {featured ? (
+            <>
+              <Star className="w-5 h-5" />
+              Começar Agora
+            </>
+          ) : (
+            'Escolher Plano'
+          )}
+        </button>
+      ) : (
+        <Link
+          to="/signup"
+          className={`w-full py-4 px-6 rounded-xl font-bold text-lg text-center transition-all duration-300 flex items-center justify-center gap-2 ${
+            featured
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:scale-105 shadow-lg hover:shadow-xl'
+              : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+          }`}
+        >
+          {featured ? (
+            <>
+              <Star className="w-5 h-5" />
+              Criar Conta Grátis
+            </>
+          ) : (
+            'Criar Conta Grátis'
+          )}
+        </Link>
+      )}
 
       {/* Trial Notice */}
       <p className="text-center text-xs text-slate-500 mt-4">
