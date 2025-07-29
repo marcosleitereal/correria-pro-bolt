@@ -56,6 +56,8 @@ const BillingManagement: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
   const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
+  const [manualActivationEmail, setManualActivationEmail] = useState('');
+  const [activatingUser, setActivatingUser] = useState(false);
 
   const [gatewayConfig, setGatewayConfig] = useState({
     stripe_public_key: '',
@@ -145,11 +147,6 @@ const BillingManagement: React.FC = () => {
     }
   };
 
-  const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
-
   const handleSaveTrialSettings = async (settings: any) => {
     try {
       console.log('💾 SALVANDO configurações via useAppSettings:', settings);
@@ -174,6 +171,45 @@ const BillingManagement: React.FC = () => {
       showSuccess('Erro ao salvar configurações. Tente novamente.');
       return false;
     }
+  };
+
+  const handleManualActivation = async () => {
+    if (!manualActivationEmail || !user?.session?.access_token) return;
+
+    setActivatingUser(true);
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manual-activate-user`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_email: manualActivationEmail
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao ativar usuário');
+      }
+
+      showSuccess(`Usuário ${manualActivationEmail} foi ativado com sucesso!`);
+      setManualActivationEmail('');
+    } catch (error: any) {
+      console.error('Erro ao ativar usuário:', error);
+      showSuccess(`Erro: ${error.message}`);
+    } finally {
+      setActivatingUser(false);
+    }
+  };
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const toggleSecretKeyVisibility = (field: string) => {
@@ -543,6 +579,44 @@ const BillingManagement: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="w-full"
       >
+        {/* Ativação Manual de Usuário */}
+        <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden mb-6">
+          <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6" />
+              <div>
+                <h3 className="text-xl font-bold">🚨 Ativação Manual de Usuário</h3>
+                <p className="text-red-100">
+                  Para usuários que pagaram mas não foram ativados automaticamente
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="flex gap-4">
+              <input
+                type="email"
+                placeholder="Email do usuário para ativar"
+                value={manualActivationEmail}
+                onChange={(e) => setManualActivationEmail(e.target.value)}
+                className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              />
+              <button
+                onClick={handleManualActivation}
+                disabled={!manualActivationEmail || activatingUser}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
+              >
+                {activatingUser && <Loader2 className="w-5 h-5 animate-spin" />}
+                🚀 Ativar Usuário
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mt-2">
+              Digite o email do usuário que pagou mas continua bloqueado
+            </p>
+          </div>
+        </div>
+
         <SubscriptionManagement />
       </motion.div>
 
