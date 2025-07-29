@@ -381,7 +381,7 @@ export const useSubscriptionStatus = () => {
           .from('plans')
           .select('name')
           .eq('id', subscriptionData.plan_id)
-          .single();
+          .maybeSingle();
 
         if (!planError && planData) {
           planName = planData.name;
