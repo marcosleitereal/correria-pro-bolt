@@ -225,12 +225,21 @@ function assembleAIPrompt(
   targetType: 'individual' | 'group',
   getSetting: (key: string) => string | null
 ): string {
+  console.log('🤖 AI PROMPT: Iniciando montagem do prompt personalizado');
+  console.log('🤖 AI PROMPT: Target:', target.name);
+  console.log('🤖 AI PROMPT: Duration:', duration);
+  console.log('🤖 AI PROMPT: Style:', style.name);
+  
   // Get custom AI settings
   const systemPersona = getSetting('system_persona');
   const promptTemplate = getSetting('training_prompt_template');
+  
+  console.log('🤖 AI PROMPT: System persona encontrado:', !!systemPersona);
+  console.log('🤖 AI PROMPT: Template encontrado:', !!promptTemplate);
 
   // Use custom template if available, otherwise use default
   if (promptTemplate) {
+    console.log('✅ AI PROMPT: Usando template personalizado do admin');
     const firstName = target.name.split(' ')[0];
     
     const runnerData = targetType === 'individual' ? `
@@ -265,13 +274,29 @@ ${style.duration ? `Duração típica: ${style.duration}` : ''}
 
     const periodData = `Duração: ${durationMap[duration as keyof typeof durationMap]}`;
 
-    return promptTemplate
+    let finalPrompt = promptTemplate
       .replace('[runner_data]', runnerData)
       .replace('[style_data]', styleData)
       .replace('[period_data]', periodData)
       .replace(/\[athlete_first_name\]/g, firstName);
+    
+    // Apply system persona if available
+    if (systemPersona) {
+      finalPrompt = `${systemPersona}\n\n${finalPrompt}`;
+      console.log('✅ AI PROMPT: System persona aplicado ao template');
+    }
+    
+    // Add variability elements
+    const timestamp = new Date().toISOString();
+    const randomSeed = Math.random().toString(36).substring(7);
+    finalPrompt += `\n\nIMPORTANTE: Gere um treino ÚNICO e VARIADO. Timestamp: ${timestamp}, Seed: ${randomSeed}`;
+    
+    console.log('✅ AI PROMPT: Template final montado com variabilidade');
+    return finalPrompt;
   }
 
+  console.log('⚠️ AI PROMPT: Usando template padrão (sem personalização do admin)');
+  
   // Fallback to default prompt if no custom template
   const durationMap = {
     daily: 'um dia',
@@ -284,7 +309,7 @@ ${style.duration ? `Duração típica: ${style.duration}` : ''}
     ? `corredor individual chamado ${target.name}, nível ${target.fitness_level}`
     : `grupo de treino "${target.name}" com nível ${target.level || 'misto'}`;
 
-  const defaultPrompt = `
+  let defaultPrompt = `
 Crie um plano de treino detalhado para ${targetInfo} com duração de ${durationMap[duration as keyof typeof durationMap]}.
 
 Estilo de treino selecionado: ${style.name}
@@ -310,6 +335,15 @@ Informações do grupo:
 - Status: ${target.status}
 `}
 
+IMPORTANTE: Crie um treino ÚNICO e VARIADO. Mesmo com os mesmos parâmetros, varie:
+- Exercícios específicos e sequências
+- Tempos e intensidades dentro da faixa apropriada
+- Observações e dicas personalizadas
+- Estrutura das sessões
+
+Timestamp de geração: ${new Date().toISOString()}
+Seed de variabilidade: ${Math.random().toString(36).substring(7)}
+
 Retorne um JSON estruturado com o seguinte formato:
 {
   "title": "Título do treino",
@@ -331,13 +365,16 @@ Retorne um JSON estruturado com o seguinte formato:
 }
 
 Seja específico com distâncias, tempos, intensidades e zonas de frequência cardíaca quando aplicável.
+Varie os exercícios e abordagens mesmo para parâmetros similares.
 `;
 
   // Apply custom system persona if available
   if (systemPersona) {
-    return `${systemPersona}\n\n${defaultPrompt}`;
+    defaultPrompt = `${systemPersona}\n\n${defaultPrompt}`;
+    console.log('✅ AI PROMPT: System persona aplicado ao prompt padrão');
   }
 
+  console.log('✅ AI PROMPT: Prompt padrão montado com variabilidade');
   return defaultPrompt;
 }
 
@@ -345,10 +382,20 @@ Seja específico com distâncias, tempos, intensidades e zonas de frequência ca
 async function callAIForTraining(prompt: string): Promise<any> {
   console.log('🤖 FUNÇÃO MOCK DA IA INICIADA');
   console.log('📥 Prompt recebido pela IA:', prompt);
+  console.log('📏 Tamanho do prompt:', prompt.length, 'caracteres');
 
   // Simulate AI processing time
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
+  // Extract variability seed from prompt for more randomness
+  const seedMatch = prompt.match(/Seed[:\s]+([a-z0-9]+)/i);
+  const seed = seedMatch ? seedMatch[1] : Math.random().toString(36).substring(7);
+  console.log('🎲 VARIABILIDADE: Usando seed:', seed);
+  
+  // Create deterministic but varied randomness based on seed
+  const seedNumber = parseInt(seed.replace(/[a-z]/g, ''), 36) || Math.random() * 1000;
+  const variation = (seedNumber % 100) / 100; // 0 to 1
+  
   // Extract duration from prompt to generate appropriate number of sessions
   const durationMatch = prompt.match(/duração de (um dia|uma semana|duas semanas|um mês)/i);
   let duration = "daily";
@@ -372,6 +419,7 @@ async function callAIForTraining(prompt: string): Promise<any> {
   }
 
   console.log('⏱️ Duração detectada:', duration, 'Sessões:', sessionCount);
+  console.log('🎲 Variação aplicada:', (variation * 100).toFixed(1) + '%');
 
   // NOVA ABORDAGEM: Extrair dados diretamente do prompt de forma mais robusta
   let heartRateZones = null;
@@ -447,6 +495,43 @@ async function callAIForTraining(prompt: string): Promise<any> {
 
   console.log('🎯 ZONAS CARDÍACAS FINAIS:', heartRateZones);
   
+  // Arrays de variações para criar treinos diferentes
+  const warmupVariations = [
+    "corrida leve progressiva",
+    "caminhada rápida seguida de trote",
+    "corrida em ritmo conversacional",
+    "aquecimento dinâmico com mobilidade"
+  ];
+  
+  const cooldownVariations = [
+    "corrida leve desacelerando gradualmente",
+    "caminhada lenta com respiração controlada",
+    "volta à calma progressiva",
+    "relaxamento com alongamento dinâmico"
+  ];
+  
+  const workoutVariations = [
+    { intervals: "6x400m", recovery: "90s", pace: "ritmo de 5km" },
+    { intervals: "5x600m", recovery: "2min", pace: "ritmo de 10km" },
+    { intervals: "4x800m", recovery: "2min30s", pace: "ritmo de 5km" },
+    { intervals: "8x300m", recovery: "60s", pace: "ritmo forte" }
+  ];
+  
+  // Select variations based on seed for consistency but variety
+  const warmupIndex = Math.floor(variation * warmupVariations.length);
+  const cooldownIndex = Math.floor((variation * 2) % cooldownVariations.length);
+  const workoutIndex = Math.floor((variation * 3) % workoutVariations.length);
+  
+  const selectedWarmup = warmupVariations[warmupIndex];
+  const selectedCooldown = cooldownVariations[cooldownIndex];
+  const selectedWorkout = workoutVariations[workoutIndex];
+  
+  console.log('🎲 VARIAÇÕES SELECIONADAS:', {
+    warmup: selectedWarmup,
+    cooldown: selectedCooldown,
+    workout: selectedWorkout
+  });
+  
   // Generate sessions based on duration
   const sessions = [];
   
@@ -454,79 +539,84 @@ async function callAIForTraining(prompt: string): Promise<any> {
     // Single day training
     sessions.push({
       day: 1,
-      title: "Treino Intervalado de Velocidade",
-      description: "Sessão de intervalos para desenvolvimento de velocidade",
+      title: `Treino ${selectedWorkout.pace.includes('5km') ? 'de Velocidade' : 'Intervalado'} ${seed.substring(0,3).toUpperCase()}`,
+      description: `Sessão focada em ${selectedWorkout.pace} com ${selectedWorkout.intervals}`,
       duration: "60 minutos",
       warmup: heartRateZones 
-        ? `15 minutos de corrida leve (manter FC na Zona 2: ${heartRateZones.zone2}) + exercícios dinâmicos de mobilidade`
-        : "15 minutos de corrida leve + exercícios dinâmicos",
+        ? `15 minutos de ${selectedWarmup} (manter FC na Zona 2: ${heartRateZones.zone2}) + exercícios dinâmicos de mobilidade`
+        : `15 minutos de ${selectedWarmup} + exercícios dinâmicos`,
       main_workout: heartRateZones
-        ? `6x400m em ritmo de 5km com 90s de recuperação ativa. Durante os 400m, mantenha a FC na Zona 4 (${heartRateZones.zone4}). Na recuperação, deixe a FC baixar para Zona 2 (${heartRateZones.zone2})`
-        : "6x400m em ritmo de 5km com 90s de recuperação",
+        ? `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação ativa. Durante os intervalos, mantenha a FC na Zona 4 (${heartRateZones.zone4}). Na recuperação, deixe a FC baixar para Zona 2 (${heartRateZones.zone2})`
+        : `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação`,
       cooldown: heartRateZones
-        ? `10 minutos de corrida leve (manter FC na Zona 1: ${heartRateZones.zone1}) + alongamento`
-        : "10 minutos de corrida leve + alongamento",
+        ? `10 minutos de ${selectedCooldown} (manter FC na Zona 1: ${heartRateZones.zone1}) + alongamento`
+        : `10 minutos de ${selectedCooldown} + alongamento`,
       notes: heartRateZones
-        ? `IMPORTANTE: Use monitor cardíaco durante todo o treino. Se não conseguir atingir a Zona 4 (${heartRateZones.zone4}), ajuste o ritmo gradualmente. Se a FC subir muito acima da zona, diminua o ritmo. O importante é manter a consistência nas zonas indicadas.`
-        : "Manter ritmo consistente em todos os intervalos"
+        ? `IMPORTANTE: Use monitor cardíaco durante todo o treino. Se não conseguir atingir a Zona 4 (${heartRateZones.zone4}), ajuste o ritmo gradualmente. Foque na consistência dos ${selectedWorkout.intervals}. Variação ${seed}: mantenha atenção especial na recuperação de ${selectedWorkout.recovery}.`
+        : `Manter ritmo consistente em todos os intervalos. Foque especialmente na recuperação de ${selectedWorkout.recovery} entre cada repetição.`
     });
   } else {
     // Multi-day training plan
     for (let i = 1; i <= Math.min(sessionCount, 7); i++) {
+      const dayVariation = (variation + i * 0.1) % 1;
+      const dayWarmupIndex = Math.floor(dayVariation * warmupVariations.length);
+      const dayCooldownIndex = Math.floor((dayVariation * 2) % cooldownVariations.length);
+      
       if (i === 1) {
         sessions.push({
           day: i,
-          title: "Treino Intervalado",
-          description: "Sessão de intervalos para desenvolvimento de velocidade",
+          title: `Treino ${selectedWorkout.pace.includes('5km') ? 'de Velocidade' : 'Intervalado'} - Dia ${i}`,
+          description: `Sessão focada em ${selectedWorkout.pace} - Variação ${seed.substring(0,2)}`,
           duration: "60 minutos",
           warmup: heartRateZones 
-            ? `15 minutos de corrida leve (manter FC na Zona 2: ${heartRateZones.zone2}) + exercícios dinâmicos de mobilidade`
-            : "15 minutos de corrida leve + exercícios dinâmicos",
+            ? `15 minutos de ${warmupVariations[dayWarmupIndex]} (manter FC na Zona 2: ${heartRateZones.zone2}) + exercícios dinâmicos de mobilidade`
+            : `15 minutos de ${warmupVariations[dayWarmupIndex]} + exercícios dinâmicos`,
           main_workout: heartRateZones
-            ? `6x400m em ritmo de 5km com 90s de recuperação ativa. Durante os 400m, mantenha a FC na Zona 4 (${heartRateZones.zone4}). Na recuperação, deixe a FC baixar para Zona 2 (${heartRateZones.zone2})`
-            : "6x400m em ritmo de 5km com 90s de recuperação",
+            ? `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação ativa. Durante os intervalos, mantenha a FC na Zona 4 (${heartRateZones.zone4}). Na recuperação, deixe a FC baixar para Zona 2 (${heartRateZones.zone2})`
+            : `${selectedWorkout.intervals} em ${selectedWorkout.pace} com ${selectedWorkout.recovery} de recuperação`,
           cooldown: heartRateZones
-            ? `10 minutos de corrida leve (manter FC na Zona 1: ${heartRateZones.zone1}) + alongamento`
-            : "10 minutos de corrida leve + alongamento",
+            ? `10 minutos de ${cooldownVariations[dayCooldownIndex]} (manter FC na Zona 1: ${heartRateZones.zone1}) + alongamento`
+            : `10 minutos de ${cooldownVariations[dayCooldownIndex]} + alongamento`,
           notes: heartRateZones
-            ? `IMPORTANTE: Use monitor cardíaco durante todo o treino. Se não conseguir atingir a Zona 4 (${heartRateZones.zone4}), ajuste o ritmo gradualmente. Se a FC subir muito acima da zona, diminua o ritmo.`
-            : "Manter ritmo consistente em todos os intervalos"
+            ? `IMPORTANTE: Use monitor cardíaco durante todo o treino. Se não conseguir atingir a Zona 4 (${heartRateZones.zone4}), ajuste o ritmo gradualmente. Variação ${seed}: foque na consistência dos ${selectedWorkout.intervals}.`
+            : `Manter ritmo consistente em todos os intervalos. Variação ${seed}: atenção especial na recuperação.`
         });
       } else if (i === 2) {
         sessions.push({
           day: i,
-          title: "Recuperação Ativa",
-          description: "Sessão de recuperação para facilitar a adaptação",
+          title: `Recuperação Ativa - Dia ${i}`,
+          description: `Sessão de recuperação personalizada - Método ${seed.substring(2,4)}`,
           duration: "45 minutos",
           warmup: "10 minutos de caminhada leve",
           main_workout: heartRateZones
-            ? `30 minutos de corrida em ritmo conversacional (manter FC na Zona 2: ${heartRateZones.zone2}). O objetivo é manter um ritmo onde você consegue conversar normalmente durante toda a corrida`
-            : "30 minutos de corrida em ritmo conversacional",
+            ? `${25 + Math.floor(dayVariation * 10)} minutos de corrida em ritmo conversacional (manter FC na Zona 2: ${heartRateZones.zone2}). O objetivo é manter um ritmo onde você consegue conversar normalmente durante toda a corrida`
+            : `${25 + Math.floor(dayVariation * 10)} minutos de corrida em ritmo conversacional`,
           cooldown: heartRateZones
-            ? `10 minutos de alongamento (FC deve estar na Zona 1: ${heartRateZones.zone1})`
-            : "10 minutos de alongamento",
+            ? `10 minutos de ${cooldownVariations[dayCooldownIndex]} (FC deve estar na Zona 1: ${heartRateZones.zone1})`
+            : `10 minutos de ${cooldownVariations[dayCooldownIndex]}`,
           notes: heartRateZones
-            ? `FOCO NA RECUPERAÇÃO: Se a FC subir acima da Zona 2 (${heartRateZones.zone2}), diminua o ritmo imediatamente. O treino de recuperação deve ser realmente leve e confortável.`
-            : "Foco na recuperação, não force o ritmo"
+            ? `FOCO NA RECUPERAÇÃO: Se a FC subir acima da Zona 2 (${heartRateZones.zone2}), diminua o ritmo imediatamente. Variação ${seed}: mantenha o treino realmente leve e confortável.`
+            : `Foco na recuperação, não force o ritmo. Variação ${seed}: priorize o conforto.`
         });
       } else {
+        const sessionVariation = workoutVariations[Math.floor((dayVariation * workoutVariations.length)) % workoutVariations.length];
         sessions.push({
           day: i,
-          title: `Treino Dia ${i}`,
-          description: "Sessão de treino personalizada",
+          title: `Treino Dia ${i} - ${sessionVariation.pace.includes('5km') ? 'Velocidade' : 'Resistência'}`,
+          description: `Sessão personalizada com ${sessionVariation.intervals} - Variação ${seed.substring(i-1,i+1)}`,
           duration: "60 minutos",
           warmup: heartRateZones 
-            ? `15 minutos de aquecimento progressivo (iniciar na Zona 1: ${heartRateZones.zone1} e terminar na Zona 2: ${heartRateZones.zone2})`
-            : "15 minutos de aquecimento progressivo",
+            ? `15 minutos de ${warmupVariations[dayWarmupIndex]} (iniciar na Zona 1: ${heartRateZones.zone1} e terminar na Zona 2: ${heartRateZones.zone2})`
+            : `15 minutos de ${warmupVariations[dayWarmupIndex]}`,
           main_workout: heartRateZones
-            ? `Treino principal variado (alternar entre Zona 3: ${heartRateZones.zone3} para ritmo moderado e Zona 4: ${heartRateZones.zone4} para intensidade alta)`
-            : "Treino principal variado",
+            ? `${sessionVariation.intervals} em ${sessionVariation.pace} com ${sessionVariation.recovery} de recuperação (alternar entre Zona 3: ${heartRateZones.zone3} para ritmo moderado e Zona 4: ${heartRateZones.zone4} para intensidade alta)`
+            : `${sessionVariation.intervals} em ${sessionVariation.pace} com ${sessionVariation.recovery} de recuperação`,
           cooldown: heartRateZones
-            ? `10 minutos de volta à calma (retornar gradualmente para Zona 1: ${heartRateZones.zone1})`
-            : "10 minutos de volta à calma",
+            ? `10 minutos de ${cooldownVariations[dayCooldownIndex]} (retornar gradualmente para Zona 1: ${heartRateZones.zone1})`
+            : `10 minutos de ${cooldownVariations[dayCooldownIndex]}`,
           notes: heartRateZones
-            ? `MONITORAMENTO: Use o monitor cardíaco constantemente. Ajuste o ritmo conforme necessário para manter-se nas faixas indicadas. Zona 3 (${heartRateZones.zone3}) = ritmo moderado, Zona 4 (${heartRateZones.zone4}) = ritmo forte.`
-            : "Ajuste o ritmo conforme sua condição física"
+            ? `MONITORAMENTO: Use o monitor cardíaco constantemente. Ajuste o ritmo conforme necessário para manter-se nas faixas indicadas. Zona 3 (${heartRateZones.zone3}) = ritmo moderado, Zona 4 (${heartRateZones.zone4}) = ritmo forte. Variação ${seed}: foque nos ${sessionVariation.intervals}.`
+            : `Ajuste o ritmo conforme sua condição física. Variação ${seed}: atenção especial aos intervalos de ${sessionVariation.recovery}.`
         });
       }
     }
@@ -534,34 +624,48 @@ async function callAIForTraining(prompt: string): Promise<any> {
 
   console.log('📋 SESSÕES GERADAS PELA IA MOCK:', sessions);
 
-  // Mock response with dynamic sessions
-  const mockResponse = {
-    title: "Treino Intervalado de Velocidade",
-    description: "Plano focado no desenvolvimento da velocidade e resistência anaeróbica",
-    duration: duration,
-    sessions: sessions,
-    tips: [
-      heartRateZones 
-        ? "ESSENCIAL: Use um monitor cardíaco para acompanhar suas zonas durante todo o treino"
-        : "Monitore a frequência cardíaca",
+  // Generate varied tips based on seed
+  const tipVariations = [
+    [
+      "ESSENCIAL: Use um monitor cardíaco para acompanhar suas zonas durante todo o treino",
       "Mantenha-se hidratado antes, durante e após o treino",
       "Respeite os tempos de recuperação entre os intervalos",
-      heartRateZones
-        ? "Se não conseguir atingir a zona indicada, ajuste o ritmo gradualmente - não force além do confortável"
-        : "Ajuste o ritmo conforme sua condição física",
-      "Em caso de desconforto ou dor, pare imediatamente e consulte seu treinador"
+      "Se não conseguir atingir a zona indicada, ajuste o ritmo gradualmente",
+      "Em caso de desconforto ou dor, pare imediatamente"
     ],
-    equipment: heartRateZones ? [
-      "Monitor cardíaco (essencial para acompanhar as zonas)",
-      "Cronômetro", 
-      "Tênis de corrida adequado",
-      "Garrafa de água"
-    ] : [
-      "Cronômetro",
-      "Tênis de corrida adequado", 
-      "Garrafa de água",
-      "Monitor cardíaco (recomendado)"
+    [
+      "Monitor cardíaco é fundamental para treinos de qualidade",
+      "Hidratação adequada é crucial para performance",
+      "Recuperação ativa é tão importante quanto o treino principal",
+      "Escute seu corpo e ajuste a intensidade conforme necessário",
+      "Aquecimento adequado previne lesões"
+    ],
+    [
+      "Controle de frequência cardíaca garante treino eficaz",
+      "Beba água regularmente durante toda a sessão",
+      "Intervalos de recuperação devem ser respeitados rigorosamente",
+      "Adapte o ritmo às suas sensações corporais",
+      "Pare imediatamente se sentir qualquer desconforto"
     ]
+  ];
+  
+  const equipmentVariations = [
+    ["Monitor cardíaco (essencial)", "Cronômetro", "Tênis de corrida adequado", "Garrafa de água"],
+    ["Relógio esportivo com GPS", "Cronômetro", "Tênis apropriados para corrida", "Hidratação"],
+    ["Monitor de frequência cardíaca", "Timer", "Calçado de corrida", "Água para hidratação"]
+  ];
+  
+  const tipIndex = Math.floor(variation * tipVariations.length);
+  const equipmentIndex = Math.floor((variation * 2) % equipmentVariations.length);
+
+  // Mock response with dynamic sessions
+  const mockResponse = {
+    title: `Treino ${selectedWorkout.pace.includes('5km') ? 'de Velocidade' : 'Intervalado'} - ${seed.substring(0,4).toUpperCase()}`,
+    description: `Plano focado no desenvolvimento da ${selectedWorkout.pace.includes('5km') ? 'velocidade e resistência anaeróbica' : 'resistência e capacidade aeróbica'} - Variação personalizada ${seed}`,
+    duration: duration,
+    sessions: sessions,
+    tips: tipVariations[tipIndex],
+    equipment: equipmentVariations[equipmentIndex]
   };
 
   console.log('🎉 RESPOSTA FINAL DA IA MOCK:', mockResponse);
