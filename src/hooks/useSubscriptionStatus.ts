@@ -394,6 +394,7 @@ export const useSubscriptionStatus = () => {
         hasAccess = false;
         calculationDetails = 'Plano Restrito - Acesso bloqueado';
       } else if (subscriptionData) {
+      }
       if (subscriptionData) {
         console.log('🎯 TRIAL DEBUG: Dados da assinatura encontrados:', {
           status: subscriptionData.status,
