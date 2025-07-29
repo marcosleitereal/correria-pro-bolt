@@ -54,14 +54,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     // CORREÇÃO CRÍTICA: Verificar se o gateway está configurado
     if (!priceId) {
-      console.error('❌ CHECKOUT MODAL: Price ID não encontrado para', gateway);
+      console.warn('⚠️ CHECKOUT MODAL: Price ID não encontrado para', gateway, '- usando fallback');
       
       if (gateway === 'stripe') {
-        console.warn('⚠️ CHECKOUT MODAL: Usando Price ID padrão do Stripe');
+        console.log('🔄 CHECKOUT MODAL: Usando Price ID padrão do Stripe');
         priceId = 'price_1RbPUPBnjFk91bSiqDgyZW9j'; // Do stripe-config.ts
       } else {
-        console.error('❌ CHECKOUT MODAL: Mercado Pago não configurado');
-        alert('Mercado Pago não está configurado. Use o Stripe ou configure o Mercado Pago no painel admin.');
+        console.warn('⚠️ CHECKOUT MODAL: Mercado Pago não configurado');
+        alert('Mercado Pago não está configurado para este plano. Use o Stripe ou configure o Mercado Pago no painel admin.');
         setSelectedGateway(null);
         return;
       }
