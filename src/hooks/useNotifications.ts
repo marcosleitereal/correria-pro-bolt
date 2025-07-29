@@ -143,10 +143,13 @@ export const useNotifications = () => {
     } catch (err: any) {
       console.error('Erro ao marcar notificação como lida:', err);
       
-      // Tratamento específico para erro de conectividade
-      if (err.message && err.message.includes('Failed to fetch')) {
+      // Tratamento específico para diferentes tipos de erro
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
         console.warn('⚠️ Erro de conectividade detectado ao marcar notificação como lida');
         toast.error('Erro de conexão. Verifique sua internet ou configurações do Supabase.');
+      } else if (err.message && err.message.includes('Supabase não está configurado')) {
+        console.warn('⚠️ Erro de configuração detectado ao marcar notificação como lida');
+        toast.error('Erro de configuração do sistema');
       } else {
         toast.error('Erro ao marcar notificação como lida');
       }

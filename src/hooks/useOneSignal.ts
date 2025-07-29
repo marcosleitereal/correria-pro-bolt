@@ -55,11 +55,43 @@ export const useOneSignal = () => {
         return;
       }
 
+      // Verificar se já foi inicializado para evitar múltiplas inicializações
+      if (OneSignal.isPushNotificationsInitialized && OneSignal.isPushNotificationsInitialized()) {
+        console.log('✅ OneSignal: Já inicializado, pulando nova inicialização');
+        
+        // Apenas atualizar estado se já inicializado
+        const permission = await OneSignal.getNotificationPermission();
+        const isSubscribed = await OneSignal.isPushNotificationsEnabled();
+        const playerId = await OneSignal.getUserId();
+
+        setOneSignalState({
+          isInitialized: true,
+          isSubscribed,
+          playerId,
+          permission
+        });
+        
+        return;
+      }
       console.log('🔔 OneSignal: Inicializando...');
 
+      // Usar App ID válido ou desabilitar se não configurado
+      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      const safariWebId = import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID;
+      
+      if (!appId || appId === 'YOUR_ONESIGNAL_APP_ID') {
+        console.warn('⚠️ OneSignal: App ID não configurado, desabilitando OneSignal');
+        setOneSignalState({
+          isInitialized: false,
+          isSubscribed: false,
+          playerId: null,
+          permission: 'denied'
+        });
+        return;
+      }
       await OneSignal.init({
-        appId: import.meta.env.VITE_ONESIGNAL_APP_ID || 'YOUR_ONESIGNAL_APP_ID',
-        safari_web_id: import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID,
+        appId: appId,
+        safari_web_id: safariWebId,
         notifyButton: {
           enable: false // Usar nosso próprio botão
         },
