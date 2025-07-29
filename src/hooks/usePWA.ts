@@ -84,29 +84,36 @@ export const usePWA = () => {
         console.log('🔄 PWA: Nova versão encontrada, aguardando instalação...');
         
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nova versão instalada e há um service worker ativo
-            console.log('✅ PWA: Nova versão instalada e pronta para ativação');
-            setWaitingWorker(newWorker);
-            setPwaState(prev => ({ ...prev, hasUpdate: true }));
+          if (newWorker.state === 'installed') {
+            // Verificar se há um service worker ativo (indica atualização, não primeira instalação)
+            if (navigator.serviceWorker.controller) {
+              console.log('✅ PWA: Nova versão instalada e pronta para ativação');
+              setWaitingWorker(newWorker);
+              setPwaState(prev => ({ ...prev, hasUpdate: true }));
+            } else {
+              console.log('ℹ️ PWA: Primeira instalação do service worker');
+            }
           }
         });
       }
     });
 
-    // Listener para mudanças no service worker - REMOVIDO para evitar loops
-    // O reload será feito apenas quando o usuário clicar em "Atualizar"
+    // Não adicionar listener de controllerchange aqui para evitar loops
   };
 
   const checkInitialState = (reg: ServiceWorkerRegistration) => {
-    // Verificar se já existe um service worker waiting
+    // Verificar se já existe um service worker waiting (apenas se há um controller ativo)
     if (reg.waiting && navigator.serviceWorker.controller) {
       console.log('⚠️ PWA: Service Worker waiting detectado no carregamento inicial');
-      setWaitingWorker(reg.waiting);
-      setPwaState(prev => ({ ...prev, hasUpdate: true }));
+      // Verificar se realmente é uma versão diferente
+      if (reg.waiting !== navigator.serviceWorker.controller) {
+        setWaitingWorker(reg.waiting);
+        setPwaState(prev => ({ ...prev, hasUpdate: true }));
+      }
     }
     
-    if (reg.installing) {
+    if (reg.installing && navigator.serviceWorker.controller) {
+      // Só rastrear se há um controller ativo (indica atualização)
       trackInstalling(reg.installing);
     }
     
@@ -132,14 +139,16 @@ export const usePWA = () => {
 
   const trackInstalling = (worker: ServiceWorker) => {
     worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-        // Nova versão disponível
-        console.log('🔄 PWA: Nova versão instalada e pronta');
-        setWaitingWorker(worker);
-        setPwaState(prev => ({ ...prev, hasUpdate: true }));
-      } else if (worker.state === 'installed') {
-        // Primeira instalação
-        console.log('✅ PWA: Primeira instalação concluída');
+      if (worker.state === 'installed') {
+        if (navigator.serviceWorker.controller) {
+          // Nova versão disponível (há um controller ativo)
+          console.log('🔄 PWA: Nova versão instalada e pronta');
+          setWaitingWorker(worker);
+          setPwaState(prev => ({ ...prev, hasUpdate: true }));
+        } else {
+          // Primeira instalação
+          console.log('✅ PWA: Primeira instalação concluída');
+        }
       }
     });
   };

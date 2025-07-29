@@ -1,6 +1,6 @@
-const CACHE_NAME = 'correria-pro-v1.0.0';
-const STATIC_CACHE = 'correria-static-v1.0.0';
-const DYNAMIC_CACHE = 'correria-dynamic-v1.0.0';
+const CACHE_NAME = 'correria-pro-v1.0.1';
+const STATIC_CACHE = 'correria-static-v1.0.1';
+const DYNAMIC_CACHE = 'correria-dynamic-v1.0.1';
 
 // Arquivos essenciais para cache
 const STATIC_ASSETS = [
@@ -267,10 +267,7 @@ async function doBackgroundSync() {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('🔄 SW: Recebida mensagem SKIP_WAITING, ativando nova versão...');
-    // Aguardar um momento antes de ativar para evitar loops
-    setTimeout(() => {
-      self.skipWaiting();
-    }, 100);
+    self.skipWaiting();
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {
