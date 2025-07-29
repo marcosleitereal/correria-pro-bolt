@@ -1,9 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    
+    <!-- Meta tags de idioma e localização -->
+    <meta name="language" content="pt-BR" />
+    <meta name="locale" content="pt_BR" />
+    <meta name="country" content="BR" />
+    <meta http-equiv="content-language" content="pt-BR" />
+    
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO e Descrição em Português -->
+    <meta name="description" content="Plataforma definitiva para treinadores de corrida. Gerencie atletas, crie treinos personalizados com IA e acompanhe performance. Teste grátis por 30 dias." />
+    <meta name="keywords" content="treinador corrida, treinos personalizados, gestão atletas, corrida, running coach, treino IA, performance atletas" />
+    <meta name="author" content="Correria.Pro" />
+    
+    <!-- Open Graph em Português -->
+    <meta property="og:title" content="Correria.Pro - Plataforma para Treinadores de Corrida" />
+    <meta property="og:description" content="A plataforma definitiva para treinadores de corrida que usam dados e IA para alcançar resultados extraordinários." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Correria.Pro" />
+    
+    <!-- Twitter Card em Português -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Correria.Pro - Plataforma para Treinadores de Corrida" />
+    <meta name="twitter:description" content="Gerencie atletas, crie treinos com IA e acompanhe performance. Teste grátis por 30 dias." />
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#1e40af" />
@@ -28,31 +52,7 @@
     <!-- Preload critical resources -->
     <link rel="preload" href="/icons/icon-192.png" as="image" />
     
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#1e40af" />
-    <meta name="background-color" content="#ffffff" />
-    <meta name="display" content="standalone" />
-    <meta name="orientation" content="portrait" />
-    
-    <!-- iOS Meta Tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Correria Pro" />
-    
-    <!-- iOS Icons -->
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192x192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
-    
-    <!-- Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
-    <!-- Preload critical resources -->
-    <link rel="preload" href="/icons/icon-192x192.png" as="image" />
-    
-    <title>Landing Page Correria.Pro - Definitiva</title>
+    <title>Correria.Pro - Plataforma para Treinadores de Corrida</title>
   </head>
   <body>
     <div id="root"></div>
@@ -77,21 +77,5 @@
     <!-- OneSignal SDK -->
     <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
     <script src="/onesignal.js"></script>
-    
-    <!-- PWA Registration -->
-    <script>
-      // Registrar Service Worker
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('✅ SW: Registrado com sucesso:', registration.scope);
-            })
-            .catch((error) => {
-              console.log('❌ SW: Falha no registro:', error);
-            });
-        });
-      }
-    </script>
   </body>
 </html>

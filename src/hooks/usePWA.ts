@@ -82,15 +82,30 @@ export const usePWA = () => {
       console.log('🔄 PWA: NOVA VERSÃO DETECTADA - updatefound disparado');
       
       if (newWorker) {
-        // IMPORTANTE: Só rastrear se há um service worker ativo (indica atualização real)
-        if (navigator.serviceWorker.controller) {
+        // CRÍTICO: Só rastrear se há um service worker ativo E se não é primeira instalação
+        if (navigator.serviceWorker.controller && !isFirstInstall()) {
           console.log('✅ PWA: Confirmado - é uma ATUALIZAÇÃO (não primeira instalação)');
           trackNewWorkerInstallation(newWorker);
         } else {
-          console.log('ℹ️ PWA: Primeira instalação detectada - não é atualização');
+          console.log('ℹ️ PWA: Primeira instalação ou sem controller - ignorando updatefound');
         }
       }
     });
+  };
+
+  const isFirstInstall = () => {
+    // Verificar se é primeira instalação baseado em múltiplos fatores
+    const hasController = !!navigator.serviceWorker.controller;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const hasVisitedBefore = localStorage.getItem('pwa-visited') === 'true';
+    
+    // Se não tem controller E não visitou antes, é primeira instalação
+    if (!hasController && !hasVisitedBefore) {
+      localStorage.setItem('pwa-visited', 'true');
+      return true;
+    }
+    
+    return false;
   };
 
   const trackNewWorkerInstallation = (newWorker: ServiceWorker) => {
@@ -98,8 +113,10 @@ export const usePWA = () => {
       console.log('🔄 PWA: Novo worker mudou estado para:', newWorker.state);
       
       if (newWorker.state === 'installed') {
-        // DUPLA VERIFICAÇÃO: Confirmar que há um controller ativo
-        if (navigator.serviceWorker.controller) {
+        // TRIPLA VERIFICAÇÃO: Controller ativo + não é primeira instalação + workers diferentes
+        if (navigator.serviceWorker.controller && 
+            !isFirstInstall() && 
+            newWorker !== navigator.serviceWorker.controller) {
           console.log('✅ PWA: NOVA VERSÃO INSTALADA E PRONTA PARA ATIVAÇÃO');
           setWaitingWorker(newWorker);
           
@@ -111,15 +128,15 @@ export const usePWA = () => {
             console.log('🔇 PWA: Atualização disponível mas prompt foi dispensado');
           }
         } else {
-          console.log('ℹ️ PWA: Worker instalado mas sem controller - primeira instalação');
+          console.log('ℹ️ PWA: Worker instalado mas é primeira instalação ou mesmo worker - ignorando');
         }
       }
     });
   };
 
   const checkInitialUpdateState = (reg: ServiceWorkerRegistration) => {
-    // CRÍTICO: Só verificar se há um controller ativo (app já funcionando)
-    if (!navigator.serviceWorker.controller) {
+    // CRÍTICO: Só verificar se há um controller ativo E não é primeira instalação
+    if (!navigator.serviceWorker.controller || isFirstInstall()) {
       console.log('ℹ️ PWA: Primeira visita - sem verificação de atualização');
       return;
     }

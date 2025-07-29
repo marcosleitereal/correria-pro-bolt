@@ -1,7 +1,7 @@
 {
   "name": "Correria Pro",
   "short_name": "Correria",
-  "description": "Plataforma para treinadores de corrida com treinos, atletas e planos.",
+  "description": "Plataforma definitiva para treinadores de corrida. Gerencie atletas, crie treinos personalizados com IA e acompanhe performance.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

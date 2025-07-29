@@ -21,8 +21,9 @@ const UpdatePrompt: React.FC = () => {
     dismissUpdate();
   };
 
-  // CRÍTICO: Só mostrar se hasValidUpdate for verdadeiro
-  if (!hasValidUpdate) {
+  // CRÍTICO: Só mostrar se hasValidUpdate for verdadeiro E se há service worker ativo
+  if (!hasValidUpdate || !navigator.serviceWorker?.controller) {
+    console.log('🚫 UpdatePrompt: Não exibindo - hasValidUpdate:', hasValidUpdate, 'controller:', !!navigator.serviceWorker?.controller);
     return null;
   }
 
