@@ -92,14 +92,25 @@ const TrainingEditPage: React.FC = () => {
       setTraining(trainingData);
       
       // Ensure all sessions have valid string IDs for drag and drop
-      const trainingContent = trainingData.content || getDefaultContent();
-      if (trainingContent.sessions) {
+      let trainingContent = trainingData.content;
+      
+      // Validate training content structure
+      if (!trainingContent || !Array.isArray(trainingContent.sessions)) {
+        trainingContent = getDefaultContent();
+      } else {
         trainingContent.sessions = trainingContent.sessions.map((session: any, index: number) => ({
           ...session,
           id: session.id ? String(session.id) : `session-${Date.now()}-${index}`,
           day: session.day || index + 1
         }));
       }
+      
+      // Ensure other required properties exist
+      trainingContent = {
+        ...getDefaultContent(),
+        ...trainingContent,
+        sessions: trainingContent.sessions || getDefaultContent().sessions
+      };
       
       setContent(trainingContent);
 
