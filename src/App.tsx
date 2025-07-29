@@ -37,6 +37,7 @@ import AcceptableUsePolicyPage from './components/legal/AcceptableUsePolicyPage'
 import NotFoundPage from './components/NotFoundPage';
 import InstallPrompt from './components/PWAComponents/InstallPrompt';
 import UpdatePrompt from './components/PWAComponents/UpdatePrompt';
+import OfflineBanner from './components/PWAComponents/OfflineBanner';
 
 // Landing Page Component
 const LandingPage: React.FC = () => (
