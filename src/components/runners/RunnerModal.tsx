@@ -458,7 +458,7 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
                 <p className="mt-1 text-sm text-red-600">{errors.injuries}</p>
               )}
               <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: `[{"nome": "joelho", "lado": "direito", "status": "recuperando"}]`
+                Formato JSON. Ex: {`[{"nome": "joelho", "lado": "direito", "status": "recuperando"}]`}
               </p>
             </div>
 
@@ -484,7 +484,7 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
                 <p className="mt-1 text-sm text-red-600">{errors.health_conditions}</p>
               )}
               <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: `[{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]`
+                Formato JSON. Ex: {`[{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]`}
               </p>
             </div>
 
@@ -528,7 +528,7 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
                 <p className="mt-1 text-sm text-red-600">{errors.physical_characteristics}</p>
               )}
               <p className="mt-1 text-xs text-slate-500">
-                Formato JSON. Ex: `{"pisada": "pronada", "biotipo": "ectomorfo"}`
+                Formato JSON. Ex: {`{"pisada": "pronada", "biotipo": "ectomorfo"}`}
               </p>
             </div>
 
