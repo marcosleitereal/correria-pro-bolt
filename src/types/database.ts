@@ -12,6 +12,11 @@ export interface Runner {
   resting_heart_rate: number | null;
   max_heart_rate: number | null;
   notes: string | null;
+  injuries: any | null; // JSONB
+  health_conditions: any | null; // JSONB
+  past_training_experience: string | null; // TEXT
+  physical_characteristics: any | null; // JSONB
+  dietary_preferences: string | null; // TEXT
   is_archived: boolean;
   last_training_date: string | null;
   created_at: string;

@@ -59,6 +59,11 @@ export interface Database {
           resting_heart_rate: number | null;
           max_heart_rate: number | null;
           notes: string | null;
+          injuries: any | null;
+          health_conditions: any | null;
+          past_training_experience: string | null;
+          physical_characteristics: any | null;
+          dietary_preferences: string | null;
           is_archived: boolean;
           last_training_date: string | null;
           created_at: string;
@@ -75,6 +80,11 @@ export interface Database {
           resting_heart_rate?: number | null;
           max_heart_rate?: number | null;
           notes?: string | null;
+          injuries?: any | null;
+          health_conditions?: any | null;
+          past_training_experience?: string | null;
+          physical_characteristics?: any | null;
+          dietary_preferences?: string | null;
           is_archived?: boolean;
         };
         Update: {
@@ -87,6 +97,11 @@ export interface Database {
           resting_heart_rate?: number | null;
           max_heart_rate?: number | null;
           notes?: string | null;
+          injuries?: any | null;
+          health_conditions?: any | null;
+          past_training_experience?: string | null;
+          physical_characteristics?: any | null;
+          dietary_preferences?: string | null;
           is_archived?: boolean;
         };
       };

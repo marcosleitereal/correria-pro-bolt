@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2 } from 'lucide-react';
+import { X, User, Calendar, Weight, Ruler, Target, Activity, Loader2, Heart, Bone, BookOpen, Utensils, Body } from 'lucide-react';
 import { Runner } from '../../types/database';
 
 interface RunnerModalProps {
@@ -28,7 +28,12 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
     fitness_level: 'beginner' as const,
     resting_heart_rate: '',
     max_heart_rate: '',
-    notes: ''
+    notes: '',
+    injuries: '', // JSON string
+    health_conditions: '', // JSON string
+    past_training_experience: '',
+    physical_characteristics: '', // JSON string
+    dietary_preferences: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -48,7 +53,12 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
           fitness_level: runner.fitness_level || 'beginner',
           resting_heart_rate: runner.resting_heart_rate?.toString() || '',
           max_heart_rate: runner.max_heart_rate?.toString() || '',
-          notes: runner.notes || ''
+          notes: runner.notes || '',
+          injuries: JSON.stringify(runner.injuries || [], null, 2),
+          health_conditions: JSON.stringify(runner.health_conditions || [], null, 2),
+          past_training_experience: runner.past_training_experience || '',
+          physical_characteristics: JSON.stringify(runner.physical_characteristics || {}, null, 2),
+          dietary_preferences: runner.dietary_preferences || ''
         });
       } else {
         setFormData({
@@ -61,7 +71,12 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
           fitness_level: 'beginner',
           resting_heart_rate: '',
           max_heart_rate: '',
-          notes: ''
+          notes: '',
+          injuries: '',
+          health_conditions: '',
+          past_training_experience: '',
+          physical_characteristics: '',
+          dietary_preferences: ''
         });
       }
       setErrors({});
@@ -83,6 +98,26 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
 
     if (!formData.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
+    }
+    
+    // Validate JSON fields
+    const jsonFields = ['injuries', 'health_conditions', 'physical_characteristics'];
+    jsonFields.forEach(field => {
+      if (formData[field as keyof typeof formData]) {
+        try {
+          JSON.parse(formData[field as keyof typeof formData]);
+        } catch {
+          newErrors[field] = `Formato JSON inválido para ${field.replace('_', ' ')}`;
+        }
+      }
+    });
+
+    // Validate required fields for JSON if they are not empty
+    if (newErrors.injuries && formData.injuries.trim()) {
+      newErrors.injuries = 'Formato JSON inválido para lesões. Ex: [{"nome": "joelho", "lado": "direito"}]';
+    }
+    if (newErrors.health_conditions && formData.health_conditions.trim()) {
+      newErrors.health_conditions = 'Formato JSON inválido para condições de saúde. Ex: [{"nome": "asma"}]';
     }
 
     if (!formData.birth_date) {
@@ -129,7 +164,12 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
         fitness_level: formData.fitness_level,
         resting_heart_rate: formData.resting_heart_rate ? Number(formData.resting_heart_rate) : null,
         max_heart_rate: formData.max_heart_rate ? Number(formData.max_heart_rate) : null,
-        notes: formData.notes.trim() || null
+        notes: formData.notes.trim() || null,
+        injuries: formData.injuries ? JSON.parse(formData.injuries) : null,
+        health_conditions: formData.health_conditions ? JSON.parse(formData.health_conditions) : null,
+        past_training_experience: formData.past_training_experience.trim() || null,
+        physical_characteristics: formData.physical_characteristics ? JSON.parse(formData.physical_characteristics) : null,
+        dietary_preferences: formData.dietary_preferences.trim() || null
       };
 
       await onSave(runnerData);
@@ -389,6 +429,125 @@ const RunnerModal: React.FC<RunnerModalProps> = ({
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
                 placeholder="Informações adicionais sobre o corredor..."
               />
+            </div>
+
+            {/* Novas Seções de Anamnese */}
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-4 border-t pt-6">
+              Anamnese Detalhada
+            </h3>
+
+            {/* Lesões */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Histórico de Lesões (JSON)
+              </label>
+              <div className="relative">
+                <Bone className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
+                <textarea
+                  name="injuries"
+                  value={formData.injuries}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
+                    errors.injuries ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
+                  }`}
+                  placeholder='Ex: [{"nome": "joelho", "lado": "direito", "status": "recuperando"}]'
+                />
+              </div>
+              {errors.injuries && (
+                <p className="mt-1 text-sm text-red-600">{errors.injuries}</p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Formato JSON. Ex: `[{"nome": "joelho", "lado": "direito", "status": "recuperando"}]`
+              </p>
+            </div>
+
+            {/* Condições de Saúde */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Condições de Saúde (JSON)
+              </label>
+              <div className="relative">
+                <Heart className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
+                <textarea
+                  name="health_conditions"
+                  value={formData.health_conditions}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
+                    errors.health_conditions ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
+                  }`}
+                  placeholder='Ex: [{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]'
+                />
+              </div>
+              {errors.health_conditions && (
+                <p className="mt-1 text-sm text-red-600">{errors.health_conditions}</p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Formato JSON. Ex: `[{"nome": "asma", "observacoes": "usar bombinha antes do treino"}]`
+              </p>
+            </div>
+
+            {/* Experiência de Treino Passada */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Experiência de Treino Passada
+              </label>
+              <div className="relative">
+                <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="text"
+                  name="past_training_experience"
+                  value={formData.past_training_experience}
+                  onChange={handleInputChange}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Ex: Corredor de rua há 5 anos, completou 3 maratonas."
+                />
+              </div>
+            </div>
+
+            {/* Características Físicas */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Características Físicas (JSON)
+              </label>
+              <div className="relative">
+                <Body className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
+                <textarea
+                  name="physical_characteristics"
+                  value={formData.physical_characteristics}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none font-mono text-sm ${
+                    errors.physical_characteristics ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
+                  }`}
+                  placeholder='Ex: {"pisada": "pronada", "biotipo": "ectomorfo"}'
+                />
+              </div>
+              {errors.physical_characteristics && (
+                <p className="mt-1 text-sm text-red-600">{errors.physical_characteristics}</p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Formato JSON. Ex: `{"pisada": "pronada", "biotipo": "ectomorfo"}`
+              </p>
+            </div>
+
+            {/* Preferências Alimentares */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Preferências/Restrições Alimentares
+              </label>
+              <div className="relative">
+                <Utensils className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="text"
+                  name="dietary_preferences"
+                  value={formData.dietary_preferences}
+                  onChange={handleInputChange}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Ex: Vegetariano, não consome laticínios."
+                />
+              </div>
             </div>
           </form>
 

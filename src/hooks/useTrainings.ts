@@ -248,6 +248,11 @@ Nível: ${target.fitness_level}
 Peso: ${target.weight_kg || 'Não informado'}kg
 Altura: ${target.height_cm || 'Não informado'}cm
 Meta principal: ${target.main_goal || 'Não informada'}
+Lesões: ${target.injuries ? JSON.stringify(target.injuries) : 'Nenhuma'}
+Condições de Saúde: ${target.health_conditions ? JSON.stringify(target.health_conditions) : 'Nenhuma'}
+Experiência de Treino Passada: ${target.past_training_experience || 'Não informada'}
+Características Físicas: ${target.physical_characteristics ? JSON.stringify(target.physical_characteristics) : 'Não informadas'}
+Preferências Alimentares: ${target.dietary_preferences || 'Não informadas'}
 FC Repouso: ${target.resting_heart_rate || 'Não informada'}bpm
 FC Máxima: ${target.max_heart_rate || 'Não informada'}bpm
 ${target.notes ? `Observações: ${target.notes}` : ''}
@@ -324,6 +329,11 @@ Informações do corredor:
 - Peso: ${target.weight_kg || 'Não informado'}kg
 - Altura: ${target.height_cm || 'Não informado'}cm
 - Meta principal: ${target.main_goal || 'Não informada'}
+- Lesões: ${target.injuries ? JSON.stringify(target.injuries) : 'Nenhuma'}
+- Condições de Saúde: ${target.health_conditions ? JSON.stringify(target.health_conditions) : 'Nenhuma'}
+- Experiência de Treino Passada: ${target.past_training_experience || 'Não informada'}
+- Características Físicas: ${target.physical_characteristics ? JSON.stringify(target.physical_characteristics) : 'Não informadas'}
+- Preferências Alimentares: ${target.dietary_preferences || 'Não informadas'}
 - FC Repouso: ${target.resting_heart_rate || 'Não informada'}bpm
 - FC Máxima: ${target.max_heart_rate || 'Não informada'}bpm
 ${target.notes ? `- Observações: ${target.notes}` : ''}
