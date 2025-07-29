@@ -35,6 +35,7 @@ export const useAIProviders = () => {
         throw fetchError;
       }
 
+      console.log('🔍 [useAIProviders] - Provedores carregados:', data);
       setProviders(data || []);
     } catch (err: any) {
       console.error('Error fetching AI providers:', err);
@@ -56,6 +57,7 @@ export const useAIProviders = () => {
         throw fetchError;
       }
 
+      console.log('🔍 [useAIProviders] - Provedor global carregado:', data?.setting_value);
       setGlobalProviderState(data?.setting_value || null);
     } catch (err: any) {
       console.error('Error fetching global provider:', err);
@@ -146,6 +148,7 @@ export const useAIProviders = () => {
   const getActiveProvider = (): AIProvider | null => {
     if (!globalProvider) return null;
     return providers.find(p => p.name === globalProvider && p.api_key_encrypted) || null;
+    console.log('🔍 [useAIProviders] - Resultado de getActiveProvider:', foundProvider);
   };
 
   return {

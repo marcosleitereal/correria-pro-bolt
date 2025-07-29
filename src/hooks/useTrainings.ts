@@ -500,10 +500,12 @@ function formatPhysicalCharacteristics(characteristics: any): string {
   }
 }
 // Mock AI function - replace with actual AI integration
-async function callAIForTraining(prompt: string): Promise<any> {
-  console.log('🤖 CHAMADA REAL DA IA INICIADA');
-  console.log('📥 Prompt sendo enviado para IA:', prompt.substring(0, 200) + '...');
-  console.log('📏 Tamanho do prompt:', prompt.length, 'caracteres');
+async function callAIForTraining(prompt: string, activeProvider: any): Promise<any> {
+  console.log('🤖 [callAIForTraining] - Iniciando chamada da IA');
+  console.log('📥 [callAIForTraining] - Prompt completo a ser enviado:', prompt);
+  console.log('📏 [callAIForTraining] - Tamanho do prompt:', prompt.length, 'caracteres');
+  console.log('⚙️ [callAIForTraining] - Provedor ativo recebido:', activeProvider?.name || 'Nenhum');
+
 
   try {
     // CRÍTICO: Verificar se há provedor de IA configurado
@@ -512,29 +514,31 @@ async function callAIForTraining(prompt: string): Promise<any> {
       .select('setting_value')
       .eq('setting_name', 'global_ai_provider')
       .maybeSingle();
+    
+    const globalProviderName = aiSettings?.setting_value;
 
-    if (settingsError || !aiSettings?.setting_value) {
-      console.warn('⚠️ IA: Nenhum provedor configurado, usando função MOCK');
+    if (settingsError || !globalProviderName || !activeProvider || activeProvider.name !== globalProviderName) {
+      console.warn('⚠️ [callAIForTraining] - Nenhum provedor configurado ou ativo globalmente, usando função MOCK');
       return await mockAIGeneration(prompt);
     }
 
-    const globalProvider = aiSettings.setting_value;
-    console.log('🤖 IA: Usando provedor configurado:', globalProvider);
+    console.log('🤖 [callAIForTraining] - Usando provedor configurado:', activeProvider.name);
 
-    // Buscar configurações do provedor
-    const { data: providerConfig, error: providerError } = await supabase
-      .from('ai_providers')
-      .select('*')
-      .eq('name', globalProvider)
-      .eq('is_active', true)
-      .single();
-
-    if (providerError || !providerConfig?.api_key_encrypted) {
-      console.warn('⚠️ IA: Provedor não configurado corretamente, usando MOCK');
+    if (!activeProvider.api_key_encrypted) {
+      console.warn('⚠️ [callAIForTraining] - Chave de API do provedor não configurada, usando MOCK');
       return await mockAIGeneration(prompt);
     }
 
-    console.log('✅ IA: Provedor configurado encontrado:', globalProvider);
+    // Log the provider config being used (excluding sensitive keys)
+    console.log('✅ [callAIForTraining] - Provedor configurado encontrado:', {
+      name: activeProvider.name,
+      selected_model: activeProvider.selected_model,
+      is_active: activeProvider.is_active,
+      is_global_default: activeProvider.is_global_default,
+      has_api_key: !!activeProvider.api_key_encrypted
+    });
+
+    const providerConfig = activeProvider; // Use the activeProvider passed directly
     
     // CHAMADA REAL DA IA
     const aiResponse = await callRealAI(globalProvider, providerConfig, prompt);
@@ -555,10 +559,10 @@ async function callAIForTraining(prompt: string): Promise<any> {
 }
 
 // Função para chamar IA real
-async function callRealAI(provider: string, config: any, prompt: string): Promise<any> {
+async function callRealAI(providerName: string, config: any, prompt: string): Promise<any> {
   try {
-    console.log('🚀 IA REAL: Iniciando chamada para', provider);
-    
+    console.log('🚀 [callRealAI] - Iniciando chamada para o provedor:', providerName);
+    console.log('📝 [callRealAI] - Prompt final enviado para a API:', prompt);
     // Aqui você implementaria as chamadas reais para cada provedor
     if (provider === 'OpenAI') {
       return await callOpenAI(config.api_key_encrypted, config.selected_model, prompt);
@@ -567,7 +571,7 @@ async function callRealAI(provider: string, config: any, prompt: string): Promis
     } else if (provider === 'Groq') {
       return await callGroq(config.api_key_encrypted, config.selected_model, prompt);
     } else {
-      console.warn('⚠️ IA REAL: Provedor não suportado:', provider);
+      console.warn('⚠️ [callRealAI] - Provedor não suportado:', providerName);
       return null;
     }
     
@@ -580,7 +584,7 @@ async function callRealAI(provider: string, config: any, prompt: string): Promis
 // Implementações das chamadas reais (exemplo para OpenAI)
 async function callOpenAI(apiKey: string, model: string, prompt: string): Promise<any> {
   try {
-    console.log('🤖 OpenAI: Fazendo chamada real');
+    console.log('🤖 [callOpenAI] - Fazendo chamada real para o modelo:', model);
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -602,16 +606,18 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorBody = await response.json();
+      console.error('❌ [callOpenAI] - Erro na resposta da API OpenAI:', response.status, errorBody);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
     
     if (!content) {
-      throw new Error('Resposta vazia da OpenAI');
+      throw new Error('[callOpenAI] - Resposta vazia da OpenAI');
     }
-
+    console.log('✅ [callOpenAI] - Resposta bruta da OpenAI:', content);
     // Tentar parsear como JSON
     try {
       return JSON.parse(content);
@@ -620,7 +626,7 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
       return { error: 'Resposta da IA não está em formato JSON válido' };
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ OpenAI: Erro na chamada:', error);
     return null;
   }
@@ -628,19 +634,19 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
 
 // Placeholder para outros provedores
 async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<any> {
-  console.log('🤖 Anthropic: Implementação pendente');
+  console.log('🤖 [callAnthropic] - Implementação pendente');
   return null;
 }
 
 async function callGroq(apiKey: string, model: string, prompt: string): Promise<any> {
-  console.log('🤖 Groq: Implementação pendente');
+  console.log('🤖 [callGroq] - Implementação pendente');
   return null;
 }
 
 // Função MOCK melhorada (fallback)
 async function mockAIGeneration(prompt: string): Promise<any> {
-  console.log('🎭 MOCK IA: Usando geração simulada');
-  console.log('📥 Prompt recebido:', prompt.substring(0, 200) + '...');
+  console.log('🎭 [mockAIGeneration] - Usando geração simulada (MOCK)');
+  console.log('📥 [mockAIGeneration] - Prompt recebido:', prompt.substring(0, 200) + '...');
 
   // Simulate AI processing time
   await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
