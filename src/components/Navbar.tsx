@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, LogOut, Settings, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuthContext } from '../contexts/AuthContext';
 import PWAInstallButton from './PWAComponents/PWAInstallButton';
 
 const Navbar: React.FC = () => {

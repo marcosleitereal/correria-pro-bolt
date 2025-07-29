@@ -22,8 +22,6 @@ import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import NotificationDropdown from '../notifications/NotificationDropdown';
-import PWAInstallButton from '../PWAInstallButton';
-import NotificationButton from '../NotificationButton';
 import PWAInstallButton from '../PWAComponents/PWAInstallButton';
 import NotificationButton from '../PWAComponents/NotificationButton';
 
