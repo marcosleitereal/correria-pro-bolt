@@ -4,31 +4,14 @@ import { RefreshCw, Download, X } from 'lucide-react';
 import { usePWA } from '../../hooks/usePWA';
 
 const UpdatePrompt: React.FC = () => {
-  const { hasValidUpdate, updateApp, dismissUpdate } = usePWA();
+  const { hasValidUpdate, autoUpdateEnabled } = usePWA();
 
-  const handleUpdate = async () => {
-    console.log('🔄 UpdatePrompt: Usuário clicou em atualizar');
-    try {
-      await updateApp();
-      // Não definir estado aqui pois a página será recarregada
-    } catch (error) {
-      console.error('❌ UpdatePrompt: Erro ao atualizar:', error);
-    }
-  };
-
-  const handleDismiss = () => {
-    console.log('🔇 UpdatePrompt: Usuário dispensou a atualização');
-    dismissUpdate();
-  };
-
-  // CRÍTICO: Só mostrar se hasValidUpdate for verdadeiro E se há service worker ativo
-  if (!hasValidUpdate || !navigator.serviceWorker?.controller) {
-    console.log('🚫 UpdatePrompt: Não exibindo - hasValidUpdate:', hasValidUpdate, 'controller:', !!navigator.serviceWorker?.controller);
+  // ATUALIZAÇÃO AUTOMÁTICA: Nunca mostrar prompt pois atualizações são automáticas
+  if (!hasValidUpdate || autoUpdateEnabled) {
     return null;
   }
 
-  console.log('📢 UpdatePrompt: Renderizando prompt de atualização');
-
+  // Este componente agora só serve como fallback (nunca deve aparecer)
   return (
     <AnimatePresence>
       <motion.div
@@ -40,7 +23,7 @@ const UpdatePrompt: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4">
           <div className="flex items-center gap-3">
             <div className="bg-blue-100 p-2 rounded-lg">
-              <RefreshCw className="w-5 h-5 text-blue-600" />
+              <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-slate-900">Nova versão disponível</h3>
@@ -48,18 +31,7 @@ const UpdatePrompt: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleDismiss}
-                className="text-slate-500 hover:text-slate-700 p-1 rounded transition-colors"
-                title="Dispensar por 30 minutos"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleUpdate}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform duration-300 flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Atualizar
+                className="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 cursor-default"
               </button>
             </div>
           </div>

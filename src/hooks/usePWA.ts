@@ -25,7 +25,7 @@ export const usePWA = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<PWAInstallPrompt | null>(null);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
-  const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
 
   useEffect(() => {
     // Registrar Service Worker
@@ -120,12 +120,10 @@ export const usePWA = () => {
           console.log('✅ PWA: NOVA VERSÃO INSTALADA E PRONTA PARA ATIVAÇÃO');
           setWaitingWorker(newWorker);
           
-          // CRÍTICO: Só definir hasUpdate se não foi dispensado
-          if (!updateDismissed) {
-            setPwaState(prev => ({ ...prev, hasUpdate: true }));
-            console.log('📢 PWA: Exibindo prompt de atualização');
-          } else {
-            console.log('🔇 PWA: Atualização disponível mas prompt foi dispensado');
+          // ATUALIZAÇÃO AUTOMÁTICA: Aplicar imediatamente
+          if (autoUpdateEnabled) {
+            console.log('🔄 PWA: Aplicando atualização automática...');
+            applyUpdateAutomatically(newWorker);
           }
         } else {
           console.log('ℹ️ PWA: Worker instalado mas é primeira instalação ou mesmo worker - ignorando');
@@ -150,8 +148,10 @@ export const usePWA = () => {
         console.log('✅ PWA: Confirmado - worker waiting é diferente do controller');
         setWaitingWorker(reg.waiting);
         
-        if (!updateDismissed) {
-          setPwaState(prev => ({ ...prev, hasUpdate: true }));
+        // ATUALIZAÇÃO AUTOMÁTICA: Aplicar imediatamente se habilitada
+        if (autoUpdateEnabled) {
+          console.log('🔄 PWA: Aplicando atualização automática no carregamento...');
+          applyUpdateAutomatically(reg.waiting);
         }
       } else {
         console.log('ℹ️ PWA: Worker waiting é o mesmo que o controller - ignorando');
@@ -264,52 +264,51 @@ export const usePWA = () => {
     }
   };
 
-  const updateApp = async (): Promise<void> => {
-    if (!waitingWorker || isUnsupportedEnvironment()) {
-      console.warn('⚠️ PWA: Nenhuma atualização disponível');
-      return;
-    }
-
+  const applyUpdateAutomatically = async (worker: ServiceWorker) => {
     try {
-      console.log('🔄 PWA: Aplicando atualização...');
+      console.log('🔄 PWA: Iniciando atualização automática...');
       
-      // CRÍTICO: Listener temporário APENAS durante atualização
+      // Listener para detectar quando o novo worker assumir controle
       const handleControllerChange = () => {
-        console.log('🔄 PWA: Service Worker atualizado, recarregando página...');
+        console.log('✅ PWA: Atualização automática aplicada, recarregando...');
         navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        window.location.reload();
+        
+        // Pequeno delay para garantir que a transição seja suave
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
       };
       
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       
-      // Limpar estado ANTES de enviar mensagem
+      // Limpar estado
       setPwaState(prev => ({ ...prev, hasUpdate: false }));
       setWaitingWorker(null);
-      setUpdateDismissed(false);
       
-      // Enviar mensagem para ativar
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      // Ativar o novo worker
+      worker.postMessage({ type: 'SKIP_WAITING' });
       
     } catch (error) {
-      console.error('❌ PWA: Erro na atualização:', error);
+      console.error('❌ PWA: Erro na atualização automática:', error);
+    }
+  };
+
+  const updateApp = async (): Promise<void> => {
+    if (waitingWorker) {
+      await applyUpdateAutomatically(waitingWorker);
     }
   };
 
   const dismissUpdate = () => {
-    console.log('🔇 PWA: Usuário dispensou a atualização');
-    setUpdateDismissed(true);
+    console.log('🔇 PWA: Desabilitando atualizações automáticas');
+    setAutoUpdateEnabled(false);
     setPwaState(prev => ({ ...prev, hasUpdate: false }));
     
-    // Dispensar por 30 minutos
+    // Reabilitar após 1 hora
     setTimeout(() => {
-      console.log('⏰ PWA: Timeout de dispensa expirado');
-      setUpdateDismissed(false);
-      
-      // Verificar se ainda há atualização disponível
-      if (waitingWorker && navigator.serviceWorker.controller) {
-        setPwaState(prev => ({ ...prev, hasUpdate: true }));
-      }
-    }, 30 * 60 * 1000);
+      console.log('⏰ PWA: Reabilitando atualizações automáticas');
+      setAutoUpdateEnabled(true);
+    }, 60 * 60 * 1000); // 1 hora
   };
 
   const requestNotificationPermission = async (): Promise<boolean> => {
@@ -357,6 +356,7 @@ export const usePWA = () => {
     requestNotificationPermission,
     showNotification,
     canInstall: pwaState.isInstallable && !pwaState.isInstalled,
-    hasValidUpdate: pwaState.hasUpdate && waitingWorker !== null && !updateDismissed
+    hasValidUpdate: false, // Sempre false pois atualizações são automáticas
+    autoUpdateEnabled
   };
 };
