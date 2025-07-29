@@ -128,7 +128,6 @@ const BillingManagement: React.FC = () => {
         if (gatewayData.mercadopago_access_token) {
           mercadopagoData.secret_key_encrypted = gatewayData.mercadopago_access_token.trim();
         }
-      }
 
         console.log('💾 BILLING: Salvando Mercado Pago:', mercadopagoData);
         const mpSuccess = await updateGateway('mercadopago', mercadopagoData);
