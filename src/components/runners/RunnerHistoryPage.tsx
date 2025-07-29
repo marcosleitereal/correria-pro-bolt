@@ -559,7 +559,6 @@ const RunnerHistoryPage: React.FC = () => {
                     onClick={() => handleOpenViewModal(training)}
                     className="flex items-center gap-2 bg-green-50 text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-100 transition-colors"
                     type="button"
-                    type="button"
                   >
                     <FileText className="w-4 h-4" />
                     Ver e Compartilhar
