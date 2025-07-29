@@ -49,7 +49,7 @@ const features = [
 
 const FeaturesSection: React.FC = () => {
   return (
-    <section className="py-20 px-4 bg-slate-50">
+    <section id="features" className="py-20 px-4 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
