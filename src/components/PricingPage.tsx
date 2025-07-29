@@ -41,7 +41,20 @@ const PricingPage: React.FC = () => {
       }
 
       console.log('✅ Planos carregados:', data?.length || 0);
-      setPlans(data || []);
+      
+      // Filtrar planos administrativos no frontend como camada extra de segurança
+      const publicPlans = (data || []).filter(plan => {
+        const isAdminPlan = plan.name.toLowerCase().includes('admin') ||
+                           plan.name.toLowerCase().includes('restrito') ||
+                           plan.name.toLowerCase().includes('gratuito') ||
+                           ['Elite Admin', 'Restrito', 'Admin', 'Gratuito'].includes(plan.name);
+        
+        console.log(`📋 Plano "${plan.name}": ${isAdminPlan ? 'OCULTO (admin)' : 'PÚBLICO'}`);
+        return !isAdminPlan;
+      });
+      
+      setPlans(publicPlans);
+      console.log('✅ Planos públicos filtrados:', publicPlans.length);
     } catch (err: any) {
       console.error('Erro ao carregar planos:', err);
       setError('Erro ao carregar planos. Tente novamente.');
