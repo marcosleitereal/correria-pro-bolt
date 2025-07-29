@@ -243,19 +243,36 @@ function assembleAIPrompt(
     const firstName = target.name.split(' ')[0];
     
     const runnerData = targetType === 'individual' ? `
-Nome: ${target.name}
-Nível: ${target.fitness_level}
-Peso: ${target.weight_kg || 'Não informado'}kg
-Altura: ${target.height_cm || 'Não informado'}cm
-Meta principal: ${target.main_goal || 'Não informada'}
-Lesões: ${target.injuries ? JSON.stringify(target.injuries) : 'Nenhuma'}
-Condições de Saúde: ${target.health_conditions ? JSON.stringify(target.health_conditions) : 'Nenhuma'}
-Experiência de Treino Passada: ${target.past_training_experience || 'Não informada'}
-Características Físicas: ${target.physical_characteristics ? JSON.stringify(target.physical_characteristics) : 'Não informadas'}
-Preferências Alimentares: ${target.dietary_preferences || 'Não informadas'}
-FC Repouso: ${target.resting_heart_rate || 'Não informada'}bpm
-FC Máxima: ${target.max_heart_rate || 'Não informada'}bpm
-${target.notes ? `Observações: ${target.notes}` : ''}
+**DADOS PESSOAIS:**
+- Nome: ${target.name}
+- Idade: ${target.birth_date ? calculateAge(target.birth_date) : 'Não informada'} anos
+- Gênero: ${target.gender || 'Não informado'}
+- Peso: ${target.weight_kg || 'Não informado'}kg
+- Altura: ${target.height_cm || 'Não informado'}cm
+- Meta principal: ${target.main_goal || 'Não informada'}
+- Nível de condicionamento: ${getFitnessLevelLabel(target.fitness_level)}
+
+**DADOS FISIOLÓGICOS:**
+- FC Repouso: ${target.resting_heart_rate || 'Não informada'}bpm
+- FC Máxima: ${target.max_heart_rate || 'Não informada'}bpm
+
+**HISTÓRICO DE LESÕES:**
+${formatInjuries(target.injuries)}
+
+**CONDIÇÕES DE SAÚDE:**
+${formatHealthConditions(target.health_conditions)}
+
+**EXPERIÊNCIA DE TREINO PASSADA:**
+${target.past_training_experience || 'Não informada - Considere como iniciante e adapte a progressão adequadamente'}
+
+**CARACTERÍSTICAS FÍSICAS ESPECÍFICAS:**
+${formatPhysicalCharacteristics(target.physical_characteristics)}
+
+**PREFERÊNCIAS/RESTRIÇÕES ALIMENTARES:**
+${target.dietary_preferences || 'Nenhuma restrição informada'}
+
+**OBSERVAÇÕES MÉDICAS E IMPORTANTES:**
+${target.notes || 'Nenhuma observação adicional'}
 ` : `
 Nome do Grupo: ${target.name}
 Descrição: ${target.description || 'Não informada'}
@@ -323,20 +340,38 @@ Intensidade: ${style.intensity}
 ${style.duration ? `Duração típica: ${style.duration}` : ''}
 
 ${targetType === 'individual' ? `
-Informações do corredor:
+**DADOS COMPLETOS DO CORREDOR:**
+
+**DADOS PESSOAIS:**
 - Nome: ${target.name}
-- Nível: ${target.fitness_level}
+- Idade: ${target.birth_date ? calculateAge(target.birth_date) : 'Não informada'} anos
+- Gênero: ${target.gender || 'Não informado'}
 - Peso: ${target.weight_kg || 'Não informado'}kg
 - Altura: ${target.height_cm || 'Não informado'}cm
 - Meta principal: ${target.main_goal || 'Não informada'}
-- Lesões: ${target.injuries ? JSON.stringify(target.injuries) : 'Nenhuma'}
-- Condições de Saúde: ${target.health_conditions ? JSON.stringify(target.health_conditions) : 'Nenhuma'}
-- Experiência de Treino Passada: ${target.past_training_experience || 'Não informada'}
-- Características Físicas: ${target.physical_characteristics ? JSON.stringify(target.physical_characteristics) : 'Não informadas'}
-- Preferências Alimentares: ${target.dietary_preferences || 'Não informadas'}
+- Nível de condicionamento: ${getFitnessLevelLabel(target.fitness_level)}
+
+**DADOS FISIOLÓGICOS:**
 - FC Repouso: ${target.resting_heart_rate || 'Não informada'}bpm
 - FC Máxima: ${target.max_heart_rate || 'Não informada'}bpm
-${target.notes ? `- Observações: ${target.notes}` : ''}
+
+**HISTÓRICO DE LESÕES:**
+${formatInjuries(target.injuries)}
+
+**CONDIÇÕES DE SAÚDE:**
+${formatHealthConditions(target.health_conditions)}
+
+**EXPERIÊNCIA DE TREINO PASSADA:**
+${target.past_training_experience || 'Não informada - Considere como iniciante e adapte a progressão adequadamente'}
+
+**CARACTERÍSTICAS FÍSICAS ESPECÍFICAS:**
+${formatPhysicalCharacteristics(target.physical_characteristics)}
+
+**PREFERÊNCIAS/RESTRIÇÕES ALIMENTARES:**
+${target.dietary_preferences || 'Nenhuma restrição informada'}
+
+**OBSERVAÇÕES MÉDICAS E IMPORTANTES:**
+${target.notes || 'Nenhuma observação adicional'}
 ` : `
 Informações do grupo:
 - Nome: ${target.name}
@@ -388,6 +423,82 @@ Varie os exercícios e abordagens mesmo para parâmetros similares.
   return defaultPrompt;
 }
 
+// Helper functions para formatar os dados da anamnese
+function calculateAge(birthDate: string): number {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  
+  return age;
+}
+
+function getFitnessLevelLabel(level: string): string {
+  const labels = {
+    beginner: 'Iniciante',
+    intermediate: 'Intermediário', 
+    advanced: 'Avançado',
+    professional: 'Profissional'
+  };
+  return labels[level as keyof typeof labels] || level;
+}
+
+function formatInjuries(injuries: any): string {
+  if (!injuries) return 'Nenhuma lesão registrada';
+  
+  try {
+    const injuriesArray = typeof injuries === 'string' ? JSON.parse(injuries) : injuries;
+    if (!Array.isArray(injuriesArray) || injuriesArray.length === 0) {
+      return 'Nenhuma lesão registrada';
+    }
+    
+    return injuriesArray.map((injury: any, index: number) => 
+      `${index + 1}. ${injury.nome || 'Lesão'} ${injury.lado ? `(${injury.lado})` : ''} - Status: ${injury.status || 'Não informado'} ${injury.observacoes ? `- ${injury.observacoes}` : ''}`
+    ).join('\n');
+  } catch {
+    return 'Dados de lesões em formato inválido';
+  }
+}
+
+function formatHealthConditions(conditions: any): string {
+  if (!conditions) return 'Nenhuma condição de saúde registrada';
+  
+  try {
+    const conditionsArray = typeof conditions === 'string' ? JSON.parse(conditions) : conditions;
+    if (!Array.isArray(conditionsArray) || conditionsArray.length === 0) {
+      return 'Nenhuma condição de saúde registrada';
+    }
+    
+    return conditionsArray.map((condition: any, index: number) => 
+      `${index + 1}. ${condition.nome || 'Condição'} ${condition.observacoes ? `- ${condition.observacoes}` : ''}`
+    ).join('\n');
+  } catch {
+    return 'Dados de condições de saúde em formato inválido';
+  }
+}
+
+function formatPhysicalCharacteristics(characteristics: any): string {
+  if (!characteristics) return 'Nenhuma característica física específica registrada';
+  
+  try {
+    const charObj = typeof characteristics === 'string' ? JSON.parse(characteristics) : characteristics;
+    if (!charObj || typeof charObj !== 'object') {
+      return 'Nenhuma característica física específica registrada';
+    }
+    
+    const formatted = Object.entries(charObj).map(([key, value]) => 
+      `- ${key}: ${value}`
+    ).join('\n');
+    
+    return formatted || 'Nenhuma característica física específica registrada';
+  } catch {
+    return 'Dados de características físicas em formato inválido';
+  }
+}
 // Mock AI function - replace with actual AI integration
 async function callAIForTraining(prompt: string): Promise<any> {
   console.log('🤖 CHAMADA REAL DA IA INICIADA');
