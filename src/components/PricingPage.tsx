@@ -37,15 +37,7 @@ const PricingPage: React.FC = () => {
       }
 
       // Filter out admin-only plans on the client side
-      const publicPlans = (data || []).filter(plan => {
-        // Hide plans that are clearly admin-only
-        const isAdminPlan = plan.name?.toLowerCase().includes('admin') || 
-                           plan.name?.toLowerCase().includes('restrito') ||
-                           plan.price_monthly === 0;
-        return !isAdminPlan;
-      });
-      
-      setPlans(publicPlans);
+      setPlans(data || []);
     } catch (err: any) {
       console.error('Erro ao carregar planos:', err);
       setError('Erro ao carregar planos. Tente novamente.');
