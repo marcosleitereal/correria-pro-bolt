@@ -267,7 +267,10 @@ async function doBackgroundSync() {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('🔄 SW: Recebida mensagem SKIP_WAITING, ativando nova versão...');
-    self.skipWaiting();
+    // Aguardar um momento antes de ativar para evitar loops
+    setTimeout(() => {
+      self.skipWaiting();
+    }, 100);
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {

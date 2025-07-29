@@ -10,10 +10,10 @@ const UpdatePrompt: React.FC = () => {
   const handleUpdate = async () => {
     setIsUpdating(true);
     try {
-    await updateApp();
+      await updateApp();
+      // Não definir isUpdating como false aqui pois a página será recarregada
     } catch (error) {
       console.error('Erro ao atualizar:', error);
-    } finally {
       setIsUpdating(false);
     }
   };

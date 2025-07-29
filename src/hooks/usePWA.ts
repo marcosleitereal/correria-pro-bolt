@@ -94,11 +94,8 @@ export const usePWA = () => {
       }
     });
 
-    // Listener para mudanças no service worker
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('🔄 PWA: Service Worker atualizado, recarregando página...');
-      window.location.reload();
-    });
+    // Listener para mudanças no service worker - REMOVIDO para evitar loops
+    // O reload será feito apenas quando o usuário clicar em "Atualizar"
   };
 
   const checkInitialState = (reg: ServiceWorkerRegistration) => {
@@ -250,6 +247,15 @@ export const usePWA = () => {
 
     try {
       console.log('🔄 PWA: Aplicando atualização...');
+      
+      // Configurar listener para controllerchange APENAS durante a atualização
+      const handleControllerChange = () => {
+        console.log('🔄 PWA: Service Worker atualizado, recarregando página...');
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+        window.location.reload();
+      };
+      
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       
       // Enviar mensagem para o service worker waiting para pular a espera
       waitingWorker.postMessage({ type: 'SKIP_WAITING' });
