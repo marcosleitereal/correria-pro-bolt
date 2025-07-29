@@ -131,10 +131,7 @@ const AdminDashboard: React.FC = () => {
               </div>
             </AccordionTrigger>
             <AccordionContent value="security" className="w-full">
-              <div className="text-center py-12">
-                <AlertTriangle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">Funcionalidade em desenvolvimento</p>
-              </div>
+              <SecurityManagement />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
