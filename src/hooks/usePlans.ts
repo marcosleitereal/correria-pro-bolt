@@ -129,7 +129,6 @@ export const usePlans = () => {
     createPlan,
     deletePlan,
     getActivePlans,
-    getPlanById,
     refetch: fetchPlans,
   };
 };
