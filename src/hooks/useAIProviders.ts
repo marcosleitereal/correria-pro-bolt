@@ -35,6 +35,7 @@ export const useAIProviders = () => {
         throw fetchError;
       }
 
+      console.log('🔍 [useAIProviders] - Fetched providers:', data);
       console.log('🔍 [useAIProviders] - Provedores carregados:', data);
       setProviders(data || []);
     } catch (err: any) {
@@ -57,6 +58,7 @@ export const useAIProviders = () => {
         throw fetchError;
       }
 
+      console.log('🔍 [useAIProviders] - Fetched global provider:', data?.setting_value);
       console.log('🔍 [useAIProviders] - Provedor global carregado:', data?.setting_value);
       setGlobalProviderState(data?.setting_value || null);
     } catch (err: any) {
@@ -147,8 +149,9 @@ export const useAIProviders = () => {
 
   const getActiveProvider = (): AIProvider | null => {
     if (!globalProvider) return null;
-    return providers.find(p => p.name === globalProvider && p.api_key_encrypted) || null;
-    console.log('🔍 [useAIProviders] - Resultado de getActiveProvider:', foundProvider);
+    const foundProvider = providers.find(p => p.name === globalProvider && p.api_key_encrypted);
+    console.log('🔍 [useAIProviders] - getActiveProvider called. Current globalProvider:', globalProvider, 'Current providers count:', providers.length, 'Found:', !!foundProvider);
+    return foundProvider || null;
   };
 
   return {
