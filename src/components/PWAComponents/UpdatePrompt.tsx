@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Download } from 'lucide-react';
 import { usePWA } from '../../hooks/usePWA';
