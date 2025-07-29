@@ -91,11 +91,11 @@ const PublicFeedbackPage: React.FC = () => {
       
       // Definir nome do atleta no formulário se disponível
       // Parse training content
-      if (trainingData.training_content) {
+      if (data[0].training_content) {
         try {
-          const parsedContent = typeof trainingData.training_content === 'string' 
-            ? JSON.parse(trainingData.training_content) 
-            : trainingData.training_content;
+          const parsedContent = typeof data[0].training_content === 'string' 
+            ? JSON.parse(data[0].training_content) 
+            : data[0].training_content;
           setContent(parsedContent);
         } catch (parseError) {
           console.error('❌ Erro ao parsear conteúdo do treino:', parseError);
