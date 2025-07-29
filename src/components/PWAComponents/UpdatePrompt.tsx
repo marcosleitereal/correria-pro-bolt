@@ -38,6 +38,7 @@ const UpdatePrompt: React.FC = () => {
         </div>
       </motion.div>
     </AnimatePresence>
+  )
   );
 };
 
