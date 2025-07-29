@@ -267,10 +267,18 @@ async function doBackgroundSync() {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('🔄 SW: Recebida mensagem SKIP_WAITING, ativando nova versão...');
-    self.skipWaiting();
+    // Pequeno delay para evitar condições de corrida
+    setTimeout(() => {
+      self.skipWaiting();
+    }, 100);
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
+  }
+  
+  // Responder a pings de verificação de saúde
+  if (event.data && event.data.type === 'PING') {
+    event.ports[0].postMessage({ type: 'PONG', version: CACHE_NAME });
   }
 });

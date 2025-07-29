@@ -25,6 +25,7 @@ export const usePWA = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<PWAInstallPrompt | null>(null);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   useEffect(() => {
     // Registrar Service Worker
@@ -56,105 +57,104 @@ export const usePWA = () => {
         setRegistration(reg);
         console.log('✅ PWA: Service Worker registrado com sucesso');
         
-        // Configurar listeners para atualizações
+        // CRÍTICO: Configurar listeners APENAS uma vez
         setupUpdateListeners(reg);
         
-        // Verificar estado inicial
-        checkInitialState(reg);
+        // Verificar estado inicial APENAS se necessário
+        checkInitialUpdateState(reg);
         
       } catch (error) {
         if (error.message && error.message.includes('Service Workers are not yet supported')) {
           console.warn('⚠️ PWA: Service Workers não suportados neste ambiente (StackBlitz/WebContainer)');
-          console.log('ℹ️ PWA: Funcionalidades PWA estarão disponíveis em produção');
         } else {
           console.error('❌ PWA: Erro ao registrar Service Worker:', error);
         }
       }
     } else {
       console.warn('⚠️ PWA: Service Workers não disponíveis neste ambiente');
-      console.log('ℹ️ PWA: Funcionalidades PWA funcionarão em produção');
     }
   };
 
   const setupUpdateListeners = (reg: ServiceWorkerRegistration) => {
-    // Listener para quando uma nova versão é encontrada
+    // CRÍTICO: Listener para updatefound - só dispara quando há NOVA versão
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
+      console.log('🔄 PWA: NOVA VERSÃO DETECTADA - updatefound disparado');
+      
       if (newWorker) {
-        console.log('🔄 PWA: Nova versão encontrada, aguardando instalação...');
-        
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed') {
-            // Verificar se há um service worker ativo (indica atualização, não primeira instalação)
-            if (navigator.serviceWorker.controller) {
-              console.log('✅ PWA: Nova versão instalada e pronta para ativação');
-              setWaitingWorker(newWorker);
-              setPwaState(prev => ({ ...prev, hasUpdate: true }));
-            } else {
-              console.log('ℹ️ PWA: Primeira instalação do service worker');
-            }
-          }
-        });
-      }
-    });
-
-    // Não adicionar listener de controllerchange aqui para evitar loops
-  };
-
-  const checkInitialState = (reg: ServiceWorkerRegistration) => {
-    // Verificar se já existe um service worker waiting (apenas se há um controller ativo)
-    if (reg.waiting && navigator.serviceWorker.controller) {
-      console.log('⚠️ PWA: Service Worker waiting detectado no carregamento inicial');
-      // Verificar se realmente é uma versão diferente
-      if (reg.waiting !== navigator.serviceWorker.controller) {
-        setWaitingWorker(reg.waiting);
-        setPwaState(prev => ({ ...prev, hasUpdate: true }));
-      }
-    }
-    
-    if (reg.installing && navigator.serviceWorker.controller) {
-      // Só rastrear se há um controller ativo (indica atualização)
-      trackInstalling(reg.installing);
-    }
-    
-    if (reg.active) {
-      console.log('✅ PWA: Service Worker ativo');
-    }
-  };
-
-  const isUnsupportedEnvironment = (): boolean => {
-    // Detect StackBlitz/WebContainer environment
-    return (
-      typeof window !== 'undefined' && (
-        window.location.hostname.includes('stackblitz') ||
-        window.location.hostname.includes('webcontainer') ||
-        window.location.hostname.includes('local-credentialless') ||
-        // Check for WebContainer specific globals
-        (window as any).__webcontainer__ ||
-        // Check user agent for WebContainer
-        navigator.userAgent.includes('WebContainer')
-      )
-    );
-  };
-
-  const trackInstalling = (worker: ServiceWorker) => {
-    worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed') {
+        // IMPORTANTE: Só rastrear se há um service worker ativo (indica atualização real)
         if (navigator.serviceWorker.controller) {
-          // Nova versão disponível (há um controller ativo)
-          console.log('🔄 PWA: Nova versão instalada e pronta');
-          setWaitingWorker(worker);
-          setPwaState(prev => ({ ...prev, hasUpdate: true }));
+          console.log('✅ PWA: Confirmado - é uma ATUALIZAÇÃO (não primeira instalação)');
+          trackNewWorkerInstallation(newWorker);
         } else {
-          // Primeira instalação
-          console.log('✅ PWA: Primeira instalação concluída');
+          console.log('ℹ️ PWA: Primeira instalação detectada - não é atualização');
         }
       }
     });
   };
 
+  const trackNewWorkerInstallation = (newWorker: ServiceWorker) => {
+    newWorker.addEventListener('statechange', () => {
+      console.log('🔄 PWA: Novo worker mudou estado para:', newWorker.state);
+      
+      if (newWorker.state === 'installed') {
+        // DUPLA VERIFICAÇÃO: Confirmar que há um controller ativo
+        if (navigator.serviceWorker.controller) {
+          console.log('✅ PWA: NOVA VERSÃO INSTALADA E PRONTA PARA ATIVAÇÃO');
+          setWaitingWorker(newWorker);
+          
+          // CRÍTICO: Só definir hasUpdate se não foi dispensado
+          if (!updateDismissed) {
+            setPwaState(prev => ({ ...prev, hasUpdate: true }));
+            console.log('📢 PWA: Exibindo prompt de atualização');
+          } else {
+            console.log('🔇 PWA: Atualização disponível mas prompt foi dispensado');
+          }
+        } else {
+          console.log('ℹ️ PWA: Worker instalado mas sem controller - primeira instalação');
+        }
+      }
+    });
+  };
+
+  const checkInitialUpdateState = (reg: ServiceWorkerRegistration) => {
+    // CRÍTICO: Só verificar se há um controller ativo (app já funcionando)
+    if (!navigator.serviceWorker.controller) {
+      console.log('ℹ️ PWA: Primeira visita - sem verificação de atualização');
+      return;
+    }
+
+    // Verificar se já existe um worker waiting
+    if (reg.waiting) {
+      console.log('⚠️ PWA: Worker waiting encontrado no carregamento inicial');
+      
+      // VERIFICAÇÃO RIGOROSA: Confirmar que é diferente do controller
+      if (reg.waiting !== navigator.serviceWorker.controller) {
+        console.log('✅ PWA: Confirmado - worker waiting é diferente do controller');
+        setWaitingWorker(reg.waiting);
+        
+        if (!updateDismissed) {
+          setPwaState(prev => ({ ...prev, hasUpdate: true }));
+        }
+      } else {
+        console.log('ℹ️ PWA: Worker waiting é o mesmo que o controller - ignorando');
+      }
+    }
+  };
+
+  const isUnsupportedEnvironment = (): boolean => {
+    return (
+      typeof window !== 'undefined' && (
+        window.location.hostname.includes('stackblitz') ||
+        window.location.hostname.includes('webcontainer') ||
+        window.location.hostname.includes('local-credentialless') ||
+        (window as any).__webcontainer__ ||
+        navigator.userAgent.includes('WebContainer')
+      )
+    );
+  };
+
   const checkIfInstalled = () => {
-    // Verificar se está rodando como PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                          (window.navigator as any).standalone ||
                          document.referrer.includes('android-app://');
@@ -190,7 +190,6 @@ export const usePWA = () => {
   const setupNetworkListeners = () => {
     const updateOnlineStatus = () => {
       const isOnline = navigator.onLine;
-      console.log(`🌐 PWA: Status da rede: ${isOnline ? 'Online' : 'Offline'}`);
       setPwaState(prev => ({ ...prev, isOnline }));
     };
 
@@ -257,7 +256,7 @@ export const usePWA = () => {
     try {
       console.log('🔄 PWA: Aplicando atualização...');
       
-      // Configurar listener para controllerchange APENAS durante a atualização
+      // CRÍTICO: Listener temporário APENAS durante atualização
       const handleControllerChange = () => {
         console.log('🔄 PWA: Service Worker atualizado, recarregando página...');
         navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
@@ -266,16 +265,34 @@ export const usePWA = () => {
       
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       
-      // Enviar mensagem para o service worker waiting para pular a espera
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-      
-      // Limpar estado de atualização
+      // Limpar estado ANTES de enviar mensagem
       setPwaState(prev => ({ ...prev, hasUpdate: false }));
       setWaitingWorker(null);
+      setUpdateDismissed(false);
+      
+      // Enviar mensagem para ativar
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
       
     } catch (error) {
       console.error('❌ PWA: Erro na atualização:', error);
     }
+  };
+
+  const dismissUpdate = () => {
+    console.log('🔇 PWA: Usuário dispensou a atualização');
+    setUpdateDismissed(true);
+    setPwaState(prev => ({ ...prev, hasUpdate: false }));
+    
+    // Dispensar por 30 minutos
+    setTimeout(() => {
+      console.log('⏰ PWA: Timeout de dispensa expirado');
+      setUpdateDismissed(false);
+      
+      // Verificar se ainda há atualização disponível
+      if (waitingWorker && navigator.serviceWorker.controller) {
+        setPwaState(prev => ({ ...prev, hasUpdate: true }));
+      }
+    }, 30 * 60 * 1000);
   };
 
   const requestNotificationPermission = async (): Promise<boolean> => {
@@ -319,9 +336,10 @@ export const usePWA = () => {
     ...pwaState,
     installApp,
     updateApp,
+    dismissUpdate,
     requestNotificationPermission,
     showNotification,
     canInstall: pwaState.isInstallable && !pwaState.isInstalled,
-    hasValidUpdate: pwaState.hasUpdate && waitingWorker !== null
+    hasValidUpdate: pwaState.hasUpdate && waitingWorker !== null && !updateDismissed
   };
 };
