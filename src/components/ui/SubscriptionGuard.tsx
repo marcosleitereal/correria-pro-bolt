@@ -22,7 +22,8 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
     athleteLimitReached,
     blockingReason,
     showUpgradeModal,
-    getAthleteCountDisplay
+    getAthleteCountDisplay,
+    loading
   } = useSubscriptionGuard();
 
   const canAccess = () => {
@@ -45,8 +46,19 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
     canGenerateTraining,
     canAccessFeature,
     trialExpired,
-    blockingReason
+    blockingReason,
+    loading
   });
+
+  // CRÍTICO: Aguardar carregamento antes de mostrar bloqueio
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl p-8 shadow-lg border border-slate-200 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-slate-600">Verificando permissões...</p>
+      </div>
+    );
+  }
 
   const getIcon = () => {
     if (trialExpired) return Calendar;

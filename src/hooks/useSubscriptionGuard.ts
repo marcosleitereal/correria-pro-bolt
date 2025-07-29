@@ -12,11 +12,12 @@ interface SubscriptionGuard {
   currentAthleteCount: number;
   athleteLimit: number;
   blockingReason: string | null;
+  loading: boolean;
 }
 
 export const useSubscriptionGuard = () => {
-  const { subscriptionStatus, isTrialing, isActive, hasAccess, daysUntilTrialEnd } = useSubscriptionStatus();
-  const { runners } = useRunners();
+  const { subscriptionStatus, isTrialing, isActive, hasAccess, daysUntilTrialEnd, loading: subscriptionLoading } = useSubscriptionStatus();
+  const { runners, loading: runnersLoading } = useRunners();
   const { settings: appSettings, loading: settingsLoading } = useAppSettings();
   
   const [guard, setGuard] = useState<SubscriptionGuard>({
@@ -28,19 +29,30 @@ export const useSubscriptionGuard = () => {
     currentAthleteCount: 0,
     athleteLimit: 0,
     blockingReason: null,
+    loading: true,
   });
 
+  // CRÍTICO: Aguardar todos os dados carregarem antes de tomar decisões
+  const isLoading = subscriptionLoading || runnersLoading || settingsLoading;
+
   useEffect(() => {
+    // Se ainda está carregando, não fazer nada
+    if (isLoading) {
+      setGuard(prev => ({ ...prev, loading: true }));
+      return;
+    }
+
     console.log('🛡️ GUARD DEBUG: Recalculando guard com dados:', {
       subscriptionStatus: subscriptionStatus?.current_plan_name,
       hasAccess,
       isTrialing,
       isActive,
-      userEmail: subscriptionStatus?.email
+      userEmail: subscriptionStatus?.email,
+      isLoading
     });
 
     calculateGuardStatus();
-  }, [subscriptionStatus, runners, appSettings, settingsLoading, hasAccess, isTrialing, isActive]);
+  }, [subscriptionStatus, runners, appSettings, isLoading, hasAccess, isTrialing, isActive]);
 
   const calculateGuardStatus = () => {
     const currentAthleteCount = runners.filter(r => !r.is_archived).length;
@@ -50,7 +62,8 @@ export const useSubscriptionGuard = () => {
       current_plan_name: subscriptionStatus?.current_plan_name,
       hasAccess,
       isTrialing,
-      isActive
+      isActive,
+      isLoading
     });
 
     // ACESSO TOTAL PARA DEV
@@ -65,6 +78,7 @@ export const useSubscriptionGuard = () => {
         currentAthleteCount,
         athleteLimit: Infinity,
         blockingReason: null,
+        loading: false,
       });
       return;
     }
@@ -91,6 +105,7 @@ export const useSubscriptionGuard = () => {
         currentAthleteCount,
         athleteLimit: 0,
         blockingReason: 'Sua conta está BLOQUEADA no plano restrito. Você pode navegar mas não pode usar as funcionalidades. Faça upgrade para um plano pago para reativar todas as funcionalidades.',
+        loading: false,
       });
       return;
     }
@@ -118,6 +133,7 @@ export const useSubscriptionGuard = () => {
         currentAthleteCount,
         athleteLimit: 0,
         blockingReason,
+        loading: false,
       });
       return;
     }
@@ -136,6 +152,7 @@ export const useSubscriptionGuard = () => {
       currentAthleteCount,
       athleteLimit,
       blockingReason: null,
+      loading: false,
     });
   };
 
@@ -154,7 +171,8 @@ export const useSubscriptionGuard = () => {
     canAccessFeature: guard.canAccessFeature,
     canCreateRunner: guard.canCreateRunner,
     canGenerateTraining: guard.canGenerateTraining,
-    blockingReason: guard.blockingReason
+    blockingReason: guard.blockingReason,
+    loading: guard.loading
   });
 
   return {

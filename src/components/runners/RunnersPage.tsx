@@ -17,7 +17,7 @@ const RunnersPage: React.FC = () => {
   const navigate = useNavigate();
   const { runners, loading, error, createRunner, updateRunner, archiveRunner, unarchiveRunner } = useRunners();
   const { notifications } = useNotifications();
-  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
+  const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -169,8 +169,8 @@ const RunnersPage: React.FC = () => {
     return colors[level as keyof typeof colors] || 'bg-slate-100 text-slate-700';
   };
 
-  // VERIFICAÇÃO DE LOADING
-  if (loading) {
+  // VERIFICAÇÃO DE LOADING (dados dos corredores)
+  if (loading || guardLoading) {
     return (
       <div className="p-6 lg:p-8">
         <div>

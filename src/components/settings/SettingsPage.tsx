@@ -16,7 +16,7 @@ const SettingsPage: React.FC = () => {
     updateTemplate, 
     deleteTemplate 
   } = useObservationTemplates();
-  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
+  const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ObservationTemplate | null>(null);
@@ -50,6 +50,18 @@ const SettingsPage: React.FC = () => {
   };
 
   const isAtLimit = templates.length >= 5;
+
+  // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
+  if (guardLoading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando configurações...</p>
+        </div>
+      </div>
+    );
+  }
 
   // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
   if (!canAccessFeature) {

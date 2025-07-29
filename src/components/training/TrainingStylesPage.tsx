@@ -19,7 +19,7 @@ const TrainingStylesPage: React.FC = () => {
     updateStyle, 
     toggleFavorite 
   } = useTrainingStyles();
-  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
+  const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,8 +91,8 @@ const TrainingStylesPage: React.FC = () => {
     return favoriteStyles.some(fav => fav.id === styleId);
   };
 
-  // VERIFICAÇÃO DE LOADING
-  if (loading) {
+  // VERIFICAÇÃO DE LOADING (dados dos estilos + guard)
+  if (loading || guardLoading) {
     return (
       <div className="p-6 lg:p-8">
         <div>

@@ -14,7 +14,7 @@ import SubscriptionGuard from '../ui/SubscriptionGuard';
 const GroupsPage: React.FC = () => {
   const { groups, loading, error, createGroup, updateGroup, deleteGroup } = useTrainingGroups();
   const { getMemberCount } = useGroupMemberships();
-  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
+  const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -83,8 +83,8 @@ const GroupsPage: React.FC = () => {
     return colors[level as keyof typeof colors] || 'bg-slate-100 text-slate-700';
   };
 
-  // VERIFICAÇÃO DE LOADING
-  if (loading) {
+  // VERIFICAÇÃO DE LOADING (dados dos grupos + guard)
+  if (loading || guardLoading) {
     return (
       <div className="p-6 lg:p-8">
         <div>

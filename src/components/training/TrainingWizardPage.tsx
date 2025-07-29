@@ -28,7 +28,7 @@ const TrainingWizardPage: React.FC = () => {
   const { groups } = useTrainingGroups();
   const { styles, favoriteStyles } = useTrainingStyles();
   const { createTraining, generating } = useTrainings();
-  const { canAccessFeature, blockingReason } = useSubscriptionGuard();
+  const { canAccessFeature, blockingReason, loading: guardLoading } = useSubscriptionGuard();
 
   // Filtrar apenas corredores ativos (não arquivados)
   const activeRunners = runners.filter(runner => !runner.is_archived);
@@ -172,6 +172,18 @@ const TrainingWizardPage: React.FC = () => {
         return '';
     }
   };
+
+  // AGUARDAR CARREGAMENTO ANTES DE DECIDIR BLOQUEIO
+  if (guardLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando wizard...</p>
+        </div>
+      </div>
+    );
+  }
 
   // BLOQUEIO TOTAL PARA PLANO RESTRITO OU SEM ACESSO
   if (!canAccessFeature) {
