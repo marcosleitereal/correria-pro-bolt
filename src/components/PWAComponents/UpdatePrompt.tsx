@@ -1,17 +1,16 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Download, X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import { usePWA } from '../../hooks/usePWA';
 
 const UpdatePrompt: React.FC = () => {
-  const { hasValidUpdate, autoUpdateEnabled } = usePWA();
+  const { hasValidUpdate, updateApp, dismissUpdate } = usePWA();
 
-  // ATUALIZAÇÃO AUTOMÁTICA: Nunca mostrar prompt pois atualizações são automáticas
-  if (!hasValidUpdate || autoUpdateEnabled) {
+  // Só mostrar se realmente há uma atualização válida
+  if (!hasValidUpdate) {
     return null;
   }
 
-  // Este componente agora só serve como fallback (nunca deve aparecer)
   return (
     <AnimatePresence>
       <motion.div
@@ -31,14 +30,22 @@ const UpdatePrompt: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 cursor-default"
+                onClick={updateApp}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              >
+                Atualizar
+              </button>
+              <button
+                onClick={dismissUpdate}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </motion.div>
     </AnimatePresence>
-  )
   );
 };
 

@@ -24,6 +24,7 @@ import { supabase } from '../../lib/supabase';
 import NotificationDropdown from '../notifications/NotificationDropdown';
 import PWAInstallButton from '../PWAComponents/PWAInstallButton';
 import NotificationButton from '../PWAComponents/NotificationButton';
+import UpdatePrompt from '../PWAComponents/UpdatePrompt';
 
 interface PrivateLayoutProps {
   children: React.ReactNode;
@@ -420,6 +421,9 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
           </div>
         </main>
       </div>
+      
+      {/* Update Prompt */}
+      <UpdatePrompt />
     </div>
   );
 };

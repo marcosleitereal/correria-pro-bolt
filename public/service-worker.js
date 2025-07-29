@@ -266,11 +266,8 @@ async function doBackgroundSync() {
 // Mensagens do cliente
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('🔄 SW: SKIP_WAITING recebido - ativando nova versão automaticamente...');
-    // Pequeno delay para evitar condições de corrida
-    setTimeout(() => {
-      self.skipWaiting();
-    }, 50);
+    console.log('🔄 SW: SKIP_WAITING recebido');
+    self.skipWaiting();
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {

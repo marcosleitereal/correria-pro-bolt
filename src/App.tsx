@@ -159,6 +159,7 @@ function App() {
           
           {/* PWA Components */}
           <InstallPrompt />
+          <UpdatePrompt />
           <OfflineBanner />
         </div>
       </Router>

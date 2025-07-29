@@ -25,7 +25,8 @@ export const usePWA = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<PWAInstallPrompt | null>(null);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
-  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
+  const [hasAppliedUpdate, setHasAppliedUpdate] = useState(false);
 
   useEffect(() => {
     // Registrar Service Worker
@@ -41,7 +42,7 @@ export const usePWA = () => {
     setupNetworkListeners();
     
     // Verificar versão
-    checkVersion();
+    // checkVersion(); // Desabilitado temporariamente
   }, []);
 
   const registerServiceWorker = async () => {
@@ -57,11 +58,8 @@ export const usePWA = () => {
         setRegistration(reg);
         console.log('✅ PWA: Service Worker registrado com sucesso');
         
-        // CRÍTICO: Configurar listeners APENAS uma vez
-        setupUpdateListeners(reg);
-        
-        // Verificar estado inicial APENAS se necessário
-        checkInitialUpdateState(reg);
+        // Configurar listeners básicos apenas
+        setupBasicListeners(reg);
         
       } catch (error) {
         if (error.message && error.message.includes('Service Workers are not yet supported')) {
@@ -75,88 +73,14 @@ export const usePWA = () => {
     }
   };
 
-  const setupUpdateListeners = (reg: ServiceWorkerRegistration) => {
-    // CRÍTICO: Listener para updatefound - só dispara quando há NOVA versão
+  const setupBasicListeners = (reg: ServiceWorkerRegistration) => {
+    // Listener básico sem auto-update
     reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      console.log('🔄 PWA: NOVA VERSÃO DETECTADA - updatefound disparado');
+      console.log('🔄 PWA: Nova versão detectada (sem auto-update)');
       
-      if (newWorker) {
-        // CRÍTICO: Só rastrear se há um service worker ativo E se não é primeira instalação
-        if (navigator.serviceWorker.controller && !isFirstInstall()) {
-          console.log('✅ PWA: Confirmado - é uma ATUALIZAÇÃO (não primeira instalação)');
-          trackNewWorkerInstallation(newWorker);
-        } else {
-          console.log('ℹ️ PWA: Primeira instalação ou sem controller - ignorando updatefound');
-        }
-      }
+      // Apenas log, sem ação automática
+      setPwaState(prev => ({ ...prev, hasUpdate: true }));
     });
-  };
-
-  const isFirstInstall = () => {
-    // Verificar se é primeira instalação baseado em múltiplos fatores
-    const hasController = !!navigator.serviceWorker.controller;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const hasVisitedBefore = localStorage.getItem('pwa-visited') === 'true';
-    
-    // Se não tem controller E não visitou antes, é primeira instalação
-    if (!hasController && !hasVisitedBefore) {
-      localStorage.setItem('pwa-visited', 'true');
-      return true;
-    }
-    
-    return false;
-  };
-
-  const trackNewWorkerInstallation = (newWorker: ServiceWorker) => {
-    newWorker.addEventListener('statechange', () => {
-      console.log('🔄 PWA: Novo worker mudou estado para:', newWorker.state);
-      
-      if (newWorker.state === 'installed') {
-        // TRIPLA VERIFICAÇÃO: Controller ativo + não é primeira instalação + workers diferentes
-        if (navigator.serviceWorker.controller && 
-            !isFirstInstall() && 
-            newWorker !== navigator.serviceWorker.controller) {
-          console.log('✅ PWA: NOVA VERSÃO INSTALADA E PRONTA PARA ATIVAÇÃO');
-          setWaitingWorker(newWorker);
-          
-          // ATUALIZAÇÃO AUTOMÁTICA: Aplicar imediatamente
-          if (autoUpdateEnabled) {
-            console.log('🔄 PWA: Aplicando atualização automática...');
-            applyUpdateAutomatically(newWorker);
-          }
-        } else {
-          console.log('ℹ️ PWA: Worker instalado mas é primeira instalação ou mesmo worker - ignorando');
-        }
-      }
-    });
-  };
-
-  const checkInitialUpdateState = (reg: ServiceWorkerRegistration) => {
-    // CRÍTICO: Só verificar se há um controller ativo E não é primeira instalação
-    if (!navigator.serviceWorker.controller || isFirstInstall()) {
-      console.log('ℹ️ PWA: Primeira visita - sem verificação de atualização');
-      return;
-    }
-
-    // Verificar se já existe um worker waiting
-    if (reg.waiting) {
-      console.log('⚠️ PWA: Worker waiting encontrado no carregamento inicial');
-      
-      // VERIFICAÇÃO RIGOROSA: Confirmar que é diferente do controller
-      if (reg.waiting !== navigator.serviceWorker.controller) {
-        console.log('✅ PWA: Confirmado - worker waiting é diferente do controller');
-        setWaitingWorker(reg.waiting);
-        
-        // ATUALIZAÇÃO AUTOMÁTICA: Aplicar imediatamente se habilitada
-        if (autoUpdateEnabled) {
-          console.log('🔄 PWA: Aplicando atualização automática no carregamento...');
-          applyUpdateAutomatically(reg.waiting);
-        }
-      } else {
-        console.log('ℹ️ PWA: Worker waiting é o mesmo que o controller - ignorando');
-      }
-    }
   };
 
   const isUnsupportedEnvironment = (): boolean => {
@@ -264,51 +188,22 @@ export const usePWA = () => {
     }
   };
 
-  const applyUpdateAutomatically = async (worker: ServiceWorker) => {
-    try {
-      console.log('🔄 PWA: Iniciando atualização automática...');
-      
-      // Listener para detectar quando o novo worker assumir controle
-      const handleControllerChange = () => {
-        console.log('✅ PWA: Atualização automática aplicada, recarregando...');
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        
-        // Pequeno delay para garantir que a transição seja suave
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
-      };
-      
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-      
-      // Limpar estado
-      setPwaState(prev => ({ ...prev, hasUpdate: false }));
-      setWaitingWorker(null);
-      
-      // Ativar o novo worker
-      worker.postMessage({ type: 'SKIP_WAITING' });
-      
-    } catch (error) {
-      console.error('❌ PWA: Erro na atualização automática:', error);
-    }
-  };
-
   const updateApp = async (): Promise<void> => {
-    if (waitingWorker) {
-      await applyUpdateAutomatically(waitingWorker);
+    if (waitingWorker && !hasAppliedUpdate) {
+      setHasAppliedUpdate(true);
+      console.log('🔄 PWA: Aplicando atualização manual...');
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      
+      // Recarregar após um delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   };
 
   const dismissUpdate = () => {
-    console.log('🔇 PWA: Desabilitando atualizações automáticas');
-    setAutoUpdateEnabled(false);
     setPwaState(prev => ({ ...prev, hasUpdate: false }));
-    
-    // Reabilitar após 1 hora
-    setTimeout(() => {
-      console.log('⏰ PWA: Reabilitando atualizações automáticas');
-      setAutoUpdateEnabled(true);
-    }, 60 * 60 * 1000); // 1 hora
+    setWaitingWorker(null);
   };
 
   const requestNotificationPermission = async (): Promise<boolean> => {
@@ -356,7 +251,7 @@ export const usePWA = () => {
     requestNotificationPermission,
     showNotification,
     canInstall: pwaState.isInstallable && !pwaState.isInstalled,
-    hasValidUpdate: false, // Sempre false pois atualizações são automáticas
-    autoUpdateEnabled
+    hasValidUpdate: !!waitingWorker && !hasAppliedUpdate,
+    autoUpdateEnabled: false // Desabilitado para evitar loops
   };
 };
