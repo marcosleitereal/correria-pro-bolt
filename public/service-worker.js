@@ -266,6 +266,7 @@ async function doBackgroundSync() {
 // Mensagens do cliente
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('🔄 SW: Recebida mensagem SKIP_WAITING, ativando nova versão...');
     self.skipWaiting();
   }
   

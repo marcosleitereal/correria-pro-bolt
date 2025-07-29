@@ -4,13 +4,22 @@ import { RefreshCw, Download } from 'lucide-react';
 import { usePWA } from '../../hooks/usePWA';
 
 const UpdatePrompt: React.FC = () => {
-  const { hasUpdate, updateApp } = usePWA();
+  const { hasUpdate, hasValidUpdate, updateApp } = usePWA();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleUpdate = async () => {
+    setIsUpdating(true);
+    try {
     await updateApp();
+    } catch (error) {
+      console.error('Erro ao atualizar:', error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  if (!hasUpdate) {
+  // Só mostrar se realmente há uma atualização válida
+  if (!hasUpdate || !hasValidUpdate) {
     return null;
   }
 
@@ -33,10 +42,20 @@ const UpdatePrompt: React.FC = () => {
             </div>
             <button
               onClick={handleUpdate}
+              disabled={isUpdating}
               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform duration-300 flex items-center gap-2"
             >
-              <Download className="w-4 h-4" />
-              Atualizar
+              {isUpdating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Atualizando...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Atualizar
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -24,6 +24,7 @@ export const usePWA = () => {
 
   const [deferredPrompt, setDeferredPrompt] = useState<PWAInstallPrompt | null>(null);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
     // Registrar Service Worker
@@ -55,24 +56,11 @@ export const usePWA = () => {
         setRegistration(reg);
         console.log('✅ PWA: Service Worker registrado com sucesso');
         
-        // Verificar atualizações
-        reg.addEventListener('updatefound', () => {
-          console.log('🔄 PWA: Nova versão encontrada');
-          setPwaState(prev => ({ ...prev, hasUpdate: true }));
-        });
+        // Configurar listeners para atualizações
+        setupUpdateListeners(reg);
         
-        // Escutar mudanças de estado
-        if (reg.installing) {
-          trackInstalling(reg.installing);
-        }
-        
-        if (reg.waiting) {
-          setPwaState(prev => ({ ...prev, hasUpdate: true }));
-        }
-        
-        if (reg.active) {
-          console.log('✅ PWA: Service Worker ativo');
-        }
+        // Verificar estado inicial
+        checkInitialState(reg);
         
       } catch (error) {
         if (error.message && error.message.includes('Service Workers are not yet supported')) {
@@ -85,6 +73,48 @@ export const usePWA = () => {
     } else {
       console.warn('⚠️ PWA: Service Workers não disponíveis neste ambiente');
       console.log('ℹ️ PWA: Funcionalidades PWA funcionarão em produção');
+    }
+  };
+
+  const setupUpdateListeners = (reg: ServiceWorkerRegistration) => {
+    // Listener para quando uma nova versão é encontrada
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (newWorker) {
+        console.log('🔄 PWA: Nova versão encontrada, aguardando instalação...');
+        
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nova versão instalada e há um service worker ativo
+            console.log('✅ PWA: Nova versão instalada e pronta para ativação');
+            setWaitingWorker(newWorker);
+            setPwaState(prev => ({ ...prev, hasUpdate: true }));
+          }
+        });
+      }
+    });
+
+    // Listener para mudanças no service worker
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('🔄 PWA: Service Worker atualizado, recarregando página...');
+      window.location.reload();
+    });
+  };
+
+  const checkInitialState = (reg: ServiceWorkerRegistration) => {
+    // Verificar se já existe um service worker waiting
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      console.log('⚠️ PWA: Service Worker waiting detectado no carregamento inicial');
+      setWaitingWorker(reg.waiting);
+      setPwaState(prev => ({ ...prev, hasUpdate: true }));
+    }
+    
+    if (reg.installing) {
+      trackInstalling(reg.installing);
+    }
+    
+    if (reg.active) {
+      console.log('✅ PWA: Service Worker ativo');
     }
   };
 
@@ -105,15 +135,14 @@ export const usePWA = () => {
 
   const trackInstalling = (worker: ServiceWorker) => {
     worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed') {
-        if (navigator.serviceWorker.controller) {
-          // Nova versão disponível
-          console.log('🔄 PWA: Nova versão instalada');
-          setPwaState(prev => ({ ...prev, hasUpdate: true }));
-        } else {
-          // Primeira instalação
-          console.log('✅ PWA: Primeira instalação concluída');
-        }
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+        // Nova versão disponível
+        console.log('🔄 PWA: Nova versão instalada e pronta');
+        setWaitingWorker(worker);
+        setPwaState(prev => ({ ...prev, hasUpdate: true }));
+      } else if (worker.state === 'installed') {
+        // Primeira instalação
+        console.log('✅ PWA: Primeira instalação concluída');
       }
     });
   };
@@ -214,7 +243,7 @@ export const usePWA = () => {
   };
 
   const updateApp = async (): Promise<void> => {
-    if (!registration || !registration.waiting || isUnsupportedEnvironment()) {
+    if (!waitingWorker || isUnsupportedEnvironment()) {
       console.warn('⚠️ PWA: Nenhuma atualização disponível');
       return;
     }
@@ -222,14 +251,12 @@ export const usePWA = () => {
     try {
       console.log('🔄 PWA: Aplicando atualização...');
       
-      // Enviar mensagem para o service worker waiting
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      // Enviar mensagem para o service worker waiting para pular a espera
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
       
-      // Recarregar a página após a atualização
-      registration.addEventListener('controllerchange', () => {
-        console.log('✅ PWA: Atualização aplicada, recarregando...');
-        window.location.reload();
-      });
+      // Limpar estado de atualização
+      setPwaState(prev => ({ ...prev, hasUpdate: false }));
+      setWaitingWorker(null);
       
     } catch (error) {
       console.error('❌ PWA: Erro na atualização:', error);
@@ -279,6 +306,7 @@ export const usePWA = () => {
     updateApp,
     requestNotificationPermission,
     showNotification,
-    canInstall: pwaState.isInstallable && !pwaState.isInstalled
+    canInstall: pwaState.isInstallable && !pwaState.isInstalled,
+    hasValidUpdate: pwaState.hasUpdate && waitingWorker !== null
   };
 };
