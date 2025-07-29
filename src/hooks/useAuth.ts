@@ -22,8 +22,8 @@ export const useAuth = () => {
       
       if (error) {
         console.error('Error getting session:', error);
-        // Clear local auth state if session is invalid
-        clearUserLocally();
+        // Clear invalid session from local storage
+        await signOut();
         return;
       }
       
