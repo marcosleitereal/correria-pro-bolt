@@ -19,6 +19,8 @@ export const useTrainings = () => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthContext();
   const { getSetting } = useAISettings();
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export const useTrainings = () => {
 
   const createTraining = async (trainingData: CreateTrainingData, activeProvider: AIProvider | null): Promise<Training | null> => {
     const { user } = useAuthContext(); // Get user inside the function to ensure it's fresh
-  }
+    
     if (!user) {
       setError('Usuário não autenticado');
       toast.error('Usuário não autenticado');
@@ -513,6 +515,7 @@ function formatPhysicalCharacteristics(characteristics: any): string {
     return 'Dados de características físicas em formato inválido';
   }
 }
+
 // Mock AI function - replace with actual AI integration
 async function callAIForTraining(prompt: string, activeProvider: any): Promise<any> {
   console.log('🤖 [callAIForTraining] - Iniciando chamada da IA');
@@ -555,7 +558,7 @@ async function callAIForTraining(prompt: string, activeProvider: any): Promise<a
     const providerConfig = activeProvider; // Use the activeProvider passed directly
     
     // CHAMADA REAL DA IA
-    const aiResponse = await callRealAI(globalProvider, providerConfig, prompt);
+    const aiResponse = await callRealAI(globalProviderName, providerConfig, prompt);
     
     if (aiResponse) {
       console.log('✅ IA: Resposta recebida da IA real');
@@ -578,11 +581,11 @@ async function callRealAI(providerName: string, config: any, prompt: string): Pr
     console.log('🚀 [callRealAI] - Iniciando chamada para o provedor:', providerName);
     console.log('📝 [callRealAI] - Prompt final enviado para a API:', prompt);
     // Aqui você implementaria as chamadas reais para cada provedor
-    if (provider === 'OpenAI') {
+    if (providerName === 'OpenAI') {
       return await callOpenAI(config.api_key_encrypted, config.selected_model, prompt);
-    } else if (provider === 'Anthropic') {
+    } else if (providerName === 'Anthropic') {
       return await callAnthropic(config.api_key_encrypted, config.selected_model, prompt);
-    } else if (provider === 'Groq') {
+    } else if (providerName === 'Groq') {
       return await callGroq(config.api_key_encrypted, config.selected_model, prompt);
     } else {
       console.warn('⚠️ [callRealAI] - Provedor não suportado:', providerName);
