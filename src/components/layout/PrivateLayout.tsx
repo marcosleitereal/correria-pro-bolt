@@ -112,6 +112,24 @@ const PrivateLayout: React.FC<PrivateLayoutProps> = ({ children }) => {
       fetchProfile(user.id);
     }
     
+    // DETECÇÃO DE PAGAMENTO NA URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    
+    if (sessionId && user) {
+      console.log('💳 LAYOUT: Session ID detectado - forçando refresh após pagamento');
+      
+      // Múltiplos refreshes para garantir ativação
+      const refreshTimes = [2000, 5000, 10000, 15000]; // 2s, 5s, 10s, 15s
+      
+      refreshTimes.forEach((time, index) => {
+        setTimeout(() => {
+          console.log(`🔄 LAYOUT: Refresh ${index + 1}/4 após pagamento...`);
+          window.location.reload();
+        }, time);
+      });
+    }
+    
     // Se o usuário está autenticado mas não tem perfil após 5 segundos, tentar recarregar
     if (user && !profile && !profileLoading) {
       const timeoutId = setTimeout(() => {

@@ -33,8 +33,106 @@ export const useSubscriptionStatus = () => {
     console.log('🔄 SUBSCRIPTION STATUS: Iniciando busca (independente das configurações)...');
     
     fetchSubscriptionStatus();
+    
+    // DETECÇÃO AUTOMÁTICA DE PAGAMENTO
+    detectAndActivatePayment();
     }, [user]);
 
+  const detectAndActivatePayment = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('💳 AUTO-DETECT: Verificando se usuário tem customer Stripe...');
+      
+      // Verificar se usuário tem customer no Stripe (indica pagamento)
+      const { data: stripeCustomer, error: stripeError } = await supabase
+        .from('stripe_customers')
+        .select('customer_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (stripeError) {
+        console.error('❌ AUTO-DETECT: Erro ao verificar customer:', stripeError);
+        return;
+      }
+      
+      if (stripeCustomer && stripeCustomer.customer_id) {
+        console.log('🚀 AUTO-DETECT: Customer encontrado - verificando se precisa ativar...');
+        
+        // Verificar status atual
+        const { data: currentSub, error: subError } = await supabase
+          .from('subscriptions')
+          .select('status, trial_ends_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (subError) {
+          console.error('❌ AUTO-DETECT: Erro ao verificar subscription:', subError);
+          return;
+        }
+        
+        // Se ainda está em trial mas tem customer, ativar
+        if (currentSub && currentSub.status === 'trialing') {
+          console.log('🚀 AUTO-DETECT: ATIVANDO USUÁRIO QUE PAGOU!');
+          await forceActivateUser();
+        }
+      }
+    } catch (error) {
+      console.error('❌ AUTO-DETECT: Erro geral:', error);
+    }
+  };
+  
+  const forceActivateUser = async () => {
+    try {
+      console.log('🚀 FORCE ACTIVATE: Ativando usuário que pagou...');
+      
+      // Buscar primeiro plano ativo
+      const { data: activePlan, error: planError } = await supabase
+        .from('plans')
+        .select('id, name')
+        .eq('is_active', true)
+        .neq('name', 'Restrito')
+        .order('price_monthly', { ascending: true })
+        .limit(1)
+        .single();
+      
+      if (planError) {
+        console.error('❌ FORCE ACTIVATE: Erro ao buscar plano:', planError);
+        return;
+      }
+      
+      // ATIVAR IMEDIATAMENTE
+      const now = new Date();
+      const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      
+      const { error: updateError } = await supabase
+        .from('subscriptions')
+        .update({
+          plan_id: activePlan.id,
+          status: 'active',
+          trial_ends_at: null,
+          current_period_start: now.toISOString(),
+          current_period_end: oneYearLater.toISOString(),
+          updated_at: now.toISOString()
+        })
+        .eq('user_id', user!.id);
+      
+      if (updateError) {
+        console.error('❌ FORCE ACTIVATE: Erro ao ativar:', updateError);
+        return;
+      }
+      
+      console.log('✅ FORCE ACTIVATE: Usuário ativado com sucesso!');
+      
+      // Refresh imediato
+      setTimeout(() => {
+        fetchSubscriptionStatus();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ FORCE ACTIVATE: Erro geral:', error);
+    }
+  };
   const fetchSubscriptionStatus = async () => {
     try {
       setLoading(true);

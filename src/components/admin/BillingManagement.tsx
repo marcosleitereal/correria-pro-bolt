@@ -696,8 +696,23 @@ const BillingManagement: React.FC = () => {
               </button>
             </div>
             <p className="text-sm text-slate-600 mt-2">
-              Digite o email do usuário que pagou mas continua bloqueado
+              Digite o email do usuário que pagou mas continua bloqueado: <strong>3dia@teste.com</strong>
             </p>
+            
+            {/* Botão de Ativação Rápida */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setManualActivationEmail('3dia@teste.com');
+                  setTimeout(() => handleManualActivation(), 100);
+                }}
+                disabled={activatingUser}
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              >
+                {activatingUser && <Loader2 className="w-5 h-5 animate-spin" />}
+                ⚡ ATIVAR 3dia@teste.com AGORA
+              </button>
+            </div>
           </div>
         </div>
 
