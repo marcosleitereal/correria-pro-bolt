@@ -94,7 +94,61 @@ export const useSubscriptionStatus = () => {
         console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
         hasAccess = false;
       } else {
-        // LÓGICA CORRIGIDA: Se status é 'active', sempre tem acesso
+        // LÓGICA CRÍTICA CORRIGIDA: Verificar se há pagamentos do Stripe
+        console.log('🔍 SUBSCRIPTION DEBUG: Verificando pagamentos do Stripe...');
+        
+        // Verificar se existe customer no Stripe (indica pagamento)
+        const { data: stripeCustomer, error: stripeError } = await supabase
+          .from('stripe_customers')
+          .select('customer_id')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        console.log('💳 SUBSCRIPTION DEBUG: Stripe customer:', stripeCustomer);
+        
+        // Se tem customer no Stripe, FORÇAR ATIVAÇÃO
+        if (stripeCustomer && stripeCustomer.customer_id) {
+          console.log('🚀 SUBSCRIPTION DEBUG: CUSTOMER STRIPE ENCONTRADO - FORÇANDO ATIVAÇÃO');
+          
+          // Buscar primeiro plano ativo
+          const { data: activePlan } = await supabase
+            .from('plans')
+            .select('id, name')
+            .eq('is_active', true)
+            .neq('name', 'Restrito')
+            .order('price_monthly', { ascending: true })
+            .limit(1)
+            .single();
+          
+          // FORÇAR ATIVAÇÃO IMEDIATA
+          const now = new Date();
+          const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          
+          const { error: forceActivationError } = await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: user.id,
+              plan_id: activePlan?.id || null,
+              status: 'active',
+              trial_ends_at: null,
+              current_period_start: now.toISOString(),
+              current_period_end: oneMonthLater.toISOString(),
+              updated_at: now.toISOString()
+            }, { onConflict: 'user_id' });
+          
+          if (!forceActivationError) {
+            console.log('✅ SUBSCRIPTION DEBUG: USUÁRIO ATIVADO FORÇADAMENTE!');
+            hasAccess = true;
+            
+            // Atualizar dados locais
+            subscriptionData.subscription_status = 'active';
+            subscriptionData.current_plan_name = activePlan?.name || 'Plano Ativo';
+            subscriptionData.trial_ends_at = null;
+            subscriptionData.current_period_end = oneMonthLater.toISOString();
+          }
+        }
+        
+        // Lógica original como fallback
         if (subscriptionData.subscription_status === 'active') {
           hasAccess = true;
           console.log('✅ SUBSCRIPTION DEBUG: Status ACTIVE - acesso liberado');
@@ -115,7 +169,7 @@ export const useSubscriptionStatus = () => {
         } else {
           hasAccess = false;
         }
-        console.log('✅ SUBSCRIPTION DEBUG: has_access da view:', hasAccess);
+        console.log('✅ SUBSCRIPTION DEBUG: has_access final:', hasAccess);
       }
 
       // 3. MONTAR OBJETO FINAL usando dados da view
