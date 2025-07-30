@@ -57,7 +57,8 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, fullName: string) => {
     console.log('🚀 AUTH: Iniciando processo de cadastro para:', email);
     
-    const { data, error } = await supabase.auth.signUp({
+    try {
+      const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -117,6 +118,13 @@ export const useAuth = () => {
     }
 
     return { data, error };
+    } catch (err: any) {
+      console.error('❌ AUTH: Erro crítico no signUp:', err);
+      return { 
+        data: null, 
+        error: { message: 'Erro de conexão. Verifique sua internet e tente novamente.' } 
+      };
+    }
   };
 
   const signIn = async (email: string, password: string) => {

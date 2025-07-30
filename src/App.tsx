@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { Toaster } from './components/ui/Toaster';
+import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import FeaturesSection from './components/FeaturesSection';
@@ -155,7 +155,7 @@ function App() {
             {/* 404 Page - Must be LAST */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          <Toaster />
+          <Toaster position="top-right" richColors closeButton />
           
           {/* PWA Components */}
           <InstallPrompt />

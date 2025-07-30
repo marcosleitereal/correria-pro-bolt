@@ -58,6 +58,27 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
+    <!-- Error handling for production -->
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('Global error:', e.error);
+        // Prevent white screen in production
+        if (document.getElementById('root').innerHTML === '') {
+          document.getElementById('root').innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui;">
+              <div style="text-align: center; padding: 2rem;">
+                <h1 style="color: #1e40af; margin-bottom: 1rem;">Correria.Pro</h1>
+                <p style="color: #64748b; margin-bottom: 1rem;">Carregando aplicação...</p>
+                <button onclick="window.location.reload()" style="background: #1e40af; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer;">
+                  Recarregar Página
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      });
+    </script>
+    
     <!-- PWA Registration -->
     <script>
       // Registrar Service Worker

@@ -4,10 +4,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
+// Verificação de segurança para evitar erros em produção
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ SUPABASE: Variáveis de ambiente não configuradas');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'Não configurada');
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Configurada' : 'Não configurada');
+}
+
 // Criar cliente Supabase
 const supabase = createClient<Database>(
-  supabaseUrl || '',
-  supabaseAnonKey || '',
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
   {
     auth: {
       autoRefreshToken: true,

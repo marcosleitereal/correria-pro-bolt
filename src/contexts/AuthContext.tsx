@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 
 interface AuthContextType {
   user: User | null;
+  session: any;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
@@ -17,7 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={{...auth, session: auth.session}}>
       {children}
     </AuthContext.Provider>
   );
