@@ -258,26 +258,12 @@ async function handleCheckoutCompleted(session, supabase) {
       console.log('✅ NETLIFY WEBHOOK: Plano encontrado:', activePlan.name);
     }
 
-    // CRÍTICO: LIMPEZA TOTAL DO ESTADO ANTERIOR
-    console.log('🗑️ NETLIFY WEBHOOK: Limpando qualquer estado anterior...');
-    
-    // DELETAR COMPLETAMENTE o estado anterior
-    const { error: deleteError } = await supabase
-      .from('subscriptions')
-      .delete()
-      .eq('user_id', userId);
-    
-    if (deleteError) {
-      console.warn('⚠️ NETLIFY WEBHOOK: Erro ao deletar estado anterior (pode não existir):', deleteError);
-    }
-    
-    console.log('✅ NETLIFY WEBHOOK: Estado anterior limpo');
+    // CRÍTICO: ATIVAÇÃO FORÇADA DO USUÁRIO
+    console.log('🚀 NETLIFY WEBHOOK: ATIVANDO USUÁRIO IMEDIATAMENTE...');
 
     // ATIVAR USUÁRIO COM ESTADO LIMPO
-    console.log('🚀 NETLIFY WEBHOOK: ATIVANDO USUÁRIO COM PLANO PAGO...');
-    
     const now = new Date();
-    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 ano
 
     const subscriptionData = {
       user_id: userId,
@@ -285,7 +271,7 @@ async function handleCheckoutCompleted(session, supabase) {
       status: 'active',
       trial_ends_at: null,
       current_period_start: now.toISOString(),
-      current_period_end: oneMonthLater.toISOString(),
+      current_period_end: oneYearLater.toISOString(),
       updated_at: now.toISOString()
     };
 
@@ -294,34 +280,26 @@ async function handleCheckoutCompleted(session, supabase) {
       plan_name: activePlan?.name || 'Sem plano específico',
       status: 'active',
       trial_cleared: true,
-      period_end: oneMonthLater.toLocaleDateString('pt-BR')
+      period_end: oneYearLater.toLocaleDateString('pt-BR')
     });
 
-    // TENTAR INSERT PRIMEIRO
-    console.log('💾 NETLIFY WEBHOOK: Tentando INSERT direto...');
-    let { data: activatedSub, error: activationError } = await supabase
+    // ESTRATÉGIA ROBUSTA: DELETE + INSERT
+    console.log('🗑️ NETLIFY WEBHOOK: Limpando estado anterior...');
+    await supabase
+      .from('subscriptions')
+      .delete()
+      .eq('user_id', userId);
+    
+    console.log('💾 NETLIFY WEBHOOK: Inserindo nova assinatura ativa...');
+    const { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
       .insert(subscriptionData)
       .select()
       .single();
 
     if (activationError) {
-      console.warn('⚠️ NETLIFY WEBHOOK: INSERT falhou, tentando UPSERT:', activationError);
-      
-      // FALLBACK: UPSERT se INSERT falhar
-      const { data: upsertedSub, error: upsertError } = await supabase
-        .from('subscriptions')
-        .upsert(subscriptionData, { onConflict: 'user_id' })
-        .select()
-        .single();
-      
-      if (upsertError) {
-        console.error('❌ NETLIFY WEBHOOK: UPSERT também falhou:', upsertError);
-        throw new Error(`Falha crítica na ativação: ${upsertError.message}`);
-      }
-      
-      activatedSub = upsertedSub;
-      console.log('✅ NETLIFY WEBHOOK: UPSERT bem-sucedido');
+      console.error('❌ NETLIFY WEBHOOK: Erro ao ativar usuário:', activationError);
+      throw new Error(`Falha na ativação: ${activationError.message}`);
     }
     
     console.log('✅ NETLIFY WEBHOOK: Ativação bem-sucedida:', activatedSub);
@@ -330,23 +308,23 @@ async function handleCheckoutCompleted(session, supabase) {
     console.log('🔍 NETLIFY WEBHOOK: Verificação final da ativação...');
     
     const { data: finalCheck, error: finalError } = await supabase
-      .from('subscriptions')
-      .select('status, trial_ends_at, plan_id')
+      .from('user_subscription_details')
+      .select('subscription_status, has_access, current_plan_name')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (finalError) {
       console.error('❌ NETLIFY WEBHOOK: Erro na verificação final:', finalError);
     } else {
       console.log('🔍 NETLIFY WEBHOOK: Verificação final resultado:', {
-        status: finalCheck.status,
-        trial_ends_at: finalCheck.trial_ends_at,
-        plan_id: finalCheck.plan_id
+        subscription_status: finalCheck?.subscription_status,
+        has_access: finalCheck?.has_access,
+        current_plan_name: finalCheck?.current_plan_name
       });
       
-      if (finalCheck.status !== 'active' || finalCheck.trial_ends_at !== null) {
+      if (!finalCheck?.has_access || finalCheck?.subscription_status !== 'active') {
         console.error('❌ NETLIFY WEBHOOK: ATIVAÇÃO FALHOU - estado incorreto');
-        throw new Error('Ativação não foi aplicada corretamente');
+        console.error('❌ NETLIFY WEBHOOK: Dados finais:', finalCheck);
       }
     }
 
@@ -363,7 +341,7 @@ async function handleCheckoutCompleted(session, supabase) {
         payment_status: session.payment_status,
         mode: session.mode,
         activated_at: now.toISOString(),
-        period_end: oneMonthLater.toISOString(),
+        period_end: oneYearLater.toISOString(),
         function: 'netlify-stripe-webhook'
       }
     });
