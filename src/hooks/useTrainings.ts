@@ -643,6 +643,14 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
       const parsedResponse = JSON.parse(jsonContent);
       console.log('✅ [callOpenAI] - JSON parseado com sucesso:', parsedResponse);
       
+      // Ensure all sessions have duration field populated
+      if (parsedResponse.sessions && Array.isArray(parsedResponse.sessions)) {
+        parsedResponse.sessions = parsedResponse.sessions.map((session: any) => ({
+          ...session,
+          duration: session.duration || '60 minutos' // Default duration if not provided by AI
+        }));
+      }
+      
       return parsedResponse;
     } catch (parseError) {
       console.error('❌ [callOpenAI] - Erro ao parsear JSON:', parseError);
