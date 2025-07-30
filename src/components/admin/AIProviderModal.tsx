@@ -31,7 +31,7 @@ const AIProviderModal: React.FC<AIProviderModalProps> = ({
   const modelOptions: Record<string, string[]> = {
     'OpenAI': ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
     'Groq': ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
-    'Google AI': ['gemini-pro', 'gemini-pro-vision', 'gemini-1.5-pro'],
+    'Google AI': ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
     'Anthropic': ['claude-3-sonnet', 'claude-3-haiku', 'claude-3-opus']
   };
 
