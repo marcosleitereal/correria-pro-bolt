@@ -84,7 +84,7 @@ export const useSubscriptionStatus = () => {
         return;
       }
 
-      // 2. CALCULAR HAS_ACCESS baseado nos dados da view
+      // 2. CALCULAR HAS_ACCESS - LÓGICA CORRIGIDA
       let hasAccess = false;
       const isRestrictedPlan = subscriptionData.current_plan_name === 'Restrito' || 
                               subscriptionData.current_plan_name === 'restrito' ||
@@ -94,8 +94,27 @@ export const useSubscriptionStatus = () => {
         console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
         hasAccess = false;
       } else {
-        // Usar o campo has_access da view que já calcula tudo
-        hasAccess = subscriptionData.has_access === true;
+        // LÓGICA CORRIGIDA: Se status é 'active', sempre tem acesso
+        if (subscriptionData.subscription_status === 'active') {
+          hasAccess = true;
+          console.log('✅ SUBSCRIPTION DEBUG: Status ACTIVE - acesso liberado');
+        } else if (subscriptionData.subscription_status === 'trialing') {
+          // Para trial, verificar se não expirou
+          if (subscriptionData.trial_ends_at) {
+            const trialEndDate = new Date(subscriptionData.trial_ends_at);
+            const now = new Date();
+            hasAccess = trialEndDate > now;
+            console.log('🔍 SUBSCRIPTION DEBUG: Trial check:', {
+              trial_ends_at: subscriptionData.trial_ends_at,
+              now: now.toISOString(),
+              hasAccess
+            });
+          } else {
+            hasAccess = false;
+          }
+        } else {
+          hasAccess = false;
+        }
         console.log('✅ SUBSCRIPTION DEBUG: has_access da view:', hasAccess);
       }
 
