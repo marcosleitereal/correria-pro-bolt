@@ -57,7 +57,7 @@ export const useSubscriptionGuard = () => {
   const calculateGuardStatus = () => {
     const currentAthleteCount = runners.filter(r => !r.is_archived).length;
     
-    console.log('🛡️ GUARD: Iniciando cálculo de status:', {
+    console.log('🛡️ GUARD: Calculando acesso:', {
       userEmail: subscriptionStatus?.email,
       current_plan_name: subscriptionStatus?.current_plan_name,
       hasAccess,
@@ -82,19 +82,19 @@ export const useSubscriptionGuard = () => {
       return;
     }
 
-    // VERIFICAÇÃO CRÍTICA: PLANO RESTRITO - BLOQUEIO TOTAL
+    // VERIFICAÇÃO CRÍTICA: PLANO RESTRITO
     const isRestrictedPlan = subscriptionStatus?.current_plan_name === 'Restrito' || 
                             subscriptionStatus?.current_plan_name === 'restrito' ||
                             subscriptionStatus?.current_plan_name?.toLowerCase().includes('restrito');
     
-    console.log('🚫 GUARD: Verificação de plano restrito:', {
+    console.log('🚫 GUARD: Verificando plano restrito:', {
       current_plan_name: subscriptionStatus?.current_plan_name,
       isRestrictedPlan,
       hasAccess
     });
     
     if (isRestrictedPlan) {
-      console.log('🚫 GUARD: PLANO RESTRITO DETECTADO - BLOQUEIO TOTAL APLICADO');
+      console.log('🚫 GUARD: PLANO RESTRITO - BLOQUEIO TOTAL');
       setGuard({
         canCreateRunner: false,
         canGenerateTraining: false,
@@ -103,24 +103,24 @@ export const useSubscriptionGuard = () => {
         athleteLimitReached: false,
         currentAthleteCount,
         athleteLimit: 0,
-        blockingReason: 'Sua conta está BLOQUEADA no plano restrito. Você pode navegar mas não pode usar as funcionalidades. Faça upgrade para um plano pago para reativar todas as funcionalidades.',
+        blockingReason: 'Seu período de teste expirou. Faça upgrade para um plano pago para continuar usando todas as funcionalidades da plataforma.',
         loading: false,
       });
       return;
     }
 
-    // VERIFICAÇÃO DE ACESSO GERAL
+    // VERIFICAÇÃO DE ACESSO
     if (!hasAccess) {
-      console.log('❌ GUARD: Sem acesso - verificando motivos...');
+      console.log('❌ GUARD: Sem acesso - analisando motivo...');
       
       const trialExpired = isTrialing && daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0;
       
       let blockingReason: string | null = null;
       
       if (trialExpired) {
-        blockingReason = 'Seu período de teste expirou. Faça upgrade para um plano pago para continuar usando a plataforma.';
+        blockingReason = 'Seu período de teste gratuito expirou. Escolha um plano para continuar aproveitando todas as funcionalidades.';
       } else {
-        blockingReason = 'Você não possui acesso ativo à plataforma. Verifique sua assinatura ou faça upgrade.';
+        blockingReason = 'Acesso restrito. Verifique sua assinatura ou faça upgrade para um plano pago.';
       }
 
       setGuard({
@@ -137,7 +137,7 @@ export const useSubscriptionGuard = () => {
       return;
     }
 
-    // ACESSO LIBERADO (TRIAL VÁLIDO OU ASSINATURA ATIVA)
+    // ACESSO LIBERADO
     console.log('✅ GUARD: Acesso liberado');
     
     const athleteLimit = isTrialing && appSettings ? appSettings.trial_athlete_limit : Infinity;

@@ -40,12 +40,11 @@ export const useSubscriptionStatus = () => {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 SUBSCRIPTION DEBUG: Buscando status da assinatura para usuário:', user?.id);
-      console.log('🔍 SUBSCRIPTION DEBUG: Email do usuário:', user?.email);
+      console.log('🔍 SUBSCRIPTION: Buscando status para usuário:', user?.id, user?.email);
 
       // ACESSO TOTAL PARA DEV
       if (user?.email === 'dev@sonnik.com.br') {
-        console.log('👑 SUBSCRIPTION DEBUG: Usuário dev detectado - acesso total');
+        console.log('👑 SUBSCRIPTION: Usuário dev - acesso total liberado');
         setSubscriptionStatus({
           user_id: user.id,
           email: user.email || null,
@@ -62,8 +61,8 @@ export const useSubscriptionStatus = () => {
         return;
       }
 
-      // 1. BUSCAR DADOS COMPLETOS DA VIEW user_subscription_details
-      console.log('📊 SUBSCRIPTION DEBUG: Buscando dados completos da view...');
+      // BUSCAR DADOS DA VIEW user_subscription_details
+      console.log('📊 SUBSCRIPTION: Buscando dados da view user_subscription_details...');
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('user_subscription_details')
         .select('*')
@@ -71,171 +70,76 @@ export const useSubscriptionStatus = () => {
         .maybeSingle();
 
       if (subscriptionError) {
-        console.error('❌ SUBSCRIPTION DEBUG: Erro ao buscar dados da view:', subscriptionError);
+        console.error('❌ SUBSCRIPTION: Erro ao buscar view:', subscriptionError);
         throw subscriptionError;
       }
 
-      console.log('📊 SUBSCRIPTION DEBUG: Dados da view recebidos:', subscriptionData);
+      console.log('📊 SUBSCRIPTION: Dados recebidos:', subscriptionData);
 
-      // Se não há dados na view, o usuário não tem perfil ou assinatura
+      // Se não há dados, criar perfil e trial automaticamente
       if (!subscriptionData) {
-        console.log('⚠️ SUBSCRIPTION DEBUG: Nenhum dado encontrado na view - usuário sem perfil/assinatura');
+        console.log('⚠️ SUBSCRIPTION: Usuário sem dados - criando perfil e trial...');
         await createUserProfileAndTrial();
         return;
       }
 
-      // 2. CALCULAR HAS_ACCESS - LÓGICA CORRIGIDA
+      // CALCULAR HAS_ACCESS
       let hasAccess = false;
       const isRestrictedPlan = subscriptionData.current_plan_name === 'Restrito' || 
                               subscriptionData.current_plan_name === 'restrito' ||
                               subscriptionData.current_plan_name?.toLowerCase().includes('restrito');
       
       if (isRestrictedPlan) {
-        console.log('🚫 SUBSCRIPTION STATUS: PLANO RESTRITO DETECTADO - BLOQUEANDO ACESSO');
+        console.log('🚫 SUBSCRIPTION: PLANO RESTRITO - BLOQUEANDO ACESSO');
         hasAccess = false;
       } else {
-        // LÓGICA CRÍTICA CORRIGIDA: Verificar se há pagamentos do Stripe
-        console.log('🔍 SUBSCRIPTION DEBUG: Verificando pagamentos do Stripe...');
+        // Verificar se há customer no Stripe (indica pagamento)
+        console.log('🔍 SUBSCRIPTION: Verificando customer Stripe...');
         
-        // Verificar se existe customer no Stripe (indica pagamento)
         const { data: stripeCustomer, error: stripeError } = await supabase
           .from('stripe_customers')
           .select('customer_id')
           .eq('user_id', user?.id)
           .maybeSingle();
         
-        console.log('💳 SUBSCRIPTION DEBUG: Stripe customer:', stripeCustomer);
+        console.log('💳 SUBSCRIPTION: Customer encontrado:', !!stripeCustomer);
         
-        // Se tem customer no Stripe, FORÇAR ATIVAÇÃO
+        // Se tem customer no Stripe, deve estar ativo
         if (stripeCustomer && stripeCustomer.customer_id) {
-          console.log('🚀 SUBSCRIPTION DEBUG: CUSTOMER STRIPE ENCONTRADO - FORÇANDO ATIVAÇÃO');
+          console.log('🚀 SUBSCRIPTION: Customer Stripe encontrado - ativando usuário');
           
-          // Buscar primeiro plano ativo
-          const { data: activePlan } = await supabase
-            .from('plans')
-            .select('id, name')
-            .eq('is_active', true)
-            .neq('name', 'Restrito')
-            .order('price_monthly', { ascending: true })
-            .limit(1)
-            .single();
-          
-          // FORÇAR ATIVAÇÃO IMEDIATA
-          const now = new Date();
-          const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-          
-          // CRÍTICO: DELETAR ESTADO ANTERIOR PRIMEIRO
-          console.log('🗑️ SUBSCRIPTION DEBUG: Limpando estado anterior...');
-          await supabase
-            .from('subscriptions')
-            .delete()
-            .eq('user_id', user.id);
-          
-          console.log('💾 SUBSCRIPTION DEBUG: Criando nova assinatura ativa...');
-          const { error: forceActivationError } = await supabase
-            .from('subscriptions')
-            .insert({
-              user_id: user.id,
-              plan_id: activePlan?.id || null,
-              status: 'active',
-              trial_ends_at: null,
-              current_period_start: now.toISOString(),
-              current_period_end: oneMonthLater.toISOString(),
-              updated_at: now.toISOString()
-            })
-            .select()
-            .single();
-          
-          if (!forceActivationError) {
-            console.log('✅ SUBSCRIPTION DEBUG: USUÁRIO ATIVADO FORÇADAMENTE!');
-            hasAccess = true;
-            
-            // Atualizar dados locais
-            subscriptionData.subscription_status = 'active';
-            subscriptionData.current_plan_name = activePlan?.name || 'Plano Ativo';
-            subscriptionData.trial_ends_at = null;
-            subscriptionData.current_period_end = oneMonthLater.toISOString();
-            
-            // FORÇAR REFRESH IMEDIATO
-            await fetchSubscriptionStatus();
-            return;
-          }
-        }
-        
-        // Lógica original como fallback
-        if (subscriptionData.subscription_status === 'active') {
+          // Se tem customer, deve ter acesso (será ativado pelo webhook)
           hasAccess = true;
-          console.log('✅ SUBSCRIPTION DEBUG: Status ACTIVE - acesso liberado');
-        } else if (subscriptionData.subscription_status === 'trialing') {
-          // Para trial, verificar se não expirou
-          if (subscriptionData.trial_ends_at) {
-            const trialEndDate = new Date(subscriptionData.trial_ends_at);
-            const now = new Date();
-            hasAccess = trialEndDate > now;
-            console.log('🔍 SUBSCRIPTION DEBUG: Trial check:', {
-              trial_ends_at: subscriptionData.trial_ends_at,
-              now: now.toISOString(),
-              hasAccess
-            });
+        } else {
+          // Lógica normal para usuários sem pagamento
+          if (subscriptionData.subscription_status === 'active') {
+            hasAccess = true;
+            console.log('✅ SUBSCRIPTION: Status ACTIVE - acesso liberado');
+          } else if (subscriptionData.subscription_status === 'trialing') {
+            // Para trial, verificar se não expirou
+            if (subscriptionData.trial_ends_at) {
+              const trialEndDate = new Date(subscriptionData.trial_ends_at);
+              const now = new Date();
+              hasAccess = trialEndDate > now;
+              
+              const daysLeft = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              console.log('🔍 SUBSCRIPTION: Trial check:', {
+                trial_ends_at: subscriptionData.trial_ends_at,
+                days_left: daysLeft,
+                hasAccess
+              });
+            } else {
+              hasAccess = false;
+            }
           } else {
             hasAccess = false;
           }
-        } else {
-          hasAccess = false;
         }
-        
-        // VERIFICAÇÃO ADICIONAL: Se tem customer Stripe mas não tem acesso, forçar ativação
-        if (!hasAccess && stripeCustomer && stripeCustomer.customer_id) {
-          console.log('🚀 SUBSCRIPTION DEBUG: FORÇANDO ATIVAÇÃO ADICIONAL - usuário tem customer mas sem acesso');
-          
-          // Verificar se há subscription ativa no Stripe via API
-          try {
-            const { data: stripeSubscription } = await supabase
-              .from('stripe_subscriptions')
-              .select('subscription_status')
-              .eq('customer_id', stripeCustomer.customer_id)
-              .eq('subscription_status', 'active')
-              .maybeSingle();
-            
-            if (stripeSubscription) {
-              console.log('💳 SUBSCRIPTION DEBUG: Subscription ativa encontrada no Stripe - FORÇANDO ATIVAÇÃO FINAL');
-              
-              // ATIVAÇÃO FINAL FORÇADA
-              const now = new Date();
-              const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-              
-              const { error: finalActivationError } = await supabase
-                .from('subscriptions')
-                .upsert({
-                  user_id: user.id,
-                  plan_id: activePlan?.id || null,
-                  status: 'active',
-                  trial_ends_at: null,
-                  current_period_start: now.toISOString(),
-                  current_period_end: oneMonthLater.toISOString(),
-                  updated_at: now.toISOString()
-                }, { onConflict: 'user_id' });
-              
-              if (!finalActivationError) {
-                console.log('✅ SUBSCRIPTION DEBUG: ATIVAÇÃO FINAL BEM-SUCEDIDA!');
-                hasAccess = true;
-                
-                // Atualizar dados locais
-                subscriptionData.subscription_status = 'active';
-                subscriptionData.current_plan_name = activePlan?.name || 'Plano Ativo';
-                subscriptionData.trial_ends_at = null;
-                subscriptionData.current_period_end = oneMonthLater.toISOString();
-              }
-            }
-          } catch (stripeCheckError) {
-            console.error('❌ SUBSCRIPTION DEBUG: Erro na verificação final do Stripe:', stripeCheckError);
-          }
-        }
-        
-        console.log('✅ SUBSCRIPTION DEBUG: has_access final:', hasAccess);
       }
 
-      // 3. MONTAR OBJETO FINAL usando dados da view
+      console.log('✅ SUBSCRIPTION: has_access calculado:', hasAccess);
+
+      // MONTAR OBJETO FINAL
       const finalStatus: SubscriptionStatus = {
         user_id: user.id,
         email: subscriptionData.email,
@@ -249,10 +153,16 @@ export const useSubscriptionStatus = () => {
         has_access: hasAccess
       };
 
-      console.log('✅ SUBSCRIPTION DEBUG: Status final calculado:', finalStatus);
+      console.log('✅ SUBSCRIPTION: Status final:', {
+        subscription_status: finalStatus.subscription_status,
+        current_plan_name: finalStatus.current_plan_name,
+        has_access: finalStatus.has_access,
+        trial_ends_at: finalStatus.trial_ends_at
+      });
+      
       setSubscriptionStatus(finalStatus);
     } catch (err: any) {
-      console.error('❌ SUBSCRIPTION DEBUG: Erro geral:', err);
+      console.error('❌ SUBSCRIPTION: Erro geral:', err);
       setError(err.message || 'Erro ao carregar status da assinatura');
     } finally {
       setLoading(false);
@@ -261,9 +171,9 @@ export const useSubscriptionStatus = () => {
 
   const createUserProfileAndTrial = async () => {
     try {
-      console.log('🚀 SUBSCRIPTION: Criando perfil e trial para usuário sem dados...');
+      console.log('🚀 SUBSCRIPTION: Criando perfil e trial automático...');
       
-      // Buscar configurações do app
+      // CRÍTICO: Buscar configurações dinâmicas do painel admin
       const { data: dynamicSettings } = await supabase
         .from('app_settings')
         .select('*')
@@ -271,15 +181,16 @@ export const useSubscriptionStatus = () => {
         .limit(1)
         .maybeSingle();
       
-      const trialDurationDays = dynamicSettings?.trial_duration_days || 35;
-      const trialAthleteLimit = dynamicSettings?.trial_athlete_limit || 33;
-      const trialTrainingLimit = dynamicSettings?.trial_training_limit || 44;
+      // USAR VALORES DO PAINEL ADMIN (não hardcoded)
+      const trialDurationDays = dynamicSettings?.trial_duration_days || 30; // fallback mais conservador
+      const trialAthleteLimit = dynamicSettings?.trial_athlete_limit || 5;
+      const trialTrainingLimit = dynamicSettings?.trial_training_limit || 10;
       
-      console.log('📊 SUBSCRIPTION: Configurações do trial:', {
+      console.log('📊 SUBSCRIPTION: Configurações aplicadas:', {
         trial_duration_days: trialDurationDays,
         trial_athlete_limit: trialAthleteLimit,
         trial_training_limit: trialTrainingLimit,
-        fonte: dynamicSettings ? 'app_settings' : 'fallback'
+        fonte: dynamicSettings ? 'Painel Admin' : 'Valores padrão'
       });
       
       // Criar perfil se não existir
@@ -298,65 +209,37 @@ export const useSubscriptionStatus = () => {
       
       if (createProfileError) {
         console.error('❌ Erro ao criar perfil:', createProfileError);
-        // Continuar mesmo com erro no perfil
       }
       
-      console.log('✅ SUBSCRIPTION: Perfil criado/atualizado:', newProfile);
+      console.log('✅ SUBSCRIPTION: Perfil criado:', newProfile?.full_name);
       
-      // Criar trial
+      // CRIAR TRIAL COM DURAÇÃO CORRETA
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
       
-      console.log('🎯 SUBSCRIPTION: Criando trial com data de fim:', trialEndsAt.toISOString());
+      console.log('🎯 SUBSCRIPTION: Criando trial de', trialDurationDays, 'dias até:', trialEndsAt.toLocaleDateString('pt-BR'));
       
       const { data: newSubscription, error: createSubError } = await supabase
         .from('subscriptions')
-        .upsert({
+        .insert({
           user_id: user!.id,
           plan_id: null,
           status: 'trialing',
           trial_ends_at: trialEndsAt.toISOString(),
           current_period_start: new Date().toISOString(),
           current_period_end: trialEndsAt.toISOString(),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id',
-          ignoreDuplicates: false // FORÇAR ATUALIZAÇÃO
         })
         .select()
         .single();
       
       if (createSubError) {
         console.error('❌ Erro ao criar trial:', createSubError);
-        
-        // RECUPERAÇÃO: DELETAR E RECRIAR
-        console.log('🔄 SUBSCRIPTION: Tentando recuperação...');
-        await supabase.from('subscriptions').delete().eq('user_id', user!.id);
-        
-        const { data: recoveryTrial, error: recoveryError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: user!.id,
-            plan_id: null,
-            status: 'trialing',
-            trial_ends_at: trialEndsAt.toISOString(),
-            current_period_start: new Date().toISOString(),
-            current_period_end: trialEndsAt.toISOString()
-          })
-          .select()
-          .single();
-        
-        if (recoveryError) {
-          console.error('❌ SUBSCRIPTION: Falha na recuperação:', recoveryError);
-          return;
-        }
-        
-        console.log('✅ SUBSCRIPTION: Trial criado na recuperação:', recoveryTrial);
+        throw createSubError;
       }
       
-      console.log('✅ SUBSCRIPTION: Trial criado com sucesso:', newSubscription);
+      console.log('✅ SUBSCRIPTION: Trial criado com sucesso');
       
-      // Definir status final
+      // DEFINIR STATUS FINAL
       const finalStatus: SubscriptionStatus = {
         user_id: user!.id,
         email: newProfile?.email || user!.email,
@@ -370,11 +253,12 @@ export const useSubscriptionStatus = () => {
         has_access: true
       };
       
-      console.log('🎉 SUBSCRIPTION: Status final do trial:', finalStatus);
+      console.log('🎉 SUBSCRIPTION: Trial ativo por', trialDurationDays, 'dias');
       setSubscriptionStatus(finalStatus);
       setLoading(false);
     } catch (error) {
       console.error('❌ Erro ao criar perfil e trial:', error);
+      setError('Erro ao ativar período de teste');
       setLoading(false);
     }
   };

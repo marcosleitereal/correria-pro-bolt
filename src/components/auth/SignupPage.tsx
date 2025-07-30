@@ -36,16 +36,26 @@ const SignupPage: React.FC = () => {
     setSuccess(null);
 
     try {
+      console.log('📝 SIGNUP: Iniciando cadastro para:', formData.email);
+      
       const { error } = await signUp(formData.email, formData.password, formData.fullName);
       if (error) throw error;
-      setSuccess('Conta criada com sucesso! Seu período de teste gratuito foi ativado automaticamente.');
       
-      // Aguardar mais tempo para garantir que o perfil seja criado
+      console.log('✅ SIGNUP: Cadastro bem-sucedido, aguardando processamento...');
+      setSuccess('Conta criada com sucesso! Aguarde enquanto ativamos seu período de teste gratuito...');
+      
+      // CRÍTICO: Aguardar tempo suficiente para:
+      // 1. Trigger handle_new_user processar
+      // 2. Perfil ser criado
+      // 3. Trial ser configurado
+      // 4. useSubscriptionStatus carregar dados atualizados
       setTimeout(() => {
-        console.log('🔄 SignupPage: Redirecionando para dashboard após cadastro...');
+        console.log('🔄 SIGNUP: Redirecionando para dashboard após processamento completo...');
+        setSuccess('Período de teste ativado! Redirecionando para o dashboard...');
         navigate('/dashboard');
-      }, 3000);
+      }, 7000); // 7 segundos total para garantir processamento completo
     } catch (err: any) {
+      console.error('❌ SIGNUP: Erro no cadastro:', err);
       let errorMessage = 'Ocorreu um erro. Tente novamente.';
       
       // Verifica se é um AuthError do Supabase

@@ -78,15 +78,15 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
 
   const getDescription = () => {
     if (trialExpired) {
-      return 'Seu teste gratuito de 30 dias chegou ao fim. Assine um plano para continuar aproveitando todos os recursos da Correria.Pro.';
+      return 'Seu período de teste gratuito chegou ao fim. Escolha um plano para continuar aproveitando todos os recursos da Correria.Pro.';
     }
     if (athleteLimitReached) {
       return `Você está usando ${getAthleteCountDisplay()}. Faça upgrade do seu plano para adicionar mais atletas e expandir sua operação.`;
     }
     if (blockingReason?.includes('restrito') || blockingReason?.includes('Restrito')) {
-      return 'Sua conta está em modo restrito. Você pode navegar pela plataforma, mas não pode criar atletas ou treinos. Faça upgrade para um plano pago para reativar todas as funcionalidades.';
+      return 'Seu período de teste expirou e sua conta foi movida para o modo restrito. Faça upgrade para um plano pago para reativar todas as funcionalidades.';
     }
-    return 'Você precisa de uma assinatura ativa para acessar este recurso.';
+    return 'Você precisa de um plano ativo para acessar este recurso.';
   };
 
   if (canAccess()) {

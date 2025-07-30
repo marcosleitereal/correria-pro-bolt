@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Método não permitido' }, 405);
     }
 
-    console.log('🔄 AUTO-RESTRICT: Iniciando verificação de trials expirados...');
+    console.log('🔄 AUTO-RESTRICT: Verificando trials expirados...');
 
     // Buscar plano restrito
     const { data: restrictedPlan, error: planError } = await supabase
@@ -47,11 +47,15 @@ Deno.serve(async (req) => {
       .single();
 
     if (planError || !restrictedPlan) {
-      console.error('❌ AUTO-RESTRICT: Plano Restrito não encontrado:', planError);
-      return corsResponse({ error: 'Plano Restrito não encontrado' }, 500);
+      console.error('❌ AUTO-RESTRICT: Plano "Restrito" não encontrado no banco');
+      console.log('💡 AUTO-RESTRICT: Certifique-se de que existe um plano com nome exato "Restrito"');
+      return corsResponse({ 
+        error: 'Plano "Restrito" não encontrado',
+        suggestion: 'Crie um plano com nome "Restrito" na tabela plans'
+      }, 500);
     }
 
-    console.log('✅ AUTO-RESTRICT: Plano Restrito encontrado:', restrictedPlan.id);
+    console.log('✅ AUTO-RESTRICT: Plano "Restrito" encontrado');
 
     // Buscar trials expirados que ainda não foram movidos para restrito
     const { data: expiredTrials, error: trialsError } = await supabase
@@ -66,7 +70,7 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Erro ao buscar trials expirados' }, 500);
     }
 
-    console.log(`📊 AUTO-RESTRICT: Encontrados ${expiredTrials?.length || 0} trials expirados`);
+    console.log(`📊 AUTO-RESTRICT: ${expiredTrials?.length || 0} trials expirados encontrados`);
 
     if (!expiredTrials || expiredTrials.length === 0) {
       return corsResponse({ 
@@ -81,20 +85,21 @@ Deno.serve(async (req) => {
     // Processar cada trial expirado
     for (const trial of expiredTrials) {
       try {
-        console.log(`🔄 AUTO-RESTRICT: Processando usuário ${trial.user_id}...`);
+        console.log(`🔄 AUTO-RESTRICT: Movendo usuário para plano restrito...`);
 
         // Mover para plano restrito
         const { error: updateError } = await supabase
           .from('subscriptions')
           .update({
             plan_id: restrictedPlan.id,
-            status: 'active', // Ativo mas no plano restrito
-            trial_ends_at: null // Limpar trial
+            status: 'active', // Ativo no plano restrito
+            trial_ends_at: null, // Limpar trial
+            updated_at: new Date().toISOString()
           })
           .eq('user_id', trial.user_id);
 
         if (updateError) {
-          console.error(`❌ AUTO-RESTRICT: Erro ao atualizar usuário ${trial.user_id}:`, updateError);
+          console.error(`❌ AUTO-RESTRICT: Erro ao mover usuário:`, updateError);
           errors.push({ user_id: trial.user_id, error: updateError.message });
           continue;
         }
@@ -115,22 +120,22 @@ Deno.serve(async (req) => {
           });
 
         if (auditError) {
-          console.error(`⚠️ AUTO-RESTRICT: Erro ao criar log para ${trial.user_id}:`, auditError);
+          console.error(`⚠️ AUTO-RESTRICT: Erro no log de auditoria:`, auditError);
         }
 
         processedCount++;
-        console.log(`✅ AUTO-RESTRICT: Usuário ${trial.user_id} movido para plano restrito`);
+        console.log(`✅ AUTO-RESTRICT: Usuário movido para plano restrito`);
 
       } catch (error) {
-        console.error(`❌ AUTO-RESTRICT: Erro geral para usuário ${trial.user_id}:`, error);
+        console.error(`❌ AUTO-RESTRICT: Erro geral:`, error);
         errors.push({ user_id: trial.user_id, error: error.message });
       }
     }
 
-    console.log(`✅ AUTO-RESTRICT: Processamento concluído. ${processedCount} usuários movidos para restrito`);
+    console.log(`✅ AUTO-RESTRICT: ${processedCount} usuários movidos para plano restrito`);
 
     return corsResponse({
-      message: `Processamento concluído`,
+      message: `${processedCount} usuários movidos para plano restrito`,
       processed: processedCount,
       total_found: expiredTrials.length,
       errors: errors.length > 0 ? errors : undefined

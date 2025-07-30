@@ -58,6 +58,11 @@ export const useAuth = () => {
     console.log('🚀 AUTH: Iniciando processo de cadastro para:', email);
     
     try {
+      // CRÍTICO: Verificar se Supabase está configurado
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase não está configurado. Configure as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -83,12 +88,17 @@ export const useAuth = () => {
 
       // Se o cadastro foi bem-sucedido, aguardar o trigger processar
       if (data.user && !error) {
-        console.log('✅ AUTH: Usuário criado com sucesso, aguardando trigger handle_new_user...');
+        console.log('✅ AUTH: Usuário criado com sucesso, aguardando trigger handle_new_user processar...');
         
-        // Aguardar 3 segundos para o trigger processar
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // CRÍTICO: Aguardar 5 segundos para o trigger processar completamente
+        // O trigger handle_new_user precisa:
+        // 1. Criar perfil na tabela profiles
+        // 2. Buscar configurações da tabela app_settings
+        // 3. Criar assinatura de trial na tabela subscriptions
+        console.log('⏳ AUTH: Aguardando 5 segundos para trigger processar perfil + trial...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
         
-        console.log('✅ AUTH: Trigger deve ter processado, cadastro concluído');
+        console.log('✅ AUTH: Trigger processado, perfil e trial criados automaticamente');
       }
 
       return { data, error };
@@ -96,7 +106,7 @@ export const useAuth = () => {
       console.error('❌ AUTH: Erro crítico no signUp:', err);
       return { 
         data: null, 
-        error: { message: 'Erro de conexão. Verifique sua internet e tente novamente.' } 
+        error: { message: err.message || 'Erro de conexão. Verifique sua internet e tente novamente.' } 
       };
     }
   };
