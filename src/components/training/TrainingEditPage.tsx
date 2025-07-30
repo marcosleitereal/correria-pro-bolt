@@ -466,7 +466,7 @@ const TrainingEditPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50">
       {/* Fixed Action Bar */}
       <div className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-40 lg:pl-64">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/dashboard')}
@@ -474,38 +474,40 @@ const TrainingEditPage: React.FC = () => {
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
                 Editando Treino de: {targetName}
               </h1>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                 {getStatusBadge()}
-                <span className="text-sm text-slate-600">
+                <span className="text-xs sm:text-sm text-slate-600">
                   Criado em {new Date(training.created_at).toLocaleDateString('pt-BR')}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={handleSaveDraft}
               disabled={saving || training.status === 'enviado'}
-              className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               <Save className="w-4 h-4" />
-              Salvar Rascunho
+              <span className="hidden sm:inline">Salvar Rascunho</span>
+              <span className="sm:hidden">Salvar</span>
             </button>
 
             <button
               onClick={handleFinalize}
               disabled={finalizing || training.status === 'enviado'}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm"
             >
               {finalizing && <Loader2 className="w-4 h-4 animate-spin" />}
               <Check className="w-4 h-4" />
-              Finalizar e Enviar
+              <span className="hidden sm:inline">Finalizar e Enviar</span>
+              <span className="sm:hidden">Finalizar</span>
             </button>
           </div>
         </div>
@@ -606,7 +608,7 @@ const TrainingEditPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="pt-24 lg:pl-64 p-6">
+      <div className="pt-32 sm:pt-24 lg:pl-64 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           {/* Training Overview */}
           <motion.div
