@@ -43,8 +43,8 @@ exports.handler = async (event, context) => {
     const requiredEnvVars = {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || process.env.VITE_STRIPE_WEBHOOK_SECRET
     };
 
     const missingVars = [];
@@ -52,7 +52,7 @@ exports.handler = async (event, context) => {
       if (!value) {
         missingVars.push(name);
       } else {
-        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value.substring(0, 30) + '...'}`);
+        console.log(`✅ ${name}: CONFIGURADA (${value.length} chars)`);
       }
     }
 
