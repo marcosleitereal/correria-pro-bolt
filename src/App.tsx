@@ -74,18 +74,15 @@ function App() {
             <Route path="/success" element={<SuccessPage />} />
             <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
             
+            {/* Public Feedback Route - Must be before 404 */}
+            <Route path="/feedback/:token" element={<PublicFeedbackPage />} />
+            
             {/* Legal Routes */}
             <Route path="/termos-de-uso" element={<TermsOfServicePage />} />
             <Route path="/politica-de-privacidade" element={<PrivacyPolicyPage />} />
             <Route path="/politica-de-cookies" element={<CookiePolicyPage />} />
             <Route path="/politica-de-cancelamento" element={<CancellationPolicyPage />} />
             <Route path="/politica-de-uso-aceitavel" element={<AcceptableUsePolicyPage />} />
-            
-            {/* 404 Page - Must be last */}
-            <Route path="*" element={<NotFoundPage />} />
-            
-            {/* Public Feedback Route */}
-            <Route path="/feedback/:token" element={<PublicFeedbackPage />} />
             
             {/* Protected Routes */}
             <Route path="/dashboard" element={
@@ -154,6 +151,9 @@ function App() {
                 </PrivateLayout>
               </AdminRoute>
             } />
+            
+            {/* 404 Page - Must be LAST */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           <Toaster />
           
