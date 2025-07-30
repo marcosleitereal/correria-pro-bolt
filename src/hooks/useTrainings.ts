@@ -668,7 +668,16 @@ async function callGoogleAI(apiKey: string, model: string, prompt: string): Prom
     console.log('🤖 [callGoogleAI] - Fazendo chamada real para o modelo:', model);
     console.log('🔑 [callGoogleAI] - Usando API key:', apiKey.substring(0, 10) + '...');
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${apiKey}`, {
+    // Validate and fix model name
+    let validModel = model;
+    if (!model || model === 'gemini-pro' || model === 'gemini-1.5-pro') {
+      validModel = 'gemini-1.5-flash';
+      console.log('⚠️ [callGoogleAI] - Modelo inválido detectado, usando fallback:', validModel);
+    }
+    
+    console.log('✅ [callGoogleAI] - Modelo final validado:', validModel);
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${validModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
