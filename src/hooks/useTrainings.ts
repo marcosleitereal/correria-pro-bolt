@@ -698,7 +698,17 @@ async function callGoogleAI(apiKey: string, model: string, prompt: string): Prom
     if (!response.ok) {
       const errorBody = await response.json();
       console.error('❌ [callGoogleAI] - Erro na resposta da API Google AI:', response.status, errorBody);
-      throw new Error(`Google AI API error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
+      
+      // Handle specific error cases with user-friendly messages
+      if (response.status === 503) {
+        throw new Error(`Google AI está temporariamente sobrecarregado. Tente novamente em alguns minutos ou use outro provedor de IA.`);
+      } else if (response.status === 429) {
+        throw new Error(`Limite de requisições do Google AI atingido. Aguarde alguns minutos antes de tentar novamente.`);
+      } else if (response.status === 401) {
+        throw new Error(`Chave de API do Google AI inválida. Verifique a configuração no painel admin.`);
+      } else {
+        throw new Error(`Google AI API error: ${response.status} - ${errorBody.error?.message || 'Erro desconhecido'}`);
+      }
     }
 
     const data = await response.json();
