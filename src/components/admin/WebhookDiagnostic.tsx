@@ -8,7 +8,8 @@ import {
   RefreshCw,
   ExternalLink,
   Copy,
-  Eye
+  Eye,
+  Settings
 } from 'lucide-react';
 
 const WebhookDiagnostic: React.FC = () => {
@@ -59,7 +60,8 @@ const WebhookDiagnostic: React.FC = () => {
       setResults({
         webhook: diagnosticResults,
         envVars: envVarsCheck,
-        recommendations: generateRecommendations(diagnosticResults)
+        recommendations: generateRecommendations(diagnosticResults),
+        criticalIssues: identifyCriticalIssues(diagnosticResults)
       });
 
     } catch (err: any) {
@@ -68,6 +70,42 @@ const WebhookDiagnostic: React.FC = () => {
     } finally {
       setTesting(false);
     }
+  };
+
+  const identifyCriticalIssues = (results: any) => {
+    const issues = [];
+
+    if (!results.functionExists) {
+      issues.push({
+        severity: 'critical',
+        issue: 'Função webhook não existe (404)',
+        solution: 'A função não foi deployada. Verifique se o arquivo netlify/functions/stripe-webhook.js existe e foi deployado corretamente.',
+        action: 'Redeploy da aplicação necessário'
+      });
+    } else if (results.statusCode === 502) {
+      issues.push({
+        severity: 'critical',
+        issue: 'Erro 502 - Função falha internamente',
+        solution: 'A função existe mas está falhando. Provavelmente erro de variáveis de ambiente ou código.',
+        action: 'Verificar logs da função no Netlify e variáveis de ambiente'
+      });
+    } else if (results.statusCode === 500) {
+      issues.push({
+        severity: 'critical',
+        issue: 'Erro 500 - Erro interno do servidor',
+        solution: 'Erro na execução da função. Verificar logs para detalhes específicos.',
+        action: 'Analisar logs da função no Netlify'
+      });
+    } else if (results.functionWorking) {
+      issues.push({
+        severity: 'warning',
+        issue: 'Função responde corretamente, mas webhook pode não estar configurado no Stripe',
+        solution: 'Verificar se o webhook está configurado no Stripe com a URL correta e eventos corretos.',
+        action: 'Verificar configuração no Dashboard do Stripe'
+      });
+    }
+
+    return issues;
   };
 
   const generateRecommendations = (results: any) => {
@@ -113,27 +151,27 @@ const WebhookDiagnostic: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">
-            Diagnóstico do Webhook Stripe
+            🚨 Diagnóstico CRÍTICO do Webhook
           </h3>
           <p className="text-slate-600">
-            Verificar se o webhook está funcionando corretamente
+            Identificar por que a ativação automática não funciona
           </p>
         </div>
         
         <button
           onClick={testWebhookFunction}
           disabled={testing}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
+          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
         >
           {testing ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Testando...
+              Diagnosticando...
             </>
           ) : (
             <>
               <RefreshCw className="w-5 h-5" />
-              Executar Diagnóstico
+              🔍 DIAGNOSTICAR AGORA
             </>
           )}
         </button>
@@ -160,6 +198,34 @@ const WebhookDiagnostic: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          {/* Critical Issues */}
+          {results.criticalIssues && results.criticalIssues.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-semibold text-red-900 mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                🚨 PROBLEMAS CRÍTICOS ENCONTRADOS
+              </h4>
+              <div className="space-y-4">
+                {results.criticalIssues.map((issue: any, index: number) => (
+                  <div key={index} className="bg-white border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start gap-2 mb-2">
+                      <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-red-800">{issue.issue}</p>
+                        <p className="text-red-700 text-sm mt-1">{issue.solution}</p>
+                        <div className="mt-2 p-2 bg-red-100 rounded border border-red-200">
+                          <p className="text-red-800 text-sm font-medium">
+                            ⚡ AÇÃO NECESSÁRIA: {issue.action}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Webhook Function Status */}
           <div className="bg-slate-50 rounded-lg p-4">
             <h4 className="font-semibold text-slate-900 mb-3">Status da Função Webhook</h4>
@@ -188,7 +254,9 @@ const WebhookDiagnostic: React.FC = () => {
                 <span>Status Code:</span>
                 <span className={`font-mono ${
                   results.webhook.statusCode === 405 ? 'text-green-600' : 
-                  results.webhook.statusCode === 404 ? 'text-red-600' : 'text-yellow-600'
+                  results.webhook.statusCode === 404 ? 'text-red-600' : 
+                  results.webhook.statusCode === 502 ? 'text-red-600' :
+                  'text-yellow-600'
                 }`}>
                   {results.webhook.statusCode}
                 </span>
@@ -196,93 +264,23 @@ const WebhookDiagnostic: React.FC = () => {
             </div>
           </div>
 
-          {/* Environment Variables */}
-          <div className="bg-slate-50 rounded-lg p-4">
-            <h4 className="font-semibold text-slate-900 mb-3">Variáveis de Ambiente (Frontend)</h4>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span>VITE_SUPABASE_URL:</span>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(results.envVars.VITE_SUPABASE_URL)}
-                  <span className={results.envVars.VITE_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}>
-                    {results.envVars.VITE_SUPABASE_URL ? 'Configurada' : 'Ausente'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span>VITE_SUPABASE_ANON_KEY:</span>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(results.envVars.VITE_SUPABASE_ANON_KEY)}
-                  <span className={results.envVars.VITE_SUPABASE_ANON_KEY ? 'text-green-600' : 'text-red-600'}>
-                    {results.envVars.VITE_SUPABASE_ANON_KEY ? 'Configurada' : 'Ausente'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800 text-sm">
-                <strong>Importante:</strong> As variáveis do servidor (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY) 
-                devem ser verificadas no painel do Netlify.
-              </p>
-            </div>
-          </div>
-
-          {/* Recommendations */}
-          <div className="bg-slate-50 rounded-lg p-4">
-            <h4 className="font-semibold text-slate-900 mb-3">Recomendações</h4>
-            <div className="space-y-3">
-              {results.recommendations.map((rec: any, index: number) => (
-                <div key={index} className={`p-3 rounded-lg border ${
-                  rec.type === 'success' ? 'bg-green-50 border-green-200' :
-                  rec.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
-                }`}>
-                  <div className="flex items-start gap-2">
-                    {rec.type === 'success' ? (
-                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                    ) : rec.type === 'error' ? (
-                      <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    )}
-                    <div>
-                      <p className={`font-medium ${
-                        rec.type === 'success' ? 'text-green-800' :
-                        rec.type === 'error' ? 'text-red-800' : 'text-yellow-800'
-                      }`}>
-                        {rec.message}
-                      </p>
-                      <p className={`text-sm mt-1 ${
-                        rec.type === 'success' ? 'text-green-700' :
-                        rec.type === 'error' ? 'text-red-700' : 'text-yellow-700'
-                      }`}>
-                        {rec.action}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Quick Actions */}
           <div className="bg-slate-50 rounded-lg p-4">
-            <h4 className="font-semibold text-slate-900 mb-3">Ações Rápidas</h4>
+            <h4 className="font-semibold text-slate-900 mb-3">🚀 Ações Imediatas</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 onClick={() => window.open('https://app.netlify.com', '_blank')}
                 className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
-                Abrir Netlify Dashboard
+                Abrir Netlify (Verificar Logs)
               </button>
               
               <button
                 onClick={() => window.open('https://dashboard.stripe.com/webhooks', '_blank')}
                 className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                <ExternalLink className="w-4 h-4" />
+                <Settings className="w-4 h-4" />
                 Abrir Stripe Webhooks
               </button>
               
@@ -313,19 +311,30 @@ const WebhookDiagnostic: React.FC = () => {
               </pre>
             </div>
           )}
+
+          {/* Next Steps */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">📋 Próximos Passos:</h4>
+            <ol className="list-decimal list-inside text-blue-800 space-y-1 text-sm">
+              <li>Execute o diagnóstico acima</li>
+              <li>Se função retornar 404 ou 502: Verificar deploy no Netlify</li>
+              <li>Se função retornar 405: Verificar configuração no Stripe</li>
+              <li>Verificar logs da função no Netlify após pagamento</li>
+              <li>Confirmar variáveis de ambiente no Netlify</li>
+            </ol>
+          </div>
         </motion.div>
       )}
 
       {/* Initial Instructions */}
       {!results && !testing && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-900 mb-2">Como usar este diagnóstico:</h4>
-          <ol className="list-decimal list-inside text-blue-800 space-y-1 text-sm">
-            <li>Clique em "Executar Diagnóstico" para testar a função webhook</li>
-            <li>Analise os resultados e siga as recomendações</li>
-            <li>Use as "Ações Rápidas" para acessar os painéis necessários</li>
-            <li>Após correções, execute o diagnóstico novamente</li>
-          </ol>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h4 className="font-semibold text-red-900 mb-2">🚨 PROBLEMA: Ativação Automática Não Funciona</h4>
+          <div className="text-red-800 space-y-2 text-sm">
+            <p><strong>SINTOMA:</strong> Usuário paga mas continua restrito</p>
+            <p><strong>CAUSA PROVÁVEL:</strong> Webhook do Stripe não está funcionando</p>
+            <p><strong>SOLUÇÃO:</strong> Diagnosticar e corrigir o webhook</p>
+          </div>
         </div>
       )}
     </div>

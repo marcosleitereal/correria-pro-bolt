@@ -3,11 +3,12 @@ const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
   // Logs iniciais para debugging
-  console.log('🎯 WEBHOOK INICIADO:', {
+  console.log('🎯 NETLIFY WEBHOOK: Função iniciada', {
     timestamp: new Date().toISOString(),
     method: event.httpMethod,
     headers: Object.keys(event.headers || {}),
-    bodyLength: event.body?.length || 0
+    bodyLength: event.body?.length || 0,
+    netlifyContext: context.functionName
   });
 
   // Handle CORS
@@ -18,7 +19,7 @@ exports.handler = async (event, context) => {
   };
 
   if (event.httpMethod === 'OPTIONS') {
-    console.log('✅ WEBHOOK: Respondendo OPTIONS');
+    console.log('✅ NETLIFY WEBHOOK: Respondendo OPTIONS');
     return {
       statusCode: 204,
       headers,
@@ -27,7 +28,7 @@ exports.handler = async (event, context) => {
   }
 
   if (event.httpMethod !== 'POST') {
-    console.log('❌ WEBHOOK: Método não permitido:', event.httpMethod);
+    console.log('❌ NETLIFY WEBHOOK: Método não permitido:', event.httpMethod);
     return {
       statusCode: 405,
       headers,
@@ -37,7 +38,7 @@ exports.handler = async (event, context) => {
 
   try {
     // VERIFICAÇÃO CRÍTICA DE VARIÁVEIS DE AMBIENTE
-    console.log('🔍 WEBHOOK: Verificando variáveis de ambiente...');
+    console.log('🔍 NETLIFY WEBHOOK: Verificando variáveis de ambiente...');
     
     const requiredEnvVars = {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
@@ -51,28 +52,29 @@ exports.handler = async (event, context) => {
       if (!value) {
         missingVars.push(name);
       } else {
-        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value.substring(0, 20) + '...'}`);
+        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value.substring(0, 30) + '...'}`);
       }
     }
 
     if (missingVars.length > 0) {
-      const errorMsg = `Variáveis de ambiente ausentes: ${missingVars.join(', ')}`;
-      console.error('❌ WEBHOOK:', errorMsg);
+      const errorMsg = `❌ VARIÁVEIS AUSENTES: ${missingVars.join(', ')}`;
+      console.error('❌ NETLIFY WEBHOOK:', errorMsg);
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ 
           error: errorMsg,
           missing_vars: missingVars,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          function: 'netlify-stripe-webhook'
         })
       };
     }
 
-    console.log('✅ WEBHOOK: Todas as variáveis de ambiente estão configuradas');
+    console.log('✅ NETLIFY WEBHOOK: Todas as variáveis de ambiente estão configuradas');
 
     // INICIALIZAR CLIENTES
-    console.log('🔧 WEBHOOK: Inicializando clientes...');
+    console.log('🔧 NETLIFY WEBHOOK: Inicializando clientes...');
     
     let supabase, stripeClient;
     
@@ -82,13 +84,13 @@ exports.handler = async (event, context) => {
         process.env.VITE_SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
       );
-      console.log('✅ WEBHOOK: Cliente Supabase inicializado');
+      console.log('✅ NETLIFY WEBHOOK: Cliente Supabase inicializado');
 
       // Initialize Stripe client
       stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
-      console.log('✅ WEBHOOK: Cliente Stripe inicializado');
+      console.log('✅ NETLIFY WEBHOOK: Cliente Stripe inicializado');
     } catch (initError) {
-      console.error('❌ WEBHOOK: Erro ao inicializar clientes:', initError);
+      console.error('❌ NETLIFY WEBHOOK: Erro ao inicializar clientes:', initError);
       return {
         statusCode: 500,
         headers,
@@ -101,11 +103,11 @@ exports.handler = async (event, context) => {
     }
 
     // VERIFICAR ASSINATURA DO WEBHOOK
-    console.log('🔐 WEBHOOK: Verificando assinatura...');
+    console.log('🔐 NETLIFY WEBHOOK: Verificando assinatura...');
     
     const signature = event.headers['stripe-signature'];
     if (!signature) {
-      console.error('❌ WEBHOOK: Assinatura não encontrada nos headers');
+      console.error('❌ NETLIFY WEBHOOK: Assinatura não encontrada nos headers');
       return {
         statusCode: 400,
         headers,
@@ -113,7 +115,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('✅ WEBHOOK: Assinatura encontrada');
+    console.log('✅ NETLIFY WEBHOOK: Assinatura encontrada');
 
     // CONSTRUIR E VERIFICAR EVENTO
     let stripeEvent;
@@ -123,13 +125,13 @@ exports.handler = async (event, context) => {
         signature,
         process.env.STRIPE_WEBHOOK_SECRET
       );
-      console.log('✅ WEBHOOK: Evento verificado com sucesso:', {
+      console.log('✅ NETLIFY WEBHOOK: Evento verificado com sucesso:', {
         type: stripeEvent.type,
         id: stripeEvent.id,
         created: stripeEvent.created
       });
     } catch (verifyError) {
-      console.error('❌ WEBHOOK: Falha na verificação da assinatura:', {
+      console.error('❌ NETLIFY WEBHOOK: Falha na verificação da assinatura:', {
         error: verifyError.message,
         signature: signature.substring(0, 20) + '...',
         bodyLength: event.body?.length
@@ -145,7 +147,7 @@ exports.handler = async (event, context) => {
     }
 
     // PROCESSAR EVENTO
-    console.log('🎯 WEBHOOK: Processando evento:', stripeEvent.type);
+    console.log('🎯 NETLIFY WEBHOOK: Processando evento:', stripeEvent.type);
 
     if (stripeEvent.type === 'checkout.session.completed') {
       await handleCheckoutCompleted(stripeEvent.data.object, supabase);
@@ -156,10 +158,10 @@ exports.handler = async (event, context) => {
     } else if (stripeEvent.type === 'customer.subscription.deleted') {
       await handleSubscriptionCanceled(stripeEvent.data.object, supabase);
     } else {
-      console.log(`⚠️ WEBHOOK: Evento não tratado: ${stripeEvent.type}`);
+      console.log(`⚠️ NETLIFY WEBHOOK: Evento não tratado: ${stripeEvent.type}`);
     }
 
-    console.log('✅ WEBHOOK: Evento processado com sucesso');
+    console.log('✅ NETLIFY WEBHOOK: Evento processado com sucesso');
 
     return {
       statusCode: 200,
@@ -168,12 +170,13 @@ exports.handler = async (event, context) => {
         received: true,
         event_type: stripeEvent.type,
         event_id: stripeEvent.id,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        function: 'netlify-stripe-webhook'
       })
     };
 
   } catch (error) {
-    console.error('❌ WEBHOOK: Erro crítico:', {
+    console.error('❌ NETLIFY WEBHOOK: Erro crítico:', {
       message: error.message,
       stack: error.stack,
       timestamp: new Date().toISOString()
@@ -185,14 +188,15 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ 
         error: 'Erro interno do servidor',
         message: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        function: 'netlify-stripe-webhook'
       })
     };
   }
 };
 
 async function handleCheckoutCompleted(session, supabase) {
-  console.log('💳 WEBHOOK: Processando checkout completado:', {
+  console.log('💳 NETLIFY WEBHOOK: Processando checkout completado:', {
     session_id: session.id,
     customer_id: session.customer,
     payment_status: session.payment_status,
@@ -202,13 +206,13 @@ async function handleCheckoutCompleted(session, supabase) {
   const customerId = session.customer;
   
   if (!customerId) {
-    console.error('❌ WEBHOOK: Customer ID não encontrado no session');
+    console.error('❌ NETLIFY WEBHOOK: Customer ID não encontrado no session');
     throw new Error('Customer ID não encontrado');
   }
 
   try {
     // BUSCAR USUÁRIO PELO CUSTOMER ID
-    console.log('🔍 WEBHOOK: Buscando usuário para customer:', customerId);
+    console.log('🔍 NETLIFY WEBHOOK: Buscando usuário para customer:', customerId);
     
     const { data: customerData, error: customerError } = await supabase
       .from('stripe_customers')
@@ -217,20 +221,20 @@ async function handleCheckoutCompleted(session, supabase) {
       .single();
 
     if (customerError) {
-      console.error('❌ WEBHOOK: Erro ao buscar customer:', customerError);
+      console.error('❌ NETLIFY WEBHOOK: Erro ao buscar customer:', customerError);
       throw new Error(`Erro ao buscar customer: ${customerError.message}`);
     }
 
     if (!customerData) {
-      console.error('❌ WEBHOOK: Customer não encontrado na base de dados:', customerId);
+      console.error('❌ NETLIFY WEBHOOK: Customer não encontrado na base de dados:', customerId);
       throw new Error('Customer não encontrado na base de dados');
     }
 
     const userId = customerData.user_id;
-    console.log('👤 WEBHOOK: Usuário encontrado:', userId);
+    console.log('👤 NETLIFY WEBHOOK: Usuário encontrado:', userId);
 
     // BUSCAR PLANO ATIVO PARA ATIVAÇÃO
-    console.log('📦 WEBHOOK: Buscando plano ativo...');
+    console.log('📦 NETLIFY WEBHOOK: Buscando plano ativo...');
     
     const { data: activePlan, error: planError } = await supabase
       .from('plans')
@@ -242,14 +246,14 @@ async function handleCheckoutCompleted(session, supabase) {
       .single();
 
     if (planError) {
-      console.warn('⚠️ WEBHOOK: Erro ao buscar plano ativo:', planError);
-      console.log('🔄 WEBHOOK: Continuando sem plano específico...');
+      console.warn('⚠️ NETLIFY WEBHOOK: Erro ao buscar plano ativo:', planError);
+      console.log('🔄 NETLIFY WEBHOOK: Continuando sem plano específico...');
     } else {
-      console.log('✅ WEBHOOK: Plano encontrado:', activePlan.name);
+      console.log('✅ NETLIFY WEBHOOK: Plano encontrado:', activePlan.name);
     }
 
     // CRÍTICO: LIMPEZA TOTAL DO ESTADO ANTERIOR
-    console.log('🗑️ WEBHOOK: Limpando qualquer estado anterior...');
+    console.log('🗑️ NETLIFY WEBHOOK: Limpando qualquer estado anterior...');
     
     // DELETAR COMPLETAMENTE o estado anterior
     const { error: deleteError } = await supabase
@@ -258,16 +262,16 @@ async function handleCheckoutCompleted(session, supabase) {
       .eq('user_id', userId);
     
     if (deleteError) {
-      console.warn('⚠️ WEBHOOK: Erro ao deletar estado anterior (pode não existir):', deleteError);
+      console.warn('⚠️ NETLIFY WEBHOOK: Erro ao deletar estado anterior (pode não existir):', deleteError);
     }
     
-    console.log('✅ WEBHOOK: Estado anterior limpo');
+    console.log('✅ NETLIFY WEBHOOK: Estado anterior limpo');
 
     // ATIVAR USUÁRIO COM ESTADO LIMPO
-    console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO COM PLANO PAGO...');
+    console.log('🚀 NETLIFY WEBHOOK: ATIVANDO USUÁRIO COM PLANO PAGO...');
     
     const now = new Date();
-    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const subscriptionData = {
       user_id: userId,
@@ -275,20 +279,20 @@ async function handleCheckoutCompleted(session, supabase) {
       status: 'active',
       trial_ends_at: null,
       current_period_start: now.toISOString(),
-      current_period_end: oneYearLater.toISOString(),
+      current_period_end: oneMonthLater.toISOString(),
       updated_at: now.toISOString()
     };
 
-    console.log('💾 WEBHOOK: Dados da ativação:', {
+    console.log('💾 NETLIFY WEBHOOK: Dados da ativação:', {
       user_id: userId,
       plan_name: activePlan?.name || 'Sem plano específico',
       status: 'active',
       trial_cleared: true,
-      period_end: oneYearLater.toLocaleDateString('pt-BR')
+      period_end: oneMonthLater.toLocaleDateString('pt-BR')
     });
 
     // TENTAR INSERT PRIMEIRO
-    console.log('💾 WEBHOOK: Tentando INSERT direto...');
+    console.log('💾 NETLIFY WEBHOOK: Tentando INSERT direto...');
     let { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
       .insert(subscriptionData)
@@ -296,7 +300,7 @@ async function handleCheckoutCompleted(session, supabase) {
       .single();
 
     if (activationError) {
-      console.warn('⚠️ WEBHOOK: INSERT falhou, tentando UPSERT:', activationError);
+      console.warn('⚠️ NETLIFY WEBHOOK: INSERT falhou, tentando UPSERT:', activationError);
       
       // FALLBACK: UPSERT se INSERT falhar
       const { data: upsertedSub, error: upsertError } = await supabase
@@ -306,18 +310,18 @@ async function handleCheckoutCompleted(session, supabase) {
         .single();
       
       if (upsertError) {
-        console.error('❌ WEBHOOK: UPSERT também falhou:', upsertError);
+        console.error('❌ NETLIFY WEBHOOK: UPSERT também falhou:', upsertError);
         throw new Error(`Falha crítica na ativação: ${upsertError.message}`);
       }
       
       activatedSub = upsertedSub;
-      console.log('✅ WEBHOOK: UPSERT bem-sucedido');
+      console.log('✅ NETLIFY WEBHOOK: UPSERT bem-sucedido');
     }
     
-    console.log('✅ WEBHOOK: Ativação bem-sucedida:', activatedSub);
+    console.log('✅ NETLIFY WEBHOOK: Ativação bem-sucedida:', activatedSub);
     
     // VERIFICAÇÃO FINAL - CONFIRMAR ATIVAÇÃO
-    console.log('🔍 WEBHOOK: Verificação final da ativação...');
+    console.log('🔍 NETLIFY WEBHOOK: Verificação final da ativação...');
     
     const { data: finalCheck, error: finalError } = await supabase
       .from('subscriptions')
@@ -326,43 +330,24 @@ async function handleCheckoutCompleted(session, supabase) {
       .single();
     
     if (finalError) {
-      console.error('❌ WEBHOOK: Erro na verificação final:', finalError);
+      console.error('❌ NETLIFY WEBHOOK: Erro na verificação final:', finalError);
     } else {
-      console.log('🔍 WEBHOOK: Verificação final resultado:', {
+      console.log('🔍 NETLIFY WEBHOOK: Verificação final resultado:', {
         status: finalCheck.status,
         trial_ends_at: finalCheck.trial_ends_at,
         plan_id: finalCheck.plan_id
       });
       
       if (finalCheck.status !== 'active' || finalCheck.trial_ends_at !== null) {
-        console.error('❌ WEBHOOK: ATIVAÇÃO FALHOU - estado incorreto');
+        console.error('❌ NETLIFY WEBHOOK: ATIVAÇÃO FALHOU - estado incorreto');
         throw new Error('Ativação não foi aplicada corretamente');
       }
-    }
-
-    // VERIFICAÇÃO PÓS-ATIVAÇÃO
-    console.log('🔍 WEBHOOK: Verificando ativação...');
-    
-    const { data: verificationData, error: verificationError } = await supabase
-      .from('user_subscription_details')
-      .select('subscription_status, has_access, current_plan_name')
-      .eq('user_id', userId)
-      .single();
-
-    if (verificationError) {
-      console.warn('⚠️ WEBHOOK: Erro na verificação:', verificationError);
-    } else {
-      console.log('✅ WEBHOOK: Verificação pós-ativação:', {
-        subscription_status: verificationData.subscription_status,
-        has_access: verificationData.has_access,
-        current_plan_name: verificationData.current_plan_name
-      });
     }
 
     // LOG DE AUDITORIA DETALHADO
     await supabase.from('audit_logs').insert({
       actor_id: null,
-      actor_email: 'stripe_webhook',
+      actor_email: 'netlify_stripe_webhook',
       action: 'SUBSCRIPTION_ACTIVATED_CHECKOUT',
       details: {
         user_id: userId,
@@ -372,26 +357,26 @@ async function handleCheckoutCompleted(session, supabase) {
         payment_status: session.payment_status,
         mode: session.mode,
         activated_at: now.toISOString(),
-        period_end: oneYearLater.toISOString(),
-        verification_result: verificationData || 'Erro na verificação'
+        period_end: oneMonthLater.toISOString(),
+        function: 'netlify-stripe-webhook'
       }
     });
 
-    console.log('🎉 WEBHOOK: USUÁRIO ATIVADO COM SUCESSO!');
+    console.log('🎉 NETLIFY WEBHOOK: USUÁRIO ATIVADO COM SUCESSO!');
     
   } catch (error) {
-    console.error('❌ WEBHOOK: Erro no processamento do checkout:', error);
+    console.error('❌ NETLIFY WEBHOOK: Erro no processamento do checkout:', error);
     throw error;
   }
 }
 
 async function handleSubscriptionCreated(subscription, supabase) {
-  console.log('🆕 WEBHOOK: Nova subscription criada:', subscription.id);
+  console.log('🆕 NETLIFY WEBHOOK: Nova subscription criada:', subscription.id);
   await handleSubscriptionUpdated(subscription, supabase);
 }
 
 async function handleSubscriptionUpdated(subscription, supabase) {
-  console.log('🔄 WEBHOOK: Subscription atualizada:', {
+  console.log('🔄 NETLIFY WEBHOOK: Subscription atualizada:', {
     id: subscription.id,
     status: subscription.status,
     customer: subscription.customer
@@ -408,7 +393,7 @@ async function handleSubscriptionUpdated(subscription, supabase) {
       .single();
 
     if (customerError || !customerData) {
-      console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId);
+      console.error('❌ NETLIFY WEBHOOK: Usuário não encontrado para customer:', customerId);
       return;
     }
 
@@ -420,7 +405,7 @@ async function handleSubscriptionUpdated(subscription, supabase) {
       .eq('stripe_price_id_monthly', priceId)
       .single();
 
-    console.log('📦 WEBHOOK: Plano encontrado:', plan?.name || 'Desconhecido');
+    console.log('📦 NETLIFY WEBHOOK: Plano encontrado:', plan?.name || 'Desconhecido');
 
     // Atualizar assinatura
     const subscriptionData = {
@@ -438,17 +423,17 @@ async function handleSubscriptionUpdated(subscription, supabase) {
       .upsert(subscriptionData, { onConflict: 'user_id' });
 
     if (updateError) {
-      console.error('❌ WEBHOOK: Erro ao atualizar subscription:', updateError);
+      console.error('❌ NETLIFY WEBHOOK: Erro ao atualizar subscription:', updateError);
     } else {
-      console.log('✅ WEBHOOK: Subscription atualizada:', subscription.status);
+      console.log('✅ NETLIFY WEBHOOK: Subscription atualizada:', subscription.status);
     }
   } catch (error) {
-    console.error('❌ WEBHOOK: Erro no handleSubscriptionUpdated:', error);
+    console.error('❌ NETLIFY WEBHOOK: Erro no handleSubscriptionUpdated:', error);
   }
 }
 
 async function handleSubscriptionCanceled(subscription, supabase) {
-  console.log('❌ WEBHOOK: Subscription cancelada:', subscription.id);
+  console.log('❌ NETLIFY WEBHOOK: Subscription cancelada:', subscription.id);
   
   const customerId = subscription.customer;
   
@@ -469,8 +454,8 @@ async function handleSubscriptionCanceled(subscription, supabase) {
       })
       .eq('user_id', customerData.user_id);
 
-    console.log('✅ WEBHOOK: Subscription cancelada para usuário:', customerData.user_id);
+    console.log('✅ NETLIFY WEBHOOK: Subscription cancelada para usuário:', customerData.user_id);
   } catch (error) {
-    console.error('❌ WEBHOOK: Erro no handleSubscriptionCanceled:', error);
+    console.error('❌ NETLIFY WEBHOOK: Erro no handleSubscriptionCanceled:', error);
   }
 }
