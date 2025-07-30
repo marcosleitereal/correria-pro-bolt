@@ -9,11 +9,6 @@ const CheckoutSuccessPage: React.FC = () => {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Forçar refresh da página após 3 segundos para garantir que os dados sejam atualizados
-    setTimeout(() => {
-      window.location.reload();
-    }, 3000);
-    
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -131,10 +126,15 @@ const CheckoutSuccessPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 1 }}
-            className="mt-8 text-sm text-slate-500 flex items-center justify-center gap-2"
+            className="mt-8 text-sm text-slate-500"
           >
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Redirecionando automaticamente em {countdown} segundos...
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Redirecionando automaticamente em {countdown} segundos...
+            </div>
+            <p className="text-xs text-center text-slate-400">
+              Aguardando confirmação do pagamento...
+            </p>
           </motion.div>
         </motion.div>
       </div>
