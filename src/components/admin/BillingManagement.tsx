@@ -27,6 +27,7 @@ import TrialSettingsModal from './TrialSettingsModal';
 import SubscriptionManagement from './SubscriptionManagement';
 import WebhookDiagnostic from './WebhookDiagnostic';
 import SystemDiagnostic from './SystemDiagnostic';
+import EmergencyDiagnostic from './EmergencyDiagnostic';
 
 const BillingManagement: React.FC = () => {
   const { user } = useAuthContext();
