@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { isSupabaseConfigured, getSupabaseConfig } from '../../lib/supabase';
 
 const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,8 +18,18 @@ const LoginPage: React.FC = () => {
   const { signIn } = useAuthContext();
   const navigate = useNavigate();
 
+  // Verificar configuração do Supabase
+  const supabaseConfig = getSupabaseConfig();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificar se Supabase está configurado antes de tentar login
+    if (!isSupabaseConfigured()) {
+      setError('Sistema não configurado. As variáveis de ambiente do Supabase não estão definidas no Netlify.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
@@ -82,6 +93,17 @@ const LoginPage: React.FC = () => {
 
           {/* Header */}
           <div className="text-center">
+            {!isSupabaseConfigured() && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+                <p className="font-medium">⚠️ Sistema não configurado</p>
+                <p className="text-sm">Configure as variáveis de ambiente no Netlify:</p>
+                <ul className="text-xs mt-2 list-disc list-inside">
+                  <li>VITE_SUPABASE_URL</li>
+                  <li>VITE_SUPABASE_ANON_KEY</li>
+                </ul>
+              </div>
+            )}
+            
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
               Entrar na Correria.Pro
             </h2>
@@ -152,11 +174,11 @@ const LoginPage: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isSupabaseConfigured()}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-              Entrar
+              {!isSupabaseConfigured() ? 'Sistema não configurado' : 'Entrar'}
             </button>
 
             {/* Footer Links */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthState {
   user: User | null;
@@ -129,9 +129,13 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Verificar se o Supabase está configurado
+      // CRÍTICO: Verificar se o Supabase está configurado
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase não está configurado. Configure as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Netlify.');
+      }
+
       if (!supabase || typeof supabase.auth?.signInWithPassword !== 'function') {
-        throw new Error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
+        throw new Error('Cliente Supabase não está funcionando corretamente.');
       }
 
       console.log('🔐 AUTH: Tentando fazer login para:', email);
