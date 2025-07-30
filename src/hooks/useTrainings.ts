@@ -573,6 +573,8 @@ async function callRealAI(providerName: string, config: any, prompt: string): Pr
       return await callOpenAI(config.api_key_encrypted, config.selected_model, prompt);
     } else if (providerName === 'Anthropic') {
       return await callAnthropic(config.api_key_encrypted, config.selected_model, prompt);
+    } else if (providerName === 'Google AI' || providerName === 'Gemini') {
+      return await callGoogleAI(config.api_key_encrypted, config.selected_model, prompt);
     } else if (providerName === 'Groq') {
       return await callGroq(config.api_key_encrypted, config.selected_model, prompt);
     } else {
@@ -590,6 +592,7 @@ async function callRealAI(providerName: string, config: any, prompt: string): Pr
 async function callOpenAI(apiKey: string, model: string, prompt: string): Promise<any> {
   try {
     console.log('🤖 [callOpenAI] - Fazendo chamada real para o modelo:', model);
+    console.log('🔑 [callOpenAI] - Usando API key:', apiKey.substring(0, 10) + '...');
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -653,10 +656,79 @@ async function callOpenAI(apiKey: string, model: string, prompt: string): Promis
   }
 }
 
-// Placeholder para outros provedores
+// Implementação para Google AI (Gemini)
 async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<any> {
   console.log('🤖 [callAnthropic] - Implementação pendente');
   return null;
+}
+
+// Implementação para Google AI (Gemini)
+async function callGoogleAI(apiKey: string, model: string, prompt: string): Promise<any> {
+  try {
+    console.log('🤖 [callGoogleAI] - Fazendo chamada real para o modelo:', model);
+    console.log('🔑 [callGoogleAI] - Usando API key:', apiKey.substring(0, 10) + '...');
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-pro'}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 2000
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      console.error('❌ [callGoogleAI] - Erro na resposta da API Google AI:', response.status, errorBody);
+      throw new Error(`Google AI API error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!content) {
+      throw new Error('[callGoogleAI] - Resposta vazia da Google AI');
+    }
+    
+    console.log('✅ [callGoogleAI] - Resposta bruta da Google AI:', content);
+    
+    // Tentar parsear como JSON
+    try {
+      // Extrair JSON do bloco markdown se necessário
+      let jsonContent = content.trim();
+      
+      // Se a resposta está em um bloco de código markdown, extrair o JSON
+      if (jsonContent.startsWith('```json') && jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(7, -3).trim(); // Remove ```json e ```
+      } else if (jsonContent.startsWith('```') && jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(3, -3).trim(); // Remove ``` genérico
+      }
+      
+      console.log('🔧 [callGoogleAI] - JSON extraído para parsing:', jsonContent.substring(0, 200) + '...');
+      
+      const parsedResponse = JSON.parse(jsonContent);
+      console.log('✅ [callGoogleAI] - JSON parseado com sucesso:', parsedResponse);
+      
+      return parsedResponse;
+    } catch (parseError) {
+      console.error('❌ [callGoogleAI] - Erro ao parsear JSON:', parseError);
+      console.error('❌ [callGoogleAI] - Conteúdo que falhou:', content);
+      return { error: 'Resposta da IA não está em formato JSON válido', rawContent: content };
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Google AI: Erro na chamada:', error);
+    return null;
+  }
 }
 
 async function callGroq(apiKey: string, model: string, prompt: string): Promise<any> {

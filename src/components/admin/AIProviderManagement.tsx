@@ -37,7 +37,9 @@ const AIProviderManagement: React.FC = () => {
   };
 
   const handleSetGlobalProvider = async (providerId: string) => {
+    console.log('🔄 [AIProviderManagement] - Mudando provedor global para:', providerId);
     await setGlobalProvider(providerId);
+    console.log('✅ [AIProviderManagement] - Troca de provedor concluída');
   };
 
   const handleTestConnection = async (providerId: string) => {

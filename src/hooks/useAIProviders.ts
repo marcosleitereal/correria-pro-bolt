@@ -48,6 +48,7 @@ export const useAIProviders = () => {
 
   const fetchGlobalProvider = async () => {
     try {
+      console.log('🔍 [fetchGlobalProvider] - Buscando provedor global...');
       const { data, error: fetchError } = await supabase
         .from('admin_settings')
         .select('setting_value')
@@ -55,12 +56,13 @@ export const useAIProviders = () => {
         .maybeSingle();
 
       if (fetchError) {
+        console.error('❌ [fetchGlobalProvider] - Erro ao buscar:', fetchError);
         throw fetchError;
       }
 
-      console.log('🔍 [useAIProviders] - Fetched global provider:', data?.setting_value);
-      console.log('🔍 [useAIProviders] - Provedor global carregado:', data?.setting_value);
+      console.log('🔍 [fetchGlobalProvider] - Provedor encontrado no banco:', data?.setting_value);
       setGlobalProviderState(data?.setting_value || null);
+      console.log('✅ [fetchGlobalProvider] - Estado atualizado para:', data?.setting_value || null);
     } catch (err: any) {
       console.error('Error fetching global provider:', err);
     }
@@ -105,6 +107,7 @@ export const useAIProviders = () => {
 
     try {
       setError(null);
+      console.log('💾 [setGlobalProvider] - Salvando novo provedor:', providerName);
 
       const { error: updateError } = await supabase
         .from('admin_settings')
@@ -118,10 +121,18 @@ export const useAIProviders = () => {
         });
 
       if (updateError) {
+        console.error('❌ [setGlobalProvider] - Erro ao salvar:', updateError);
         throw updateError;
       }
 
+      console.log('✅ [setGlobalProvider] - Salvo no banco com sucesso');
       setGlobalProviderState(providerName);
+      console.log('✅ [setGlobalProvider] - Estado local atualizado para:', providerName);
+      
+      // Forçar refresh dos providers para garantir sincronização
+      await fetchProviders();
+      console.log('🔄 [setGlobalProvider] - Providers recarregados');
+      
       return true;
     } catch (err: any) {
       console.error('Error setting global provider:', err);
@@ -150,7 +161,7 @@ export const useAIProviders = () => {
   const getActiveProvider = (): AIProvider | null => {
     if (!globalProvider) return null;
     const foundProvider = providers.find(p => p.name === globalProvider && p.api_key_encrypted);
-    console.log('🔍 [useAIProviders] - getActiveProvider called:', {
+    console.log('🔍 [getActiveProvider] - Verificando provedor ativo:', {
       globalProvider,
       providersCount: providers.length,
       foundProvider: !!foundProvider,
