@@ -174,6 +174,84 @@ const BillingManagement: React.FC = () => {
   };
 
   const handleManualActivation = async () => {
+    if (!manualActivationEmail || !user?.id) return;
+
+    setActivatingUser(true);
+    try {
+      // ATIVAÇÃO DIRETA VIA SUPABASE (mais confiável)
+      console.log('🚀 MANUAL ACTIVATION: Ativando usuário diretamente:', manualActivationEmail);
+      
+      // Buscar usuário pelo email
+      const { data: targetProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('email', manualActivationEmail)
+        .single();
+
+      if (profileError || !targetProfile) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      // Buscar primeiro plano ativo
+      const { data: activePlan, error: planError } = await supabase
+        .from('plans')
+        .select('id, name')
+        .eq('is_active', true)
+        .neq('name', 'Restrito')
+        .order('price_monthly', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (planError || !activePlan) {
+        throw new Error('Nenhum plano ativo encontrado');
+      }
+
+      // ATIVAR ASSINATURA DIRETAMENTE
+      const now = new Date();
+      const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const { error: activationError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: targetProfile.id,
+          plan_id: activePlan.id,
+          status: 'active',
+          trial_ends_at: null,
+          current_period_start: now.toISOString(),
+          current_period_end: oneMonthLater.toISOString(),
+          updated_at: now.toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (activationError) {
+        throw new Error(`Erro ao ativar: ${activationError.message}`);
+      }
+
+      // Criar log de auditoria
+      await supabase.from('audit_logs').insert({
+        actor_id: user.id,
+        actor_email: user.email,
+        action: 'MANUAL_USER_ACTIVATION_DIRECT',
+        details: {
+          target_user_id: targetProfile.id,
+          target_user_email: manualActivationEmail,
+          target_user_name: targetProfile.full_name,
+          activated_plan: activePlan.name,
+          activated_at: now.toISOString()
+        }
+      });
+
+      showSuccess(`✅ Usuário ${targetProfile.full_name} (${manualActivationEmail}) foi ativado no plano ${activePlan.name}!`);
+      setManualActivationEmail('');
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao ativar usuário:', error);
+      showSuccess(`❌ Erro: ${error.message}`);
+    } finally {
+      setActivatingUser(false);
+    }
+  };
+
+  const handleManualActivationOld = async () => {
     if (!manualActivationEmail || !session?.access_token) return;
 
     setActivatingUser(true);

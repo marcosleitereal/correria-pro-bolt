@@ -44,6 +44,20 @@ export const useCheckout = () => {
 
       console.log('💳 CHECKOUT: Validações OK, Price ID:', params.price_id);
 
+      // CRÍTICO: Criar customer no Stripe ANTES do checkout para garantir rastreamento
+      console.log('👤 CHECKOUT: Criando/verificando customer no Stripe...');
+      
+      const { data: existingCustomer } = await supabase
+        .from('stripe_customers')
+        .select('customer_id')
+        .eq('user_id', session.user?.id)
+        .maybeSingle();
+      
+      if (!existingCustomer) {
+        console.log('🆕 CHECKOUT: Customer não existe, será criado no checkout');
+      } else {
+        console.log('✅ CHECKOUT: Customer já existe:', existingCustomer.customer_id);
+      }
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`;
       
       console.log('🌐 CHECKOUT: Chamando Edge Function:', apiUrl);
@@ -58,7 +72,11 @@ export const useCheckout = () => {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          user_id: session.user?.id,
+          user_email: session.user?.email
+        }),
       });
 
       console.log('📡 CHECKOUT: Status da resposta:', response.status);
@@ -85,6 +103,21 @@ export const useCheckout = () => {
 
       if (data.url) {
         console.log('✅ CHECKOUT: Sucesso! Redirecionando para Stripe:', data.url);
+        
+        // CRÍTICO: Salvar tentativa de pagamento para rastreamento
+        await supabase.from('audit_logs').insert({
+          actor_id: session.user?.id,
+          actor_email: session.user?.email,
+          action: 'CHECKOUT_SESSION_CREATED',
+          details: {
+            gateway: params.gateway,
+            price_id: params.price_id,
+            checkout_url: data.url,
+            session_id: data.sessionId,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
         window.location.href = data.url;
       } else {
         console.error('❌ CHECKOUT: URL não recebida na resposta:', data);
