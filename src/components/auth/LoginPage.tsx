@@ -23,6 +23,8 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     try {
+      console.log('🔐 LOGIN: Iniciando processo de login...');
+      
       const { error } = await signIn(formData.email, formData.password);
       if (error) throw error;
       
@@ -32,7 +34,23 @@ const LoginPage: React.FC = () => {
         navigate('/dashboard');
       }, 1000);
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro. Tente novamente.');
+      console.error('❌ LOGIN: Erro no processo de login:', err);
+      
+      let errorMessage = 'Ocorreu um erro. Tente novamente.';
+      
+      if (err.message) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+        } else if (err.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos. Verifique suas credenciais.';
+        } else if (err.message.includes('Supabase não está configurado')) {
+          errorMessage = 'Erro de configuração do sistema. Contate o suporte.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

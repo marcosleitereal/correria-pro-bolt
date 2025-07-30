@@ -24,6 +24,18 @@ const TestSupabaseConnection: React.FC = () => {
       }
       console.log('✅ Cliente Supabase inicializado');
 
+      // Teste 1.5: Verificar variáveis de ambiente
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Variáveis de ambiente VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configuradas');
+      }
+      
+      console.log('✅ Variáveis de ambiente configuradas');
+      console.log('🔗 URL:', supabaseUrl);
+      console.log('🔑 Key:', supabaseKey.substring(0, 20) + '...');
+
       // Teste 2: Verificar sessão atual
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
@@ -40,7 +52,12 @@ const TestSupabaseConnection: React.FC = () => {
 
       if (testError) {
         console.log('❌ Erro na query de teste:', testError);
-        throw new Error(`Erro na comunicação: ${testError.message}`);
+        
+        if (testError.message.includes('Failed to fetch') || testError.message.includes('NetworkError')) {
+          throw new Error('Erro de conectividade: Não foi possível conectar ao Supabase. Verifique sua internet.');
+        } else {
+          throw new Error(`Erro na comunicação: ${testError.message}`);
+        }
       }
 
       console.log('✅ Query de teste bem-sucedida');
@@ -50,15 +67,28 @@ const TestSupabaseConnection: React.FC = () => {
       setDetails({
         session: sessionData.session ? 'Usuário logado' : 'Nenhum usuário logado',
         queryTest: 'Query de teste executada com sucesso',
+        supabaseUrl: supabaseUrl,
+        hasValidKey: !!supabaseKey,
         timestamp: new Date().toLocaleString('pt-BR')
       });
 
     } catch (error: any) {
       console.error('❌ Erro no teste de conectividade:', error);
       setStatus('error');
-      setMessage(`Erro de conectividade: ${error.message}`);
+      
+      let errorMessage = error.message;
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage = 'Erro de conectividade: Não foi possível conectar ao servidor Supabase. Verifique sua conexão com a internet.';
+      } else if (error.message.includes('Variáveis de ambiente')) {
+        errorMessage = 'Erro de configuração: Variáveis de ambiente do Supabase não estão configuradas corretamente.';
+      }
+      
+      setMessage(errorMessage);
       setDetails({
         error: error.message,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'Não configurada',
+        hasValidKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
         timestamp: new Date().toLocaleString('pt-BR')
       });
     }

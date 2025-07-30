@@ -128,12 +128,61 @@ export const useAuth = () => {
   };
 
   const signIn = async (email: string, password: string) => {
+    try {
+      // Verificar se o Supabase está configurado
+      if (!supabase || typeof supabase.auth?.signInWithPassword !== 'function') {
+        throw new Error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
+      }
+
+      console.log('🔐 AUTH: Tentando fazer login para:', email);
+      
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+      console.log('📊 AUTH: Resposta do login:', { data: !!data, error });
+      
+      if (error) {
+        // Tratar erros específicos do Supabase
+        if (error.message.includes('Invalid login credentials')) {
+          return { 
+            data, 
+            error: { 
+              ...error, 
+              message: 'Email ou senha incorretos. Verifique suas credenciais.' 
+            } 
+          };
+        }
+        
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          return { 
+            data, 
+            error: { 
+              ...error, 
+              message: 'Erro de conexão. Verifique sua internet e as configurações do Supabase.' 
+            } 
+          };
+        }
+      }
+      
     return { data, error };
+    } catch (err: any) {
+      console.error('❌ AUTH: Erro crítico no signIn:', err);
+      
+      let errorMessage = 'Erro de conexão. Tente novamente.';
+      
+      if (err.message && err.message.includes('Supabase não está configurado')) {
+        errorMessage = 'Erro de configuração do sistema. Contate o suporte.';
+      } else if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+        errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+      }
+      
+      return { 
+        data: null, 
+        error: { message: errorMessage } 
+      };
+    }
   };
 
   const signOut = async () => {

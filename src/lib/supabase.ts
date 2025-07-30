@@ -9,6 +9,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ SUPABASE: Variáveis de ambiente não configuradas');
   console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'Não configurada');
   console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Configurada' : 'Não configurada');
+  
+  // Em produção, mostrar erro mais amigável
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️ SUPABASE: Configuração ausente. Algumas funcionalidades podem não funcionar.');
+  }
 }
 
 // Criar cliente Supabase
@@ -19,10 +24,26 @@ const supabase = createClient<Database>(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      flowType: 'pkce'
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'correria-pro@1.0.0'
+      }
     }
   }
 );
+
+// Função para testar conectividade
+export const testSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('profiles').select('count').limit(1);
+    return { connected: !error, error };
+  } catch (error) {
+    return { connected: false, error };
+  }
+};
 
 export interface Database {
   public: {
