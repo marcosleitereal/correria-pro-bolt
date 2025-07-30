@@ -1,17 +1,15 @@
 const stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 exports.handler = async (event, context) => {
-  console.log('🎯 NETLIFY WEBHOOK: Stripe webhook recebido');
-  console.log('🔍 Method:', event.httpMethod);
-  console.log('🔍 Headers:', JSON.stringify(event.headers, null, 2));
-  
+  // Logs iniciais para debugging
+  console.log('🎯 WEBHOOK INICIADO:', {
+    timestamp: new Date().toISOString(),
+    method: event.httpMethod,
+    headers: Object.keys(event.headers || {}),
+    bodyLength: event.body?.length || 0
+  });
+
   // Handle CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -20,6 +18,7 @@ exports.handler = async (event, context) => {
   };
 
   if (event.httpMethod === 'OPTIONS') {
+    console.log('✅ WEBHOOK: Respondendo OPTIONS');
     return {
       statusCode: 204,
       headers,
@@ -37,31 +36,76 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // VERIFICAÇÃO CRÍTICA DE VARIÁVEIS DE AMBIENTE
     console.log('🔍 WEBHOOK: Verificando variáveis de ambiente...');
     
-    // Verificar variáveis de ambiente críticas
-    if (!process.env.VITE_SUPABASE_URL) {
-      throw new Error('VITE_SUPABASE_URL não configurado');
-    }
-    
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurado');
-    }
-    
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error('STRIPE_SECRET_KEY não configurado');
-    }
-    
-    console.log('✅ WEBHOOK: Variáveis de ambiente OK');
+    const requiredEnvVars = {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+    };
 
-    // Initialize Stripe with the secret key
-    const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
-    console.log('✅ WEBHOOK: Cliente Stripe inicializado');
+    const missingVars = [];
+    for (const [name, value] of Object.entries(requiredEnvVars)) {
+      if (!value) {
+        missingVars.push(name);
+      } else {
+        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value}`);
+      }
+    }
 
-    // Get the signature from the header
+    if (missingVars.length > 0) {
+      const errorMsg = `Variáveis de ambiente ausentes: ${missingVars.join(', ')}`;
+      console.error('❌ WEBHOOK:', errorMsg);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: errorMsg,
+          missing_vars: missingVars,
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+
+    console.log('✅ WEBHOOK: Todas as variáveis de ambiente estão configuradas');
+
+    // INICIALIZAR CLIENTES
+    console.log('🔧 WEBHOOK: Inicializando clientes...');
+    
+    let supabase, stripeClient;
+    
+    try {
+      // Initialize Supabase client
+      supabase = createClient(
+        process.env.VITE_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      console.log('✅ WEBHOOK: Cliente Supabase inicializado');
+
+      // Initialize Stripe client
+      stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
+      console.log('✅ WEBHOOK: Cliente Stripe inicializado');
+    } catch (initError) {
+      console.error('❌ WEBHOOK: Erro ao inicializar clientes:', initError);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Erro na inicialização dos clientes',
+          details: initError.message,
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+
+    // VERIFICAR ASSINATURA DO WEBHOOK
+    console.log('🔐 WEBHOOK: Verificando assinatura...');
+    
     const signature = event.headers['stripe-signature'];
     if (!signature) {
-      console.error('❌ WEBHOOK: Assinatura não encontrada');
+      console.error('❌ WEBHOOK: Assinatura não encontrada nos headers');
       return {
         statusCode: 400,
         headers,
@@ -71,7 +115,7 @@ exports.handler = async (event, context) => {
 
     console.log('✅ WEBHOOK: Assinatura encontrada');
 
-    // Verify the webhook signature
+    // CONSTRUIR E VERIFICAR EVENTO
     let stripeEvent;
     try {
       stripeEvent = stripeClient.webhooks.constructEvent(
@@ -79,27 +123,38 @@ exports.handler = async (event, context) => {
         signature,
         process.env.STRIPE_WEBHOOK_SECRET
       );
-      console.log('✅ WEBHOOK: Assinatura verificada com sucesso');
-    } catch (error) {
-      console.error('❌ WEBHOOK: Falha na verificação da assinatura:', error.message);
+      console.log('✅ WEBHOOK: Evento verificado com sucesso:', {
+        type: stripeEvent.type,
+        id: stripeEvent.id,
+        created: stripeEvent.created
+      });
+    } catch (verifyError) {
+      console.error('❌ WEBHOOK: Falha na verificação da assinatura:', {
+        error: verifyError.message,
+        signature: signature.substring(0, 20) + '...',
+        bodyLength: event.body?.length
+      });
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: `Falha na verificação: ${error.message}` })
+        body: JSON.stringify({ 
+          error: `Falha na verificação: ${verifyError.message}`,
+          timestamp: new Date().toISOString()
+        })
       };
     }
 
+    // PROCESSAR EVENTO
     console.log('🎯 WEBHOOK: Processando evento:', stripeEvent.type);
 
-    // Process the event
     if (stripeEvent.type === 'checkout.session.completed') {
-      await handleCheckoutCompleted(stripeEvent.data.object);
+      await handleCheckoutCompleted(stripeEvent.data.object, supabase);
     } else if (stripeEvent.type === 'customer.subscription.created') {
-      await handleSubscriptionCreated(stripeEvent.data.object);
+      await handleSubscriptionCreated(stripeEvent.data.object, supabase);
     } else if (stripeEvent.type === 'customer.subscription.updated') {
-      await handleSubscriptionUpdated(stripeEvent.data.object);
+      await handleSubscriptionUpdated(stripeEvent.data.object, supabase);
     } else if (stripeEvent.type === 'customer.subscription.deleted') {
-      await handleSubscriptionCanceled(stripeEvent.data.object);
+      await handleSubscriptionCanceled(stripeEvent.data.object, supabase);
     } else {
       console.log(`⚠️ WEBHOOK: Evento não tratado: ${stripeEvent.type}`);
     }
@@ -109,42 +164,50 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ received: true })
+      body: JSON.stringify({ 
+        received: true,
+        event_type: stripeEvent.type,
+        event_id: stripeEvent.id,
+        timestamp: new Date().toISOString()
+      })
     };
 
   } catch (error) {
-    console.error('❌ WEBHOOK: Erro crítico:', error);
-    console.error('❌ WEBHOOK: Stack trace:', error.stack);
+    console.error('❌ WEBHOOK: Erro crítico:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
     
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: error.message,
+        error: 'Erro interno do servidor',
+        message: error.message,
         timestamp: new Date().toISOString()
       })
     };
   }
 };
 
-async function handleCheckoutCompleted(session) {
-  console.log('💳 WEBHOOK: Processando checkout completado:', session.id);
-  
-  const customerId = session.customer;
-  
-  console.log('📊 WEBHOOK: Dados do checkout:', {
-    customer_id: customerId,
+async function handleCheckoutCompleted(session, supabase) {
+  console.log('💳 WEBHOOK: Processando checkout completado:', {
+    session_id: session.id,
+    customer_id: session.customer,
     payment_status: session.payment_status,
     mode: session.mode
   });
-
+  
+  const customerId = session.customer;
+  
   if (!customerId) {
-    console.error('❌ WEBHOOK: Customer ID não encontrado');
-    return;
+    console.error('❌ WEBHOOK: Customer ID não encontrado no session');
+    throw new Error('Customer ID não encontrado');
   }
 
   try {
-    // Buscar usuário pelo customer_id
+    // BUSCAR USUÁRIO PELO CUSTOMER ID
     console.log('🔍 WEBHOOK: Buscando usuário para customer:', customerId);
     
     const { data: customerData, error: customerError } = await supabase
@@ -153,18 +216,22 @@ async function handleCheckoutCompleted(session) {
       .eq('customer_id', customerId)
       .single();
 
-    if (customerError || !customerData) {
-      console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId, customerError);
-      return;
+    if (customerError) {
+      console.error('❌ WEBHOOK: Erro ao buscar customer:', customerError);
+      throw new Error(`Erro ao buscar customer: ${customerError.message}`);
+    }
+
+    if (!customerData) {
+      console.error('❌ WEBHOOK: Customer não encontrado na base de dados:', customerId);
+      throw new Error('Customer não encontrado na base de dados');
     }
 
     const userId = customerData.user_id;
     console.log('👤 WEBHOOK: Usuário encontrado:', userId);
 
-    // ATIVAÇÃO IMEDIATA E ROBUSTA
-    console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO IMEDIATAMENTE');
+    // BUSCAR PLANO ATIVO PARA ATIVAÇÃO
+    console.log('📦 WEBHOOK: Buscando plano ativo...');
     
-    // Buscar primeiro plano ativo disponível (não restrito)
     const { data: activePlan, error: planError } = await supabase
       .from('plans')
       .select('id, name, price_monthly')
@@ -174,14 +241,16 @@ async function handleCheckoutCompleted(session) {
       .limit(1)
       .single();
 
-    if (planError || !activePlan) {
-      console.error('❌ WEBHOOK: Nenhum plano ativo encontrado:', planError);
-      // Continuar mesmo sem plano específico
+    if (planError) {
+      console.warn('⚠️ WEBHOOK: Erro ao buscar plano ativo:', planError);
+      console.log('🔄 WEBHOOK: Continuando sem plano específico...');
+    } else {
+      console.log('✅ WEBHOOK: Plano encontrado:', activePlan.name);
     }
 
-    console.log('📦 WEBHOOK: Plano para ativação:', activePlan?.name || 'Plano Padrão');
-
-    // CRÍTICO: ATIVAR ASSINATURA IMEDIATAMENTE
+    // ATIVAR USUÁRIO IMEDIATAMENTE
+    console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO...');
+    
     const now = new Date();
     const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
@@ -195,24 +264,28 @@ async function handleCheckoutCompleted(session) {
       updated_at: now.toISOString()
     };
 
-    console.log('💾 WEBHOOK: Dados da ativação:', subscriptionData);
+    console.log('💾 WEBHOOK: Dados da ativação:', {
+      user_id: userId,
+      plan_name: activePlan?.name || 'Sem plano específico',
+      status: 'active',
+      trial_cleared: true
+    });
 
-    // UPSERT FORÇADO - SOBRESCREVER QUALQUER ESTADO ANTERIOR
+    // UPSERT COM RECUPERAÇÃO AUTOMÁTICA
     const { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
       .upsert(subscriptionData, { 
         onConflict: 'user_id',
-        ignoreDuplicates: false // FORÇAR ATUALIZAÇÃO
+        ignoreDuplicates: false
       })
       .select()
       .single();
 
     if (activationError) {
-      console.error('❌ WEBHOOK: ERRO CRÍTICO ao ativar assinatura:', activationError);
+      console.error('❌ WEBHOOK: Erro na ativação inicial:', activationError);
+      console.log('🔄 WEBHOOK: Tentando recuperação...');
       
-      // TENTATIVA DE RECUPERAÇÃO - DELETAR E RECRIAR
-      console.log('🔄 WEBHOOK: Tentando recuperação - deletar e recriar');
-      
+      // RECUPERAÇÃO: DELETAR E RECRIAR
       await supabase
         .from('subscriptions')
         .delete()
@@ -229,12 +302,31 @@ async function handleCheckoutCompleted(session) {
         throw new Error(`Falha crítica na ativação: ${newSubError.message}`);
       }
       
-      console.log('✅ WEBHOOK: Recuperação bem-sucedida:', newSub);
+      console.log('✅ WEBHOOK: Recuperação bem-sucedida');
     } else {
-      console.log('✅ WEBHOOK: Assinatura ativada com sucesso:', activatedSub);
+      console.log('✅ WEBHOOK: Ativação bem-sucedida na primeira tentativa');
     }
 
-    // Criar log de auditoria detalhado
+    // VERIFICAÇÃO PÓS-ATIVAÇÃO
+    console.log('🔍 WEBHOOK: Verificando ativação...');
+    
+    const { data: verificationData, error: verificationError } = await supabase
+      .from('user_subscription_details')
+      .select('subscription_status, has_access, current_plan_name')
+      .eq('user_id', userId)
+      .single();
+
+    if (verificationError) {
+      console.warn('⚠️ WEBHOOK: Erro na verificação:', verificationError);
+    } else {
+      console.log('✅ WEBHOOK: Verificação pós-ativação:', {
+        subscription_status: verificationData.subscription_status,
+        has_access: verificationData.has_access,
+        current_plan_name: verificationData.current_plan_name
+      });
+    }
+
+    // LOG DE AUDITORIA DETALHADO
     await supabase.from('audit_logs').insert({
       actor_id: null,
       actor_email: 'stripe_webhook',
@@ -246,11 +338,12 @@ async function handleCheckoutCompleted(session) {
         plan_name: activePlan?.name || 'Plano Padrão',
         payment_status: session.payment_status,
         mode: session.mode,
-        activated_at: now.toISOString()
+        activated_at: now.toISOString(),
+        verification_result: verificationData || 'Erro na verificação'
       }
     });
 
-    console.log('✅ WEBHOOK: USUÁRIO ATIVADO COM SUCESSO!');
+    console.log('🎉 WEBHOOK: USUÁRIO ATIVADO COM SUCESSO!');
     
   } catch (error) {
     console.error('❌ WEBHOOK: Erro no processamento do checkout:', error);
@@ -258,80 +351,92 @@ async function handleCheckoutCompleted(session) {
   }
 }
 
-async function handleSubscriptionCreated(subscription) {
+async function handleSubscriptionCreated(subscription, supabase) {
   console.log('🆕 WEBHOOK: Nova subscription criada:', subscription.id);
-  await handleSubscriptionUpdated(subscription);
+  await handleSubscriptionUpdated(subscription, supabase);
 }
 
-async function handleSubscriptionUpdated(subscription) {
-  console.log('🔄 WEBHOOK: Subscription atualizada:', subscription.id);
+async function handleSubscriptionUpdated(subscription, supabase) {
+  console.log('🔄 WEBHOOK: Subscription atualizada:', {
+    id: subscription.id,
+    status: subscription.status,
+    customer: subscription.customer
+  });
   
   const customerId = subscription.customer;
   
-  // Buscar usuário
-  const { data: customerData } = await supabase
-    .from('stripe_customers')
-    .select('user_id')
-    .eq('customer_id', customerId)
-    .single();
+  try {
+    // Buscar usuário
+    const { data: customerData, error: customerError } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', customerId)
+      .single();
 
-  if (!customerData) {
-    console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId);
-    return;
-  }
+    if (customerError || !customerData) {
+      console.error('❌ WEBHOOK: Usuário não encontrado para customer:', customerId);
+      return;
+    }
 
-  // Buscar plano baseado no price_id
-  const priceId = subscription.items.data[0]?.price?.id;
-  const { data: plan } = await supabase
-    .from('plans')
-    .select('id, name')
-    .eq('stripe_price_id_monthly', priceId)
-    .single();
+    // Buscar plano baseado no price_id
+    const priceId = subscription.items.data[0]?.price?.id;
+    const { data: plan } = await supabase
+      .from('plans')
+      .select('id, name')
+      .eq('stripe_price_id_monthly', priceId)
+      .single();
 
-  console.log('📦 WEBHOOK: Plano encontrado para subscription:', plan?.name || 'Desconhecido');
+    console.log('📦 WEBHOOK: Plano encontrado:', plan?.name || 'Desconhecido');
 
-  // Atualizar assinatura com dados detalhados
-  const subscriptionData = {
-    user_id: customerData.user_id,
-    plan_id: plan?.id || null,
-    status: subscription.status === 'active' ? 'active' : 'canceled',
-    trial_ends_at: null, // SEMPRE LIMPAR TRIAL
-    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    updated_at: new Date().toISOString()
-  };
+    // Atualizar assinatura
+    const subscriptionData = {
+      user_id: customerData.user_id,
+      plan_id: plan?.id || null,
+      status: subscription.status === 'active' ? 'active' : 'canceled',
+      trial_ends_at: null, // SEMPRE LIMPAR TRIAL
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-  const { error: updateError } = await supabase
-    .from('subscriptions')
-    .upsert(subscriptionData, { onConflict: 'user_id' });
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .upsert(subscriptionData, { onConflict: 'user_id' });
 
-  if (updateError) {
-    console.error('❌ WEBHOOK: Erro ao atualizar subscription:', updateError);
-  } else {
-    console.log('✅ WEBHOOK: Subscription atualizada:', subscription.status);
+    if (updateError) {
+      console.error('❌ WEBHOOK: Erro ao atualizar subscription:', updateError);
+    } else {
+      console.log('✅ WEBHOOK: Subscription atualizada:', subscription.status);
+    }
+  } catch (error) {
+    console.error('❌ WEBHOOK: Erro no handleSubscriptionUpdated:', error);
   }
 }
 
-async function handleSubscriptionCanceled(subscription) {
+async function handleSubscriptionCanceled(subscription, supabase) {
   console.log('❌ WEBHOOK: Subscription cancelada:', subscription.id);
   
   const customerId = subscription.customer;
   
-  const { data: customerData } = await supabase
-    .from('stripe_customers')
-    .select('user_id')
-    .eq('customer_id', customerId)
-    .single();
+  try {
+    const { data: customerData } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', customerId)
+      .single();
 
-  if (!customerData) return;
+    if (!customerData) return;
 
-  await supabase
-    .from('subscriptions')
-    .update({ 
-      status: 'canceled',
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', customerData.user_id);
+    await supabase
+      .from('subscriptions')
+      .update({ 
+        status: 'canceled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', customerData.user_id);
 
-  console.log('✅ WEBHOOK: Subscription cancelada para usuário:', customerData.user_id);
+    console.log('✅ WEBHOOK: Subscription cancelada para usuário:', customerData.user_id);
+  } catch (error) {
+    console.error('❌ WEBHOOK: Erro no handleSubscriptionCanceled:', error);
+  }
 }

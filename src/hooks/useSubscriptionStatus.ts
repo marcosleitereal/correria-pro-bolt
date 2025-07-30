@@ -169,6 +169,55 @@ export const useSubscriptionStatus = () => {
         } else {
           hasAccess = false;
         }
+        
+        // VERIFICAÇÃO ADICIONAL: Se tem customer Stripe mas não tem acesso, forçar ativação
+        if (!hasAccess && stripeCustomer && stripeCustomer.customer_id) {
+          console.log('🚀 SUBSCRIPTION DEBUG: FORÇANDO ATIVAÇÃO ADICIONAL - usuário tem customer mas sem acesso');
+          
+          // Verificar se há subscription ativa no Stripe via API
+          try {
+            const { data: stripeSubscription } = await supabase
+              .from('stripe_subscriptions')
+              .select('subscription_status')
+              .eq('customer_id', stripeCustomer.customer_id)
+              .eq('subscription_status', 'active')
+              .maybeSingle();
+            
+            if (stripeSubscription) {
+              console.log('💳 SUBSCRIPTION DEBUG: Subscription ativa encontrada no Stripe - FORÇANDO ATIVAÇÃO FINAL');
+              
+              // ATIVAÇÃO FINAL FORÇADA
+              const now = new Date();
+              const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+              
+              const { error: finalActivationError } = await supabase
+                .from('subscriptions')
+                .upsert({
+                  user_id: user.id,
+                  plan_id: activePlan?.id || null,
+                  status: 'active',
+                  trial_ends_at: null,
+                  current_period_start: now.toISOString(),
+                  current_period_end: oneMonthLater.toISOString(),
+                  updated_at: now.toISOString()
+                }, { onConflict: 'user_id' });
+              
+              if (!finalActivationError) {
+                console.log('✅ SUBSCRIPTION DEBUG: ATIVAÇÃO FINAL BEM-SUCEDIDA!');
+                hasAccess = true;
+                
+                // Atualizar dados locais
+                subscriptionData.subscription_status = 'active';
+                subscriptionData.current_plan_name = activePlan?.name || 'Plano Ativo';
+                subscriptionData.trial_ends_at = null;
+                subscriptionData.current_period_end = oneMonthLater.toISOString();
+              }
+            }
+          } catch (stripeCheckError) {
+            console.error('❌ SUBSCRIPTION DEBUG: Erro na verificação final do Stripe:', stripeCheckError);
+          }
+        }
+        
         console.log('✅ SUBSCRIPTION DEBUG: has_access final:', hasAccess);
       }
 
