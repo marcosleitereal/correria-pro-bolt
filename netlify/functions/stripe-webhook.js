@@ -51,7 +51,7 @@ exports.handler = async (event, context) => {
       if (!value) {
         missingVars.push(name);
       } else {
-        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value}`);
+        console.log(`✅ ${name}: ${name.includes('SECRET') || name.includes('KEY') ? 'CONFIGURADA' : value.substring(0, 20) + '...'}`);
       }
     }
 

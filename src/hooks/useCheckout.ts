@@ -23,8 +23,8 @@ export const useCheckout = () => {
     console.log('🚀 CHECKOUT DEBUG: Iniciando checkout com parâmetros completos:', {
       gateway: params.gateway,
       price_id: params.price_id,
-      success_url: params.success_url,
-      cancel_url: params.cancel_url,
+      success_url: 'https://correria.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://correria.pro/pricing',
       user_session: !!session?.access_token,
       supabase_url: import.meta.env.VITE_SUPABASE_URL
     });

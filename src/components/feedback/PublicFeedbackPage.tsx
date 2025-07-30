@@ -183,7 +183,7 @@ const PublicFeedbackPage: React.FC = () => {
 
     text += `📝 *FEEDBACK DO TREINO:*\n`;
     text += `Para deixar seu feedback sobre este treino, acesse:\n`;
-    text += `${window.location.href}\n\n`;
+    text += `https://correria.pro/feedback/${token}\n\n`;
     
     text += `📱 *Treino gerado por Correria.Pro*\n`;
     text += `🌐 correria.pro\n\n`;

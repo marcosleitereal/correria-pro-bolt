@@ -37,8 +37,8 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     setSelectedGateway(gateway);
     
-    const success_url = `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancel_url = `${window.location.origin}/pricing`;
+    const success_url = `https://correria.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url = `https://correria.pro/pricing`;
 
     let priceId = gateway === 'stripe' ? plan.stripe_price_id_monthly : plan.mercadopago_plan_id;
     
