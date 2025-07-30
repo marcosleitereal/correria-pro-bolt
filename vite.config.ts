@@ -14,6 +14,10 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
         runtimeCaching: [
+        ]
+      }
+    }
+    )
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
