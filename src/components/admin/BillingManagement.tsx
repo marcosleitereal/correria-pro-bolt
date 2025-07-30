@@ -174,7 +174,7 @@ const BillingManagement: React.FC = () => {
   };
 
   const handleManualActivation = async () => {
-    if (!manualActivationEmail || !user?.session?.access_token) return;
+    if (!manualActivationEmail || !session?.access_token) return;
 
     setActivatingUser(true);
     try {
@@ -183,7 +183,7 @@ const BillingManagement: React.FC = () => {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.session.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

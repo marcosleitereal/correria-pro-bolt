@@ -211,10 +211,16 @@ export const useSubscriptionStatus = () => {
     
     if (sessionId && user) {
       console.log('💳 SUBSCRIPTION DEBUG: Session ID detectado, aguardando processamento do webhook...');
-      // Aguardar webhook processar e depois fazer refresh - aumentando tempo para 10 segundos
+      // Aguardar webhook processar e depois fazer refresh - aumentando tempo para 15 segundos
       setTimeout(() => {
         refreshAfterPayment();
-      }, 10000); // 10 segundos para webhook processar
+      }, 15000); // 15 segundos para webhook processar
+      
+      // Fazer refresh adicional após 30 segundos se ainda não funcionou
+      setTimeout(() => {
+        console.log('🔄 SUBSCRIPTION DEBUG: Segundo refresh após 30 segundos...');
+        refreshAfterPayment();
+      }, 30000);
     }
   }, [user]);
 
