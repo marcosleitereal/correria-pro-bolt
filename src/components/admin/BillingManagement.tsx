@@ -26,6 +26,7 @@ import { Plan } from '../../types/database';
 import TrialSettingsModal from './TrialSettingsModal';
 import SubscriptionManagement from './SubscriptionManagement';
 import WebhookDiagnostic from './WebhookDiagnostic';
+import SystemDiagnostic from './SystemDiagnostic';
 
 const BillingManagement: React.FC = () => {
   const { user } = useAuthContext();
@@ -658,6 +659,11 @@ const BillingManagement: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="w-full"
       >
+        {/* Diagnóstico Completo do Sistema */}
+        <div className="mb-6">
+          <SystemDiagnostic />
+        </div>
+
         {/* Diagnóstico do Webhook */}
         <div className="mb-6">
           <WebhookDiagnostic />
