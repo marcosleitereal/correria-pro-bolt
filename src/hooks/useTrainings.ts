@@ -668,7 +668,7 @@ async function callGoogleAI(apiKey: string, model: string, prompt: string): Prom
     console.log('🤖 [callGoogleAI] - Fazendo chamada real para o modelo:', model);
     console.log('🔑 [callGoogleAI] - Usando API key:', apiKey.substring(0, 10) + '...');
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-pro'}:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-pro'}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
