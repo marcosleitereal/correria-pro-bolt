@@ -38,6 +38,52 @@ export const useSubscriptionStatus = () => {
     detectAndActivatePayment();
     }, [user]);
 
+  // DETECÇÃO CRÍTICA: Verificar se usuário pagou mas não foi ativado
+  const detectPaidButNotActivated = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('🔍 CRITICAL CHECK: Verificando se usuário pagou mas não foi ativado...');
+      
+      // Verificar se tem customer no Stripe (indica pagamento)
+      const { data: stripeCustomer } = await supabase
+        .from('stripe_customers')
+        .select('customer_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (stripeCustomer) {
+        console.log('💳 CRITICAL: Customer Stripe encontrado - usuário PAGOU');
+        
+        // Verificar status atual
+        const { data: currentStatus } = await supabase
+          .from('user_subscription_details')
+          .select('subscription_status, current_plan_name, has_access')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        console.log('📊 CRITICAL: Status atual:', currentStatus);
+        
+        // Se tem customer mas está restrito/trial, FORÇAR ATIVAÇÃO
+        const needsActivation = !currentStatus?.has_access || 
+                               currentStatus?.current_plan_name === 'Restrito' ||
+                               currentStatus?.subscription_status === 'trialing';
+        
+        if (needsActivation) {
+          console.log('🚀 CRITICAL: USUÁRIO PAGOU MAS NÃO FOI ATIVADO - ATIVANDO AGORA!');
+          await forceActivateUser();
+          
+          // Refresh imediato após ativação
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      }
+    } catch (error) {
+      console.error('❌ CRITICAL: Erro na detecção:', error);
+    }
+  };
+
   const detectAndActivatePayment = async () => {
     if (!user) return;
     
@@ -384,6 +430,11 @@ export const useSubscriptionStatus = () => {
         refreshAfterPayment();
         }, time);
       });
+    }
+    
+    // CRÍTICO: Verificar usuários que pagaram mas não foram ativados
+    if (user && !loading) {
+      detectPaidButNotActivated();
     }
   }, [user]);
 

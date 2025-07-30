@@ -250,10 +250,16 @@ async function handleCheckoutCompleted(session, supabase) {
 
     // CRÍTICO: LIMPEZA TOTAL DO ESTADO ANTERIOR
     console.log('🗑️ WEBHOOK: Limpando qualquer estado anterior...');
-    await supabase
+    
+    // DELETAR COMPLETAMENTE o estado anterior
+    const { error: deleteError } = await supabase
       .from('subscriptions')
       .delete()
       .eq('user_id', userId);
+    
+    if (deleteError) {
+      console.warn('⚠️ WEBHOOK: Erro ao deletar estado anterior (pode não existir):', deleteError);
+    }
     
     console.log('✅ WEBHOOK: Estado anterior limpo');
 
@@ -261,13 +267,13 @@ async function handleCheckoutCompleted(session, supabase) {
     console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO COM PLANO PAGO...');
     
     const now = new Date();
-    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 ano de acesso
+    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
     const subscriptionData = {
       user_id: userId,
       plan_id: activePlan?.id || null,
-      status: 'active', // FORÇAR ATIVO
-      trial_ends_at: null, // LIMPAR TRIAL
+      status: 'active',
+      trial_ends_at: null,
       current_period_start: now.toISOString(),
       current_period_end: oneYearLater.toISOString(),
       updated_at: now.toISOString()
@@ -281,17 +287,31 @@ async function handleCheckoutCompleted(session, supabase) {
       period_end: oneYearLater.toLocaleDateString('pt-BR')
     });
 
-    // CRIAR NOVA ASSINATURA ATIVA
-    console.log('💾 WEBHOOK: Criando assinatura ativa...');
-    const { data: activatedSub, error: activationError } = await supabase
+    // TENTAR INSERT PRIMEIRO
+    console.log('💾 WEBHOOK: Tentando INSERT direto...');
+    let { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
       .insert(subscriptionData)
       .select()
       .single();
 
     if (activationError) {
-      console.error('❌ WEBHOOK: ERRO CRÍTICO na ativação:', activationError);
-      throw new Error(`Falha crítica na ativação: ${activationError.message}`);
+      console.warn('⚠️ WEBHOOK: INSERT falhou, tentando UPSERT:', activationError);
+      
+      // FALLBACK: UPSERT se INSERT falhar
+      const { data: upsertedSub, error: upsertError } = await supabase
+        .from('subscriptions')
+        .upsert(subscriptionData, { onConflict: 'user_id' })
+        .select()
+        .single();
+      
+      if (upsertError) {
+        console.error('❌ WEBHOOK: UPSERT também falhou:', upsertError);
+        throw new Error(`Falha crítica na ativação: ${upsertError.message}`);
+      }
+      
+      activatedSub = upsertedSub;
+      console.log('✅ WEBHOOK: UPSERT bem-sucedido');
     }
     
     console.log('✅ WEBHOOK: Ativação bem-sucedida:', activatedSub);

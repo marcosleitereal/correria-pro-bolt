@@ -13,6 +13,30 @@ const CheckoutSuccessPage: React.FC = () => {
     // AGUARDAR WEBHOOK PROCESSAR ANTES DE REDIRECIONAR
     console.log('💳 SUCCESS: Página de sucesso carregada com session_id:', sessionId);
     
+    // FORÇAR ATIVAÇÃO IMEDIATA SE NECESSÁRIO
+    if (sessionId) {
+      console.log('🚀 SUCCESS: Forçando verificação de ativação...');
+      
+      // Múltiplos refreshes para garantir ativação
+      const refreshTimes = [3000, 6000, 9000]; // 3s, 6s, 9s
+      
+      refreshTimes.forEach((time, index) => {
+        setTimeout(() => {
+          console.log(`🔄 SUCCESS: Refresh ${index + 1}/3 para detectar ativação...`);
+          
+          // Verificar se foi ativado
+          fetch('/api/check-activation', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+          }).catch(() => {
+            // Se API não existir, apenas recarregar
+            window.location.reload();
+          });
+        }, time);
+      });
+    }
+    
     if (sessionId) {
       // Simular progresso do processamento
       const statusUpdates = [
