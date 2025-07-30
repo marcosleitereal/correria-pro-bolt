@@ -74,7 +74,7 @@ const DashboardPage: React.FC = () => {
       >
         <div>
           <h1 className="text-4xl font-bold text-slate-900 mb-2">
-            Olá, {profile?.name || 'Treinador'}! 👋
+            Olá, {profile?.full_name?.split(' ')[0] || 'Treinador'}! 👋
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl">
             Bem-vindo ao seu painel de controle. Aqui você pode gerenciar seus treinos e acompanhar o progresso dos seus atletas.
