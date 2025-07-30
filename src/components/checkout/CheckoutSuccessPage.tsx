@@ -6,13 +6,35 @@ import { Link, useSearchParams } from 'react-router-dom';
 const CheckoutSuccessPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(10);
+  const [processingStatus, setProcessingStatus] = useState('Processando pagamento...');
 
   useEffect(() => {
+    // AGUARDAR WEBHOOK PROCESSAR ANTES DE REDIRECIONAR
+    console.log('💳 SUCCESS: Página de sucesso carregada com session_id:', sessionId);
+    
+    if (sessionId) {
+      // Simular progresso do processamento
+      const statusUpdates = [
+        { time: 0, message: 'Processando pagamento...' },
+        { time: 2000, message: 'Pagamento confirmado!' },
+        { time: 4000, message: 'Ativando sua conta...' },
+        { time: 6000, message: 'Configurando acesso...' },
+        { time: 8000, message: 'Quase pronto!' }
+      ];
+      
+      statusUpdates.forEach(({ time, message }) => {
+        setTimeout(() => {
+          setProcessingStatus(message);
+        }, time);
+      });
+    }
+    
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          console.log('🔄 SUCCESS: Redirecionando para dashboard após processamento completo');
           window.location.href = '/dashboard';
           return 0;
         }
@@ -69,6 +91,21 @@ const CheckoutSuccessPage: React.FC = () => {
             </motion.div>
           )}
 
+          {/* Processing Status */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.65 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8"
+          >
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              <p className="text-blue-800 font-medium">{processingStatus}</p>
+            </div>
+            <p className="text-blue-600 text-sm">
+              Aguarde enquanto ativamos sua conta...
+            </p>
+          </motion.div>
           {/* Benefits */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -130,10 +167,10 @@ const CheckoutSuccessPage: React.FC = () => {
           >
             <div className="flex items-center justify-center gap-2 mb-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Redirecionando automaticamente em {countdown} segundos...
+              Redirecionando em {countdown} segundos...
             </div>
             <p className="text-xs text-center text-slate-400">
-              Aguardando confirmação do pagamento...
+              Aguardando ativação completa da conta...
             </p>
           </motion.div>
         </motion.div>

@@ -248,11 +248,20 @@ async function handleCheckoutCompleted(session, supabase) {
       console.log('✅ WEBHOOK: Plano encontrado:', activePlan.name);
     }
 
-    // ATIVAR USUÁRIO IMEDIATAMENTE
-    console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO...');
+    // CRÍTICO: LIMPEZA TOTAL DO ESTADO ANTERIOR
+    console.log('🗑️ WEBHOOK: Limpando qualquer estado anterior...');
+    await supabase
+      .from('subscriptions')
+      .delete()
+      .eq('user_id', userId);
+    
+    console.log('✅ WEBHOOK: Estado anterior limpo');
+
+    // ATIVAR USUÁRIO COM ESTADO LIMPO
+    console.log('🚀 WEBHOOK: ATIVANDO USUÁRIO COM PLANO PAGO...');
     
     const now = new Date();
-    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 ano de acesso
 
     const subscriptionData = {
       user_id: userId,
@@ -260,7 +269,7 @@ async function handleCheckoutCompleted(session, supabase) {
       status: 'active', // FORÇAR ATIVO
       trial_ends_at: null, // LIMPAR TRIAL
       current_period_start: now.toISOString(),
-      current_period_end: oneMonthLater.toISOString(),
+      current_period_end: oneYearLater.toISOString(),
       updated_at: now.toISOString()
     };
 
@@ -268,17 +277,12 @@ async function handleCheckoutCompleted(session, supabase) {
       user_id: userId,
       plan_name: activePlan?.name || 'Sem plano específico',
       status: 'active',
-      trial_cleared: true
+      trial_cleared: true,
+      period_end: oneYearLater.toLocaleDateString('pt-BR')
     });
 
-    // FORÇAR ATIVAÇÃO - DELETAR QUALQUER ESTADO ANTERIOR
-    console.log('🗑️ WEBHOOK: Limpando estado anterior...');
-    await supabase
-      .from('subscriptions')
-      .delete()
-      .eq('user_id', userId);
-    
-    console.log('💾 WEBHOOK: Criando nova assinatura ativa...');
+    // CRIAR NOVA ASSINATURA ATIVA
+    console.log('💾 WEBHOOK: Criando assinatura ativa...');
     const { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
       .insert(subscriptionData)
@@ -292,25 +296,25 @@ async function handleCheckoutCompleted(session, supabase) {
     
     console.log('✅ WEBHOOK: Ativação bem-sucedida:', activatedSub);
     
-    // VERIFICAÇÃO TRIPLA - CONFIRMAR ATIVAÇÃO
-    console.log('🔍 WEBHOOK: Verificação tripla da ativação...');
+    // VERIFICAÇÃO FINAL - CONFIRMAR ATIVAÇÃO
+    console.log('🔍 WEBHOOK: Verificação final da ativação...');
     
-    const { data: tripleCheck, error: tripleError } = await supabase
+    const { data: finalCheck, error: finalError } = await supabase
       .from('subscriptions')
       .select('status, trial_ends_at, plan_id')
       .eq('user_id', userId)
       .single();
     
-    if (tripleError) {
-      console.error('❌ WEBHOOK: Erro na verificação tripla:', tripleError);
+    if (finalError) {
+      console.error('❌ WEBHOOK: Erro na verificação final:', finalError);
     } else {
-      console.log('🔍 WEBHOOK: Verificação tripla resultado:', {
-        status: tripleCheck.status,
-        trial_ends_at: tripleCheck.trial_ends_at,
-        plan_id: tripleCheck.plan_id
+      console.log('🔍 WEBHOOK: Verificação final resultado:', {
+        status: finalCheck.status,
+        trial_ends_at: finalCheck.trial_ends_at,
+        plan_id: finalCheck.plan_id
       });
       
-      if (tripleCheck.status !== 'active' || tripleCheck.trial_ends_at !== null) {
+      if (finalCheck.status !== 'active' || finalCheck.trial_ends_at !== null) {
         console.error('❌ WEBHOOK: ATIVAÇÃO FALHOU - estado incorreto');
         throw new Error('Ativação não foi aplicada corretamente');
       }
@@ -348,6 +352,7 @@ async function handleCheckoutCompleted(session, supabase) {
         payment_status: session.payment_status,
         mode: session.mode,
         activated_at: now.toISOString(),
+        period_end: oneYearLater.toISOString(),
         verification_result: verificationData || 'Erro na verificação'
       }
     });

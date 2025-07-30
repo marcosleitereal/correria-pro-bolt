@@ -275,17 +275,17 @@ export const useSubscriptionStatus = () => {
     const sessionId = urlParams.get('session_id');
     
     if (sessionId && user) {
-      console.log('💳 SUBSCRIPTION DEBUG: Session ID detectado, aguardando processamento do webhook...');
-      // Aguardar webhook processar e depois fazer refresh - aumentando tempo para 15 segundos
-      setTimeout(() => {
-        refreshAfterPayment();
-      }, 15000); // 15 segundos para webhook processar
+      console.log('💳 SUBSCRIPTION: Session ID detectado, aguardando webhook processar...');
       
-      // Fazer refresh adicional após 30 segundos se ainda não funcionou
+      // MÚLTIPLOS REFRESHES PARA GARANTIR ATIVAÇÃO
+      const refreshTimes = [5000, 10000, 15000, 20000, 30000]; // 5s, 10s, 15s, 20s, 30s
+      
+      refreshTimes.forEach((time, index) => {
       setTimeout(() => {
-        console.log('🔄 SUBSCRIPTION DEBUG: Segundo refresh após 30 segundos...');
+          console.log(`🔄 SUBSCRIPTION: Refresh ${index + 1}/5 após pagamento...`);
         refreshAfterPayment();
-      }, 30000);
+        }, time);
+      });
     }
   }, [user]);
 

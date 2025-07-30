@@ -44,8 +44,8 @@ export const useCheckout = () => {
 
       console.log('💳 CHECKOUT: Validações OK, Price ID:', params.price_id);
 
-      // CRÍTICO: Criar customer no Stripe ANTES do checkout para garantir rastreamento
-      console.log('👤 CHECKOUT: Criando/verificando customer no Stripe...');
+      // VERIFICAR SE USUÁRIO JÁ TEM CUSTOMER STRIPE
+      console.log('👤 CHECKOUT: Verificando customer Stripe existente...');
       
       const { data: existingCustomer } = await supabase
         .from('stripe_customers')
@@ -53,11 +53,11 @@ export const useCheckout = () => {
         .eq('user_id', session.user?.id)
         .maybeSingle();
       
-      if (!existingCustomer) {
-        console.log('🆕 CHECKOUT: Customer não existe, será criado no checkout');
-      } else {
-        console.log('✅ CHECKOUT: Customer já existe:', existingCustomer.customer_id);
-      }
+      console.log('💳 CHECKOUT: Customer status:', {
+        hasExistingCustomer: !!existingCustomer,
+        customerId: existingCustomer?.customer_id || 'Será criado'
+      });
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`;
       
       console.log('🌐 CHECKOUT: Chamando Edge Function:', apiUrl);
@@ -75,7 +75,8 @@ export const useCheckout = () => {
         body: JSON.stringify({
           ...params,
           user_id: session.user?.id,
-          user_email: session.user?.email
+          user_email: session.user?.email,
+          existing_customer_id: existingCustomer?.customer_id || null
         }),
       });
 
@@ -114,6 +115,7 @@ export const useCheckout = () => {
             price_id: params.price_id,
             checkout_url: data.url,
             session_id: data.sessionId,
+            existing_customer: !!existingCustomer,
             timestamp: new Date().toISOString()
           }
         });
