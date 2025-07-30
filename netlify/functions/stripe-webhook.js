@@ -242,6 +242,26 @@ async function handleCheckoutCompleted(session, supabase) {
     // BUSCAR PLANO ATIVO PARA ATIVAÇÃO
     console.log('📦 NETLIFY WEBHOOK: Buscando plano ativo...');
     
+    // VERIFICAÇÃO CRÍTICA: Listar TODOS os planos primeiro
+    const { data: allPlansDebug, error: allPlansError } = await supabase
+      .from('plans')
+      .select('id, name, is_active, price_monthly')
+      .order('price_monthly', { ascending: true });
+    
+    console.log('🔍 NETLIFY WEBHOOK: TODOS OS PLANOS NO BANCO:', {
+      total_plans: allPlansDebug?.length || 0,
+      plans: allPlansDebug?.map(p => ({
+        name: p.name,
+        is_active: p.is_active,
+        price: p.price_monthly
+      })) || []
+    });
+    
+    if (!allPlansDebug || allPlansDebug.length === 0) {
+      console.error('❌ NETLIFY WEBHOOK: ERRO CRÍTICO - NENHUM PLANO ENCONTRADO NO BANCO!');
+      throw new Error('NENHUM PLANO ENCONTRADO NO BANCO DE DADOS');
+    }
+    
     const { data: activePlan, error: planError } = await supabase
       .from('plans')
       .select('id, name, price_monthly')
@@ -249,11 +269,25 @@ async function handleCheckoutCompleted(session, supabase) {
       .neq('name', 'Restrito')
       .order('price_monthly', { ascending: true })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (planError) {
       console.error('❌ NETLIFY WEBHOOK: ERRO CRÍTICO - Nenhum plano ativo encontrado:', planError);
       throw new Error(`Nenhum plano ativo disponível: ${planError.message}`);
+    }
+    
+    if (!activePlan) {
+      console.error('❌ NETLIFY WEBHOOK: ERRO CRÍTICO - Nenhum plano ativo encontrado!');
+      console.error('❌ NETLIFY WEBHOOK: Planos disponíveis:', allPlansDebug);
+      
+      // FALLBACK: Usar o primeiro plano disponível
+      const fallbackPlan = allPlansDebug?.find(p => p.name !== 'Restrito');
+      if (fallbackPlan) {
+        console.log('🔄 NETLIFY WEBHOOK: Usando plano fallback:', fallbackPlan.name);
+        activePlan = fallbackPlan;
+      } else {
+        throw new Error('NENHUM PLANO DISPONÍVEL PARA ATIVAÇÃO');
+      }
     } else {
       console.log('✅ NETLIFY WEBHOOK: Plano encontrado:', activePlan.name);
     }

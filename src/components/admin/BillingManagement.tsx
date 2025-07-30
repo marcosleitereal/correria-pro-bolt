@@ -710,14 +710,14 @@ const BillingManagement: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-slate-200">
               <button
                 onClick={() => {
-                  setManualActivationEmail('2dia@teste.com');
+                  setManualActivationEmail('teste@teste.com');
                   setTimeout(() => handleManualActivation(), 100);
                 }}
                 disabled={activatingUser}
                 className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mb-3"
               >
                 {activatingUser && <Loader2 className="w-5 h-5 animate-spin" />}
-                🚨 ATIVAR 2dia@teste.com AGORA
+                🚨 ATIVAR teste@teste.com AGORA
               </button>
               
               <button
