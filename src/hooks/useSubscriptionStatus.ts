@@ -124,9 +124,17 @@ export const useSubscriptionStatus = () => {
           const now = new Date();
           const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
           
+          // CRÍTICO: DELETAR ESTADO ANTERIOR PRIMEIRO
+          console.log('🗑️ SUBSCRIPTION DEBUG: Limpando estado anterior...');
+          await supabase
+            .from('subscriptions')
+            .delete()
+            .eq('user_id', user.id);
+          
+          console.log('💾 SUBSCRIPTION DEBUG: Criando nova assinatura ativa...');
           const { error: forceActivationError } = await supabase
             .from('subscriptions')
-            .upsert({
+            .insert({
               user_id: user.id,
               plan_id: activePlan?.id || null,
               status: 'active',
@@ -134,7 +142,9 @@ export const useSubscriptionStatus = () => {
               current_period_start: now.toISOString(),
               current_period_end: oneMonthLater.toISOString(),
               updated_at: now.toISOString()
-            }, { onConflict: 'user_id' });
+            })
+            .select()
+            .single();
           
           if (!forceActivationError) {
             console.log('✅ SUBSCRIPTION DEBUG: USUÁRIO ATIVADO FORÇADAMENTE!');
@@ -145,6 +155,10 @@ export const useSubscriptionStatus = () => {
             subscriptionData.current_plan_name = activePlan?.name || 'Plano Ativo';
             subscriptionData.trial_ends_at = null;
             subscriptionData.current_period_end = oneMonthLater.toISOString();
+            
+            // FORÇAR REFRESH IMEDIATO
+            await fetchSubscriptionStatus();
+            return;
           }
         }
         
@@ -247,6 +261,8 @@ export const useSubscriptionStatus = () => {
 
   const createUserProfileAndTrial = async () => {
     try {
+      console.log('🚀 SUBSCRIPTION: Criando perfil e trial para usuário sem dados...');
+      
       // Buscar configurações do app
       const { data: dynamicSettings } = await supabase
         .from('app_settings')
@@ -256,6 +272,15 @@ export const useSubscriptionStatus = () => {
         .maybeSingle();
       
       const trialDurationDays = dynamicSettings?.trial_duration_days || 35;
+      const trialAthleteLimit = dynamicSettings?.trial_athlete_limit || 33;
+      const trialTrainingLimit = dynamicSettings?.trial_training_limit || 44;
+      
+      console.log('📊 SUBSCRIPTION: Configurações do trial:', {
+        trial_duration_days: trialDurationDays,
+        trial_athlete_limit: trialAthleteLimit,
+        trial_training_limit: trialTrainingLimit,
+        fonte: dynamicSettings ? 'app_settings' : 'fallback'
+      });
       
       // Criar perfil se não existir
       const { data: newProfile, error: createProfileError } = await supabase
@@ -273,12 +298,16 @@ export const useSubscriptionStatus = () => {
       
       if (createProfileError) {
         console.error('❌ Erro ao criar perfil:', createProfileError);
-        return;
+        // Continuar mesmo com erro no perfil
       }
+      
+      console.log('✅ SUBSCRIPTION: Perfil criado/atualizado:', newProfile);
       
       // Criar trial
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDurationDays);
+      
+      console.log('🎯 SUBSCRIPTION: Criando trial com data de fim:', trialEndsAt.toISOString());
       
       const { data: newSubscription, error: createSubError } = await supabase
         .from('subscriptions')
@@ -288,24 +317,51 @@ export const useSubscriptionStatus = () => {
           status: 'trialing',
           trial_ends_at: trialEndsAt.toISOString(),
           current_period_start: new Date().toISOString(),
-          current_period_end: trialEndsAt.toISOString()
+          current_period_end: trialEndsAt.toISOString(),
+          updated_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id'
+          onConflict: 'user_id',
+          ignoreDuplicates: false // FORÇAR ATUALIZAÇÃO
         })
         .select()
         .single();
       
       if (createSubError) {
         console.error('❌ Erro ao criar trial:', createSubError);
-        return;
+        
+        // RECUPERAÇÃO: DELETAR E RECRIAR
+        console.log('🔄 SUBSCRIPTION: Tentando recuperação...');
+        await supabase.from('subscriptions').delete().eq('user_id', user!.id);
+        
+        const { data: recoveryTrial, error: recoveryError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user!.id,
+            plan_id: null,
+            status: 'trialing',
+            trial_ends_at: trialEndsAt.toISOString(),
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEndsAt.toISOString()
+          })
+          .select()
+          .single();
+        
+        if (recoveryError) {
+          console.error('❌ SUBSCRIPTION: Falha na recuperação:', recoveryError);
+          return;
+        }
+        
+        console.log('✅ SUBSCRIPTION: Trial criado na recuperação:', recoveryTrial);
       }
+      
+      console.log('✅ SUBSCRIPTION: Trial criado com sucesso:', newSubscription);
       
       // Definir status final
       const finalStatus: SubscriptionStatus = {
         user_id: user!.id,
-        email: newProfile.email,
-        full_name: newProfile.full_name,
-        role: newProfile.role,
+        email: newProfile?.email || user!.email,
+        full_name: newProfile?.full_name || user!.user_metadata?.full_name,
+        role: newProfile?.role || 'coach',
         subscription_status: 'trialing',
         current_plan_name: null,
         plan_id: null,
@@ -314,9 +370,12 @@ export const useSubscriptionStatus = () => {
         has_access: true
       };
       
+      console.log('🎉 SUBSCRIPTION: Status final do trial:', finalStatus);
       setSubscriptionStatus(finalStatus);
+      setLoading(false);
     } catch (error) {
       console.error('❌ Erro ao criar perfil e trial:', error);
+      setLoading(false);
     }
   };
 

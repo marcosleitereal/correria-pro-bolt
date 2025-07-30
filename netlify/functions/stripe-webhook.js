@@ -271,40 +271,49 @@ async function handleCheckoutCompleted(session, supabase) {
       trial_cleared: true
     });
 
-    // UPSERT COM RECUPERAÇÃO AUTOMÁTICA
+    // FORÇAR ATIVAÇÃO - DELETAR QUALQUER ESTADO ANTERIOR
+    console.log('🗑️ WEBHOOK: Limpando estado anterior...');
+    await supabase
+      .from('subscriptions')
+      .delete()
+      .eq('user_id', userId);
+    
+    console.log('💾 WEBHOOK: Criando nova assinatura ativa...');
     const { data: activatedSub, error: activationError } = await supabase
       .from('subscriptions')
-      .upsert(subscriptionData, { 
-        onConflict: 'user_id',
-        ignoreDuplicates: false
-      })
+      .insert(subscriptionData)
       .select()
       .single();
 
     if (activationError) {
-      console.error('❌ WEBHOOK: Erro na ativação inicial:', activationError);
-      console.log('🔄 WEBHOOK: Tentando recuperação...');
-      
-      // RECUPERAÇÃO: DELETAR E RECRIAR
-      await supabase
-        .from('subscriptions')
-        .delete()
-        .eq('user_id', userId);
-      
-      const { data: newSub, error: newSubError } = await supabase
-        .from('subscriptions')
-        .insert(subscriptionData)
-        .select()
-        .single();
-      
-      if (newSubError) {
-        console.error('❌ WEBHOOK: Falha na recuperação:', newSubError);
-        throw new Error(`Falha crítica na ativação: ${newSubError.message}`);
-      }
-      
-      console.log('✅ WEBHOOK: Recuperação bem-sucedida');
+      console.error('❌ WEBHOOK: ERRO CRÍTICO na ativação:', activationError);
+      throw new Error(`Falha crítica na ativação: ${activationError.message}`);
+    }
+    
+    console.log('✅ WEBHOOK: Ativação bem-sucedida:', activatedSub);
+    
+    // VERIFICAÇÃO TRIPLA - CONFIRMAR ATIVAÇÃO
+    console.log('🔍 WEBHOOK: Verificação tripla da ativação...');
+    
+    const { data: tripleCheck, error: tripleError } = await supabase
+      .from('subscriptions')
+      .select('status, trial_ends_at, plan_id')
+      .eq('user_id', userId)
+      .single();
+    
+    if (tripleError) {
+      console.error('❌ WEBHOOK: Erro na verificação tripla:', tripleError);
     } else {
-      console.log('✅ WEBHOOK: Ativação bem-sucedida na primeira tentativa');
+      console.log('🔍 WEBHOOK: Verificação tripla resultado:', {
+        status: tripleCheck.status,
+        trial_ends_at: tripleCheck.trial_ends_at,
+        plan_id: tripleCheck.plan_id
+      });
+      
+      if (tripleCheck.status !== 'active' || tripleCheck.trial_ends_at !== null) {
+        console.error('❌ WEBHOOK: ATIVAÇÃO FALHOU - estado incorreto');
+        throw new Error('Ativação não foi aplicada corretamente');
+      }
     }
 
     // VERIFICAÇÃO PÓS-ATIVAÇÃO
