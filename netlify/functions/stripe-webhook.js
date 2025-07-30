@@ -44,7 +44,7 @@ exports.handler = async (event, context) => {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY,
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || process.env.VITE_STRIPE_WEBHOOK_SECRET
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
     };
 
     const missingVars = [];
@@ -120,6 +120,12 @@ exports.handler = async (event, context) => {
     // CONSTRUIR E VERIFICAR EVENTO
     let stripeEvent;
     try {
+      console.log('🔐 NETLIFY WEBHOOK: Verificando com webhook secret:', {
+        hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+        secretLength: process.env.STRIPE_WEBHOOK_SECRET?.length || 0,
+        signatureLength: signature?.length || 0
+      });
+      
       stripeEvent = stripeClient.webhooks.constructEvent(
         event.body,
         signature,
