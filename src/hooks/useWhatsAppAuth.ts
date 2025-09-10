@@ -30,19 +30,15 @@ export const useWhatsAppAuth = () => {
 
   const formatPhoneNumber = (phone: string): string => {
     const cleaned = phone.replace(/\D/g, '');
-    // For the specific test number 53991301991, ensure it becomes +5553991301991
-    if (cleaned === '53991301991') {
-      return '+5553991301991';
-    }
-    if (cleaned.startsWith('5553')) {
-      return `+${cleaned}`;
-    }
-    if (cleaned.startsWith('553')) {
-      return `+5${cleaned}`;
-    }
-    if (cleaned.startsWith('53')) {
+    
+    if (cleaned.startsWith('53') && cleaned.length === 11) {
       return `+55${cleaned}`;
     }
+    
+    if (cleaned.startsWith('55') && cleaned.length === 13) {
+      return `+${cleaned}`;
+    }
+    
     return `+55${cleaned}`;
   };
 
