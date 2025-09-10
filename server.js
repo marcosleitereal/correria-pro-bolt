@@ -62,7 +62,7 @@ app.post('/api/wa/send-otp', async (req, res) => {
     const apiUrl = 'https://api.gupshup.io/wa/api/v1/template/msg';
     const maskedApiKey = process.env.GUPSHUP_API_KEY?.slice(0, 4) + '...' || 'sk_****...';
     
-    console.log(`[Gupshup] Sending template message | URL: ${apiUrl} | key: ${maskedApiKey} | template: ${template_id} | destination: ${destinationE164}`);
+    console.log(`[Gupshup] Sending template message | URL: ${apiUrl} | key: ${maskedApiKey} | template: ${template_id} | destination: ${destinationE164} | code: ${codeParam}`);
 
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
