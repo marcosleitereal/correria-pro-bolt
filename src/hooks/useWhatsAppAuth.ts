@@ -63,12 +63,42 @@ export const useWhatsAppAuth = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      console.log('🚧 MOCK: Sending WhatsApp code via Gupshup API');
-      console.log('📱 Phone:', formattedPhone);
-      console.log('🔢 Code:', code);
-      console.log('📝 Template: *' + code + '* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp' + code + ']');
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const gupshupApiKey = (import.meta as any).env.VITE_GUPSHUP_API_KEY;
+      const gupshupAppId = (import.meta as any).env.VITE_GUPSHUP_APP_ID;
+      const gupshupPhoneNumber = (import.meta as any).env.VITE_GUPSHUP_PHONE_NUMBER;
+
+      if (!gupshupApiKey || !gupshupAppId || !gupshupPhoneNumber) {
+        throw new Error('Gupshup API configuration missing');
+      }
+
+      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
+
+      const formData = new URLSearchParams({
+        channel: 'whatsapp',
+        source: gupshupPhoneNumber,
+        destination: formattedPhone.replace('+', ''),
+        message: messageTemplate,
+        'src.name': gupshupAppId
+      });
+
+      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'apikey': gupshupApiKey
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Gupshup API error: ${response.status} - ${errorData}`);
+      }
+
+      const responseData = await response.json();
+      if (responseData.status !== 'submitted') {
+        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
+      }
 
       setState(prev => ({
         ...prev,
