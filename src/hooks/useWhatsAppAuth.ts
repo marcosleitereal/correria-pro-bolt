@@ -63,43 +63,12 @@ export const useWhatsAppAuth = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      const gupshupAppId = (import.meta as any).env.VITE_GUPSHUP_APP_ID;
-      const gupshupApiKey = (import.meta as any).env.VITE_GUPSHUP_API_KEY;
-      const gupshupPhoneNumber = (import.meta as any).env.VITE_GUPSHUP_PHONE_NUMBER;
-
-      if (!gupshupAppId || !gupshupApiKey || !gupshupPhoneNumber) {
-        throw new Error('Gupshup API configuration missing');
-      }
-
-      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
-
-      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'apikey': gupshupApiKey
-        },
-        body: new URLSearchParams({
-          channel: 'whatsapp',
-          source: gupshupPhoneNumber,
-          destination: formattedPhone.replace('+', ''),
-          'src.name': gupshupAppId,
-          message: JSON.stringify({
-            type: 'text',
-            text: messageTemplate
-          })
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Gupshup API error: ${response.status} - ${errorData}`);
-      }
-
-      const responseData = await response.json();
-      if (responseData.status !== 'submitted') {
-        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
-      }
+      console.log('🚧 MOCK: Sending WhatsApp code via Gupshup API');
+      console.log('📱 Phone:', formattedPhone);
+      console.log('🔢 Code:', code);
+      console.log('📝 Template: *' + code + '* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp' + code + ']');
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       setState(prev => ({
         ...prev,
