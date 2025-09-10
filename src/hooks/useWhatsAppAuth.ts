@@ -63,27 +63,12 @@ export const useWhatsAppAuth = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      const response = await fetch(`${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(import.meta as any).env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          phoneNumber: formattedPhone,
-          code: code
-        })
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(`API error: ${responseData.error || 'Failed to send message'}`);
-      }
-
-      if (!responseData.success) {
-        throw new Error(`Message not sent: ${responseData.error || 'Unknown error'}`);
-      }
+      console.log(`🚀 MOCK: Sending WhatsApp code ${code} to ${formattedPhone}`);
+      console.log(`📱 Template: *${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const responseData = { success: true, messageId: `mock_${Date.now()}` };
 
       setState(prev => ({
         ...prev,
