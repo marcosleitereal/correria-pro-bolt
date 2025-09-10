@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
   role: 'coach' | 'admin';
   avatar_url: string | null;
   created_at: string;
@@ -60,6 +61,7 @@ export const useProfile = () => {
           id: user.id,
           full_name: 'Desenvolvedor Admin',
           email: user.email,
+          phone: null,
           role: 'admin' as const,
           avatar_url: null,
           created_at: new Date().toISOString(),
@@ -96,6 +98,7 @@ export const useProfile = () => {
             id: user.id,
             full_name: user.user_metadata?.full_name || null,
             email: user.email,
+            phone: user.user_metadata?.phone || null,
             role: 'coach'
           }, {
             onConflict: 'id'
@@ -149,7 +152,13 @@ export const useProfile = () => {
 
       const { data, error: updateError } = await supabase
         .from('profiles')
-        .update(updates)
+        .update({
+          full_name: updates.full_name,
+          email: updates.email,
+          phone: updates.phone,
+          role: updates.role,
+          avatar_url: updates.avatar_url
+        })
         .eq('id', user.id)
         .select()
         .single();
@@ -176,3 +185,5 @@ export const useProfile = () => {
     refetch: fetchProfile,
   };
 };
+
+export default useProfile;

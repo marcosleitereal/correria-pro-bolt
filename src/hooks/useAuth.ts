@@ -197,11 +197,21 @@ export const useAuth = () => {
     return { data, error };
   };
 
+  const refreshAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setAuthState({
+      user: session?.user ?? null,
+      session,
+      loading: false,
+    });
+  };
+
   return {
     ...authState,
     signUp,
     signIn,
     signOut,
     resetPassword,
+    refreshAuth,
   };
 };

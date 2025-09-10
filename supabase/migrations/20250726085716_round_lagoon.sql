@@ -80,6 +80,7 @@ BEGIN
         id, 
         full_name, 
         email,
+        phone,
         avatar_url, 
         role,
         created_at,
@@ -88,6 +89,7 @@ BEGIN
         NEW.id, 
         NEW.raw_user_meta_data->>'full_name',
         NEW.email,
+        NEW.raw_user_meta_data->>'phone',
         NULL, -- avatar_url sempre NULL inicialmente
         'coach', -- role sempre 'coach' para novos usuários
         NOW(),

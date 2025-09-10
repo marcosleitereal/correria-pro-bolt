@@ -26,6 +26,8 @@ export interface Runner {
 export interface Profile {
   id: string;
   full_name: string | null;
+  email: string | null;
+  phone: string | null;
   role: 'coach' | 'admin';
   avatar_url: string | null;
   created_at: string;

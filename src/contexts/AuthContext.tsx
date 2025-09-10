@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useAuth } from '../hooks/useAuth';
 
@@ -10,6 +10,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,8 +18,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
+  const refreshAuth = async () => {
+    await auth.refreshAuth();
+  };
+
   return (
-    <AuthContext.Provider value={{...auth, session: auth.session}}>
+    <AuthContext.Provider value={{...auth, session: auth.session, refreshAuth}}>
       {children}
     </AuthContext.Provider>
   );

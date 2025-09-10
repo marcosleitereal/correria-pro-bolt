@@ -128,7 +128,7 @@ export const testSupabaseConnection = async () => {
   }
 
   try {
-    const { data, error } = await supabase.from('profiles').select('count').limit(1);
+    const { error } = await supabase.from('profiles').select('count').limit(1);
     return { 
       connected: !error, 
       error: error?.message || null,
@@ -151,6 +151,7 @@ export interface Database {
           id: string;
           full_name: string | null;
           email: string | null;
+          phone: string | null;
           role: 'coach' | 'admin';
           avatar_url: string | null;
           created_at: string;
@@ -160,12 +161,14 @@ export interface Database {
           id: string;
           full_name?: string | null;
           email?: string | null;
+          phone?: string | null;
           role?: 'coach' | 'admin';
           avatar_url?: string | null;
         };
         Update: {
           full_name?: string | null;
           email?: string | null;
+          phone?: string | null;
           role?: 'coach' | 'admin';
           avatar_url?: string | null;
         };
@@ -343,6 +346,25 @@ export interface Database {
           last_used_at?: string | null;
           expires_at?: string | null;
           is_active?: boolean;
+        };
+      };
+      whatsapp_verification_codes: {
+        Row: {
+          id: string;
+          phone: string;
+          code: string;
+          expires_at: string;
+          used_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          phone: string;
+          code: string;
+          expires_at: string;
+          used_at?: string | null;
+        };
+        Update: {
+          used_at?: string | null;
         };
       };
     };

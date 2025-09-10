@@ -11,6 +11,7 @@ import CTASection from './components/CTASection';
 import Footer from './components/Footer';
 import LoginPage from './components/auth/LoginPage';
 import SignupPage from './components/auth/SignupPage';
+import { WhatsAppLoginPage } from './components/auth/WhatsAppLoginPage';
 import PricingPage from './components/PricingPage';
 import SuccessPage from './components/SuccessPage';
 import DashboardPage from './components/dashboard/DashboardPage';
@@ -66,6 +67,7 @@ function App() {
             } />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/whatsapp-login" element={<WhatsAppLoginPage />} />
             <Route path="/pricing" element={
               <>
                 <PricingPage />

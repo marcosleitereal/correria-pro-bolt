@@ -6,7 +6,14 @@ import { useAuthContext } from '../../contexts/AuthContext';
 
 const InstallPrompt: React.FC = () => {
   const { canInstall, installApp, isInstalled } = usePWA();
-  const { user } = useAuthContext();
+  
+  let user = null;
+  try {
+    const authContext = useAuthContext();
+    user = authContext.user;
+  } catch (error) {
+    console.log('AuthContext not available in InstallPrompt');
+  }
   const [showPrompt, setShowPrompt] = useState(false);
   const [hasShown, setHasShown] = useState(false);
 

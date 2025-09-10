@@ -105,10 +105,10 @@ const LoginPage: React.FC = () => {
             )}
             
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
-              Entrar na Correria.Pro
+              Login Administrativo
             </h2>
             <p className="text-slate-600">
-              Acesse sua conta e continue treinando
+              Área restrita para administradores
             </p>
           </div>
 
@@ -189,15 +189,26 @@ const LoginPage: React.FC = () => {
               >
                 Esqueceu sua senha?
               </Link>
-              <p className="text-slate-600 text-sm">
-                Não tem uma conta?{' '}
-                <Link
-                  to="/signup"
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Criar conta gratuita
-                </Link>
-              </p>
+              <div className="space-y-2">
+                <p className="text-slate-600 text-sm">
+                  É treinador?{' '}
+                  <Link
+                    to="/whatsapp-login"
+                    className="text-green-600 hover:text-green-700 font-medium"
+                  >
+                    Entrar com WhatsApp
+                  </Link>
+                </p>
+                <p className="text-slate-600 text-sm">
+                  Não tem uma conta administrativa?{' '}
+                  <Link
+                    to="/signup"
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Criar conta gratuita
+                  </Link>
+                </p>
+              </div>
             </div>
           </form>
         </motion.div>
