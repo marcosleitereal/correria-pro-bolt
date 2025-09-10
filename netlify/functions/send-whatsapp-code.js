@@ -38,9 +38,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const gupshupApiKey = process.env.GUPSHUP_API_KEY || 'h8ioz5gcgvybhd0cx8x5syrbaqqbw8sn';
-    const gupshupAppId = process.env.GUPSHUP_APP_ID || 'WPSONNIK';
-    const gupshupPhoneNumber = process.env.GUPSHUP_PHONE_NUMBER || '555381003425';
+    const gupshupApiKey = 'h8ioz5gcgvybhd0cx8x5syrbaqqbw8sn';
+    const gupshupAppId = 'WPSONNIK';
+    const gupshupPhoneNumber = '555381003425';
 
     const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
 
