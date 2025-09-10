@@ -63,39 +63,43 @@ export const useWhatsAppAuth = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      const waApiUrl = (import.meta as any).env.VITE_WA_API_URL;
-      const waApiKey = (import.meta as any).env.VITE_WA_API_KEY;
-      const waSenderId = (import.meta as any).env.VITE_WA_SENDER_ID;
+      const gupshupAppId = (import.meta as any).env.VITE_GUPSHUP_APP_ID;
+      const gupshupApiKey = (import.meta as any).env.VITE_GUPSHUP_API_KEY;
+      const gupshupPhoneNumber = (import.meta as any).env.VITE_GUPSHUP_PHONE_NUMBER;
 
-      if (!waApiUrl || !waApiKey || !waSenderId) {
-        throw new Error('WhatsApp API configuration missing');
+      if (!gupshupAppId || !gupshupApiKey || !gupshupPhoneNumber) {
+        throw new Error('Gupshup API configuration missing');
       }
 
-      const message = `Seu código de verificação Correria.Pro é: ${code}\n\nEste código expira em 10 minutos.`;
+      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
 
-      console.log(`[MOCK] Would send WhatsApp message to ${formattedPhone}: ${message}`);
-      console.log(`[MOCK] Using API Key: ${waApiKey}, Sender: ${waSenderId}`);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      /*
-      const response = await fetch(`${waApiUrl}/correct-endpoint`, {
+      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + waApiKey // or correct auth header
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'apikey': gupshupApiKey
         },
-        body: JSON.stringify({
-          to: formattedPhone,
-          text: message,
+        body: new URLSearchParams({
+          channel: 'whatsapp',
+          source: gupshupPhoneNumber,
+          destination: formattedPhone.replace('+', ''),
+          'src.name': gupshupAppId,
+          message: JSON.stringify({
+            type: 'text',
+            text: messageTemplate
+          })
         })
       });
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`WhatsApp API error: ${response.status} - ${errorData}`);
+        throw new Error(`Gupshup API error: ${response.status} - ${errorData}`);
       }
-      */
+
+      const responseData = await response.json();
+      if (responseData.status !== 'submitted') {
+        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
+      }
 
       setState(prev => ({
         ...prev,
