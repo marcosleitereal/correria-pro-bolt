@@ -68,10 +68,11 @@ export const useWhatsAppAuth = () => {
 
       console.log(`🚀 Sending WhatsApp code ${code} to ${formattedPhone}`);
       
-      const response = await fetch('/.netlify/functions/send-whatsapp-code', {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           phoneNumber: formattedPhone,
