@@ -63,46 +63,26 @@ export const useWhatsAppAuth = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      const gupshupApiKey = (import.meta as any).env.VITE_GUPSHUP_API_KEY;
-      const gupshupAppId = (import.meta as any).env.VITE_GUPSHUP_APP_ID;
-      const gupshupPhoneNumber = (import.meta as any).env.VITE_GUPSHUP_PHONE_NUMBER;
-
-      if (!gupshupApiKey || !gupshupAppId || !gupshupPhoneNumber) {
-        throw new Error('Gupshup API configuration missing');
-      }
-
-      const destinationPhone = formattedPhone;
-      
-      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
-
-      const formData = new URLSearchParams({
-        channel: 'whatsapp',
-        source: gupshupPhoneNumber,
-        destination: destinationPhone,
-        message: JSON.stringify({
-          type: 'text',
-          text: messageTemplate
-        }),
-        'src.name': gupshupAppId
-      });
-
-      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
+      const response = await fetch(`${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-code`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'apikey': gupshupApiKey
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(import.meta as any).env.VITE_SUPABASE_ANON_KEY}`
         },
-        body: formData
+        body: JSON.stringify({
+          phoneNumber: formattedPhone,
+          code: code
+        })
       });
 
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
+        throw new Error(`API error: ${responseData.error || 'Failed to send message'}`);
       }
 
-      if (responseData.status !== 'submitted') {
-        throw new Error(`Message not submitted: ${responseData.message || 'Unknown error'}`);
+      if (!responseData.success) {
+        throw new Error(`Message not sent: ${responseData.error || 'Unknown error'}`);
       }
 
       setState(prev => ({
