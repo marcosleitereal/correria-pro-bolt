@@ -81,11 +81,12 @@ export const useWhatsAppAuth = () => {
         'src.name': gupshupAppId
       });
 
-      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
+      const response = await fetch('https://cors-anywhere.herokuapp.com/https://api.gupshup.io/wa/api/v1/msg', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'apikey': gupshupApiKey
+          'apikey': gupshupApiKey,
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: formData
       });
