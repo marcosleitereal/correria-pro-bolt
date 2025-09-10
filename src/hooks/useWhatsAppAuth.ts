@@ -68,14 +68,15 @@ export const useWhatsAppAuth = () => {
 
       console.log(`🚀 Sending WhatsApp code ${code} to ${formattedPhone}`);
       
-      const response = await fetch('/.netlify/functions/send-whatsapp-code', {
+      const response = await fetch('http://localhost:3000/api/wa/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phoneNumber: formattedPhone,
-          code: code
+          destination: formattedPhone.replace('+', ''),
+          code: code,
+          templateId: 'verificacao'
         })
       });
 
@@ -89,7 +90,7 @@ export const useWhatsAppAuth = () => {
         throw new Error(responseData.error || 'WhatsApp message not sent');
       }
 
-      console.log(`✅ WhatsApp message sent successfully: ${responseData.messageId}`);
+      console.log(`✅ WhatsApp message sent successfully: ${responseData.data?.messageId}`);
 
       setState(prev => ({
         ...prev,
