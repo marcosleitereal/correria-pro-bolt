@@ -71,34 +71,24 @@ export const useWhatsAppAuth = () => {
         throw new Error('Gupshup API configuration missing');
       }
 
-      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
+      const destinationPhone = formattedPhone.replace('+55', '');
 
-      const formData = new URLSearchParams({
-        channel: 'whatsapp',
-        source: gupshupPhoneNumber,
-        destination: formattedPhone.replace('+', ''),
-        message: messageTemplate,
-        'src.name': gupshupAppId
+      const response = await supabase.functions.invoke('send-whatsapp-code', {
+        body: {
+          phoneNumber: destinationPhone,
+          code: code,
+          apiKey: gupshupApiKey,
+          appId: gupshupAppId,
+          senderPhone: gupshupPhoneNumber
+        }
       });
 
-      const response = await fetch('https://cors-anywhere.herokuapp.com/https://api.gupshup.io/wa/api/v1/msg', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'apikey': gupshupApiKey,
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Gupshup API error: ${response.status} - ${errorData}`);
+      if (response.error) {
+        throw new Error(`Edge function error: ${response.error.message}`);
       }
 
-      const responseData = await response.json();
-      if (responseData.status !== 'submitted') {
-        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
+      if (!response.data?.success) {
+        throw new Error(`WhatsApp API error: ${response.data?.error || 'Failed to send message'}`);
       }
 
       setState(prev => ({
