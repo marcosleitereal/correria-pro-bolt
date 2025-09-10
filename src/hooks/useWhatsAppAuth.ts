@@ -71,24 +71,38 @@ export const useWhatsAppAuth = () => {
         throw new Error('Gupshup API configuration missing');
       }
 
-      const destinationPhone = formattedPhone.replace('+55', '');
+      const destinationPhone = formattedPhone;
+      
+      const messageTemplate = `*${code}* é o seu código de verificação. | [Copiar código,https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp${code}]`;
 
-      const response = await supabase.functions.invoke('send-whatsapp-code', {
-        body: {
-          phoneNumber: destinationPhone,
-          code: code,
-          apiKey: gupshupApiKey,
-          appId: gupshupAppId,
-          senderPhone: gupshupPhoneNumber
-        }
+      const formData = new URLSearchParams({
+        channel: 'whatsapp',
+        source: gupshupPhoneNumber,
+        destination: destinationPhone,
+        message: JSON.stringify({
+          type: 'text',
+          text: messageTemplate
+        }),
+        'src.name': gupshupAppId
       });
 
-      if (response.error) {
-        throw new Error(`Edge function error: ${response.error.message}`);
+      const response = await fetch('https://api.gupshup.io/wa/api/v1/msg', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'apikey': gupshupApiKey
+        },
+        body: formData
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`Gupshup API error: ${responseData.message || 'Failed to send message'}`);
       }
 
-      if (!response.data?.success) {
-        throw new Error(`WhatsApp API error: ${response.data?.error || 'Failed to send message'}`);
+      if (responseData.status !== 'submitted') {
+        throw new Error(`Message not submitted: ${responseData.message || 'Unknown error'}`);
       }
 
       setState(prev => ({
