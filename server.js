@@ -10,16 +10,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function tryParse(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
+function validatePhoneNumber(phone) {
+  const cleaned = String(phone).replace(/\D/g, '');
+  return /^\d{10,15}$/.test(cleaned);
 }
 
 async function sendTemplateMessage(destination, code, templateId = process.env.GUPSHUP_DEFAULT_TEMPLATE) {
@@ -70,15 +63,20 @@ async function sendTemplateMessage(destination, code, templateId = process.env.G
           success: false,
           status: response.status,
           error: responseData,
-          attempt
+          attempt,
+          destination,
+          template: templateId
         };
       }
       
       return {
         success: response.ok,
-        status: response.status,
-        data: responseData,
-        attempt
+        status: response.status === 202 ? "submitted" : response.status,
+        messageId: responseData.messageId || responseData.id,
+        destination,
+        template: templateId,
+        attempt,
+        gupshupResponse: responseData
       };
       
     } catch (error) {
@@ -112,7 +110,8 @@ app.post('/api/wa/send-otp', async (req, res) => {
     }
 
     const destinationE164 = String(destination).replace(/\D/g, '');
-    if (!/^\d{10,15}$/.test(destinationE164)) {
+    
+    if (!validatePhoneNumber(destinationE164)) {
       return res.status(400).json({
         success: false,
         error: 'destination must be E.164 digits only (10-15 digits) and include DDI'
@@ -124,13 +123,21 @@ app.post('/api/wa/send-otp', async (req, res) => {
     if (!result.success) {
       return res.status(result.status || 400).json({
         success: false,
-        error: result.error
+        error: result.error,
+        destination: result.destination,
+        template: result.template,
+        attempt: result.attempt
       });
     }
 
-    return res.json({
+    return res.status(202).json({
       success: true,
-      data: result.data
+      status: result.status,
+      messageId: result.messageId,
+      destination: result.destination,
+      template: result.template,
+      attempt: result.attempt,
+      gupshupResponse: result.gupshupResponse
     });
 
   } catch (error) {
@@ -147,6 +154,6 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  const maskedApiKey = process.env.GUPSHUP_API_KEY?.slice(0, 4) + '...' || 'sk_****...';
+  const maskedApiKey = process.env.GUPSHUP_API_KEY?.slice(0, 8) + '...' || 'sk_****...';
   console.log(`[Server] WA server ready on port ${PORT} | key: ${maskedApiKey}`);
 });
