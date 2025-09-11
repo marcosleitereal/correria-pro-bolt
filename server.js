@@ -22,6 +22,77 @@ function tryParse(text) {
   }
 }
 
+async function sendTemplateMessage(destination, code, templateId = process.env.GUPSHUP_DEFAULT_TEMPLATE) {
+  const url = 'https://api.gupshup.io/wa/api/v1/template/msg';
+  
+  const formData = new URLSearchParams();
+  formData.append('channel', 'whatsapp');
+  formData.append('source', process.env.GUPSHUP_SOURCE_NUMBER);
+  formData.append('destination', destination);
+  formData.append('src.name', process.env.GUPSHUP_APP_NAME);
+  formData.append('template', JSON.stringify({
+    id: templateId,
+    params: [code]
+  }));
+
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'apikey': process.env.GUPSHUP_API_KEY
+    },
+    body: formData
+  };
+
+  console.log(`📤 Chamando: ${url}`);
+  console.log(`🔑 API Key: ${process.env.GUPSHUP_API_KEY ? process.env.GUPSHUP_API_KEY.substring(0, 8) + '...' : 'N/A'}`);
+  console.log(`📱 Destino: ${destination}`);
+  console.log(`🎯 Template: ${templateId}`);
+  console.log(`🔢 Código: ${code}`);
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      console.log(`📊 HTTP Status: ${response.status}`);
+      
+      if ((response.status === 429 || response.status >= 500) && attempt < 3) {
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        console.log(`⚠️ Status ${response.status} - Tentativa ${attempt}/3. Aguardando ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      const responseData = await response.json();
+      
+      if (response.status >= 400 && response.status < 500) {
+        return {
+          success: false,
+          status: response.status,
+          error: responseData,
+          attempt
+        };
+      }
+      
+      return {
+        success: response.ok,
+        status: response.status,
+        data: responseData,
+        attempt
+      };
+      
+    } catch (error) {
+      if (attempt === 3) {
+        throw error;
+      }
+      
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      console.log(`❌ Tentativa ${attempt} falhou: ${error.message}. Tentando novamente em ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 app.post('/api/wa/send-otp', async (req, res) => {
   try {
     const { destination, code, templateId } = req.body || {};
@@ -48,81 +119,18 @@ app.post('/api/wa/send-otp', async (req, res) => {
       });
     }
 
-    const template_id = templateId || process.env.GUPSHUP_DEFAULT_TEMPLATE || 'verificacao';
-    const codeParam = String(code);
-
-    const body = new URLSearchParams({
-      channel: 'whatsapp',
-      source: process.env.GUPSHUP_SOURCE_NUMBER,
-      destination: destinationE164,
-      'src.name': process.env.GUPSHUP_APP_NAME || 'APP',
-      template: JSON.stringify({ id: template_id, params: [codeParam] })
-    });
-
-    const apiUrl = 'https://api.gupshup.io/wa/api/v1/template/msg';
-    const maskedApiKey = process.env.GUPSHUP_API_KEY?.slice(0, 4) + '...' || 'sk_****...';
+    const result = await sendTemplateMessage(destinationE164, String(code), templateId);
     
-    console.log(`[Gupshup] Sending template message | URL: ${apiUrl} | key: ${maskedApiKey} | template: ${template_id} | destination: ${destinationE164} | code: ${codeParam}`);
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'apikey': process.env.GUPSHUP_API_KEY
-          },
-          body
-        });
-
-        const text = await response.text();
-        
-        if (response.ok) {
-          const data = tryParse(text);
-          console.log(`[Gupshup] Success | status: ${data.status} | messageId: ${data.messageId}`);
-          
-          if (data.status === 'submitted' || data.status === 'queued') {
-            return res.json({
-              success: true,
-              data
-            });
-          } else {
-            return res.status(400).json({
-              success: false,
-              error: `Message not submitted/queued: ${data.status} - ${data.message || 'Unknown error'}`
-            });
-          }
-        }
-
-        if ([429, 500, 502, 503, 504].includes(response.status)) {
-          const waitTime = 300 * (attempt + 1);
-          console.log(`[Gupshup] Retry ${attempt + 1}/3 after ${waitTime}ms | HTTP ${response.status}`);
-          await wait(waitTime);
-          continue;
-        }
-
-        return res.status(400).json({
-          success: false,
-          error: `HTTP ${response.status}: ${text}`
-        });
-
-      } catch (error) {
-        if (attempt === 2) {
-          return res.status(500).json({
-            success: false,
-            error: `Network error after 3 attempts: ${error.message}`
-          });
-        }
-        
-        const waitTime = 300 * (attempt + 1);
-        console.log(`[Gupshup] Network error, retry ${attempt + 1}/3 after ${waitTime}ms`);
-        await wait(waitTime);
-      }
+    if (!result.success) {
+      return res.status(result.status || 400).json({
+        success: false,
+        error: result.error
+      });
     }
 
-    return res.status(500).json({
-      success: false,
-      error: 'Max retries exceeded'
+    return res.json({
+      success: true,
+      data: result.data
     });
 
   } catch (error) {
